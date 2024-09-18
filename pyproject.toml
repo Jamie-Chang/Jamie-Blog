@@ -1,0 +1,10 @@
+[project]
+name = "jamie-blog"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "ghp-import>=2.1.0",
+    "pelican[markdown]>=4.10.0",
+]
