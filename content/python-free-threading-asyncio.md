@@ -1,5 +1,5 @@
 Title: Free Threaded Python With Asyncio
-Date: 2024.09.18
+Date: 2024.09.19
 Category: Blog
 
 With the immanent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is free-threaded Python from [PEP-703](https://peps.python.org/pep-0703/).
@@ -84,7 +84,19 @@ The results are as expected, when we use AsyncIO to run our code concurrently we
 ### But why do this?
 Generally when it comes to Asyncio, the discussion around it is always about the performance or lack there of. Whilst peroformance is certain important, the ability to reason about concurrency is the biggest benefit.
 
-I personally think the addition of `TaskGroup` makes Asyncio concurrent tasks rather easy to reason about, we can use this to sychronise the results of threaded tasks. Or just as a convinent syntax to get the result of a threaded execution.
+I personally think the addition of `TaskGroup` makes Asyncio concurrent tasks rather easy to reason about, we can use this to sychronise the results of threaded tasks. 
 
-There's also the possibility to mix IO bound async tasks and CPU bound tasks this way. Which can be used in web servers and scripts, things golang are known for. 
+Depending on your familiarity with AsyncIO, it might actually be the simplest way to start a thread. This is kind of what makes go routines so convenient in golang.
 
+There's also the possibility to mix IO bound async tasks and CPU bound tasks this way. Something like this:
+```python
+async with TaskGroup() as tg:
+    io_task_future = tg.create_task(fetch(url))
+    tg.create_task(to_thread(cpu_bound_task))
+    tg.create_task(to_thread(cpu_bound_task))
+
+await to_thread(compute_results, await io_task_future)
+```
+
+### Concrete Examples
+Right now it's too hard to tell if this is what we want, I believe having some more concrete examples would give us a better idea. I will try to follow up on this if I think of anything.
