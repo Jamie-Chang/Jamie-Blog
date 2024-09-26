@@ -1,6 +1,6 @@
 AUTHOR = 'Jamie Chang'
 SITENAME = "Jamie's Blog"
-SITEURL = ""
+SITEURL = "https://blog.changs.co.uk"
 
 PATH = "content"
 
