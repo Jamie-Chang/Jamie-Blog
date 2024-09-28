@@ -19,7 +19,135 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./free-threaded-python-with-asyncio.html">Free Threaded Python With Asyncio</a></h1>
+                        <h1 class="entry-title"><a href="./closing-python-iterators.html">Closing Python Iterators</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2024-09-28T00:00:00+01:00">
+                Published: Sat 28 September 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>I recently came across a <a href="https://youtu.be/N56Jrqc7SBk?si=6WmYrq8C4E-gwn4_">video</a> by mcoding about Python iterators' unfortunate closing behaviour.</p>
+<p>To sum up the video, when an iterator is interrupted we intuitively we would expect the exit of a context manager or a finally block to be called but that's not <strong>necessarily</strong> the case. For example,</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">generator_with_close</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starting&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Closing&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>if we then have the following code interrupt the generator:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">generator_with_close</span><span class="p">():</span>
+    <span class="k">break</span>
+</code></pre></div>
+
+<p>We actually get what we expected:</p>
+<div class="highlight"><pre><span></span><code>Starting
+Closing
+</code></pre></div>
+
+<p>But this is due to Python's garbage collection implicitly calling the close method on the generator.</p>
+<p>And as the video pointed out, this won't work if we keep any reference to the iterator. Nor is it necessarily the case for all Python implementation that we always garbage collect immediately. </p>
+<p>Additionally the asyncio version of this is even more problematic as we won't be able to run the async <code>aclose</code> during garbage collection.</p>
+<p>The <a href="https://peps.python.org/pep-0533/">PEP-533</a> proposal for fixing this ultimately cannot be accepted due to backwards compatibility concerns.</p>
+<h3>Calling <code>.close()</code></h3>
+<p>The best way to resolve this issue is to call <code>.close()</code> explicitly. Or with <code>contextlib.closing</code>. This is guaranteed to work and be correct but places the responsibility on the caller of the generator to close the iterator. </p>
+<p>The issue is, whether the iterator needs to be closed is implementation specific. So the caller either has to step into the implementation or verbosely call close for every generator.</p>
+<h3>Solutions</h3>
+<p>I believe there to be two correct ways to solve this issue, in lew of the PEP solution. Both method change the callee's signature to avoid any ambiguity.</p>
+<h4>Option 1</h4>
+<p>Never use <code>finally</code> or <code>with</code> inside generator functions.</p>
+<p>This sounds pretty terrible, but in practice is probably not that big of an issue. The reasons to use <code>with</code>/<code>finally</code> tend to be for closing resouces, so we can just shift where we define and close the resource:</p>
+<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">create_db</span><span class="p">()</span> <span class="k">as</span> <span class="n">db</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">query</span><span class="p">(</span><span class="n">db</span><span class="p">);</span>
+        <span class="err">`</span><span class="o">...</span>
+</code></pre></div>
+
+<p>Generally, I believe this is a better pattern. We often use dependencies more than once. And this is a case where explicit is better. </p>
+<h4>Option 2</h4>
+<p>I will concede that not all cases are covered by Option 1. For example, I have this following snippet of code to fetch messages from a broker:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">messages</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">broker</span><span class="o">.</span><span class="n">messages</span><span class="p">():</span>
+        <span class="k">with</span> <span class="n">set_context</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="n">message</span><span class="o">.</span><span class="n">id</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">message</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</code></pre></div>
+
+<p>I can lift <code>set_context</code> out of the generator. But it certainly makes more sense to set the id inside as the id is not needed outside.</p>
+<p>So I think it's better to have an explicit way to force people to close the generator. </p>
+<p>We can achieve this by converting the generator function to a contextmanager function:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">closing</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">ContextManager</span><span class="p">,</span> <span class="n">Generator</span> 
+
+
+<span class="k">def</span> <span class="nf">contextgenerator</span><span class="p">[</span><span class="n">T</span><span class="p">:</span> <span class="n">Generator</span><span class="p">,</span> <span class="o">**</span><span class="n">P</span><span class="p">](</span><span class="n">gen</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">ContextManager</span><span class="p">[</span><span class="n">T</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wraps generators in a context manager.</span>
+
+<span class="sd">    This ensures generators are closed properly.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">gen</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">closing_gen</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ContextManager</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">closing</span><span class="p">(</span><span class="n">gen</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">closing_gen</span>
+</code></pre></div>
+
+<p>Then we just need to wrap the generator in a <code>@contextgenerator</code> like this:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@contextgenerator</span>
+<span class="k">def</span> <span class="nf">messages</span><span class="p">():</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>And called this way:</p>
+<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">messages</span><span class="p">()</span> <span class="k">as</span> <span class="n">message_iterator</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">message_iterator</span><span class="p">:</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>Here we rely on the decorator to communicate the change in signature to the end user.</p>
+<p>But the type checker will also pick up the fact that <code>messages</code> now returns a context manager as opposed to an iterator.</p>
+<p>The benefit here is that there is no way to start the generator without entering the context manager, thus ensuring that the generator closes.</p>
+<p>The caller can choose to use this when closing behaviour is required, or use a plain generator when not.</p>
+<p>For asyncio we have a similar solution:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">aclosing</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">AsyncContextManager</span><span class="p">,</span> <span class="n">AsyncGenerator</span>
+
+
+<span class="k">def</span> <span class="nf">asynccontextgenerator</span><span class="p">[</span><span class="n">T</span><span class="p">:</span> <span class="n">AsyncGenerator</span><span class="p">,</span> <span class="o">**</span><span class="n">P</span><span class="p">](</span><span class="n">gen</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wraps generators in a context manager.</span>
+
+<span class="sd">    This ensures generators are closed properly.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">gen</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">closing_gen</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">aclosing</span><span class="p">(</span><span class="n">gen</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">closing_gen</span>
+</code></pre></div>
+
+<h3>Conclusion</h3>
+<p>This issue is something that would catch me out on occasion, thanks to mcoding's video I finally have a good understanding on what's going on.</p>
+<p>I think in leu of a more sophisticated fix like PEP-533, we could use a combination of the two approaches I've given to mitigate the issue. This can be done by library authors or developers when defining the generators and doesn't rely on the caller to close them explicitly.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./free-threaded-python-with-asyncio.html" rel="bookmark"
+                               title="Permalink to Free Threaded Python With Asyncio">Free Threaded Python With Asyncio</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2024-09-19T00:00:00+01:00">
                 Published: Thu 19 September 2024
@@ -30,97 +158,11 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>With the immanent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is free-threaded Python from <a href="https://peps.python.org/pep-0703/">PEP-703</a>.</p>
-<p>As I'm quite late to the party, there's already a of articles talking about it. I came accross an excellent <a href="https://til.simonwillison.net/python/trying-free-threaded-python">article</a> from Simon Wilson, which successfully demonstrated parallelism for pure Python functions. Building on top of this I wanted to look at ways to synchronise threads beyond using <code>ThreadPoolExecutor.map</code>. </p>
-<p>Prior to Python 3.13 threads were used for IO bound tasks due to the GIL, Asyncio is also used for IO (duh...) and we can wrap threads using <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread"><code>asyncio.to_thread</code></a>. For example,</p>
-<div class="highlight"><pre><span></span><code><span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">io_bound_task</span><span class="p">,</span> <span class="s2">&quot;first_arg&quot;</span><span class="p">,</span> <span class="n">optional</span><span class="o">=</span><span class="s2">&quot;optional&quot;</span><span class="p">)</span>
-</code></pre></div>
-
-<p>Can we use it for CPU bound tasks? Here's a quote lifted directly from Asyncio docs:</p>
-<blockquote>
-<p>Note Due to the GIL, asyncio.to_thread() can typically only be used to make IO-bound functions non-blocking. However, for extension modules that release the GIL or alternative Python implementations that don’t have one, asyncio.to_thread() can also be used for CPU-bound functions.
-The only thing stopping us was the GIL, so CPU bound tasks shouldn't be a problem. Though it still feels a bit silly given the name Async<em>IO</em>.</p>
-</blockquote>
-<p>I updated Simon's test script with AsyncIO modifications:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">argparse</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">sys</span>
-<span class="kn">import</span> <span class="nn">time</span>
-<span class="kn">from</span> <span class="nn">asyncio</span> <span class="kn">import</span> <span class="n">get_running_loop</span><span class="p">,</span> <span class="n">run</span><span class="p">,</span> <span class="n">to_thread</span><span class="p">,</span> <span class="n">TaskGroup</span>
-<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ThreadPoolExecutor</span>
-<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
-
-
-<span class="nd">@contextmanager</span>
-<span class="k">def</span> <span class="nf">timer</span><span class="p">():</span>
-    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-    <span class="k">yield</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Elapsed time: </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-
-<span class="k">def</span> <span class="nf">cpu_bound_task</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A CPU-bound task that computes the sum of squares up to n.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">i</span> <span class="o">*</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
-
-
-<span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
-    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Run a CPU-bound task with threads&quot;</span><span class="p">)</span>
-    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--threads&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of threads&quot;</span><span class="p">)</span>
-    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--tasks&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of tasks&quot;</span><span class="p">)</span>
-    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
-        <span class="s2">&quot;--size&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">5000000</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Task size (n for sum of squares)&quot;</span>
-    <span class="p">)</span>
-    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
-
-    <span class="n">get_running_loop</span><span class="p">()</span><span class="o">.</span><span class="n">set_default_executor</span><span class="p">(</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">threads</span><span class="p">))</span>
-
-    <span class="k">with</span> <span class="n">timer</span><span class="p">():</span>
-        <span class="k">async</span> <span class="k">with</span> <span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">tasks</span><span class="p">):</span>
-                <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">to_thread</span><span class="p">(</span><span class="n">cpu_bound_task</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
-
-
-<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Parallel with Asyncio&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GIL </span><span class="si">{</span><span class="n">sys</span><span class="o">.</span><span class="n">_is_gil_enabled</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-    <span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
-</code></pre></div>
-
-<p>And I ran it with and without GIL on my M3 Macbook Pro:</p>
-<div class="highlight"><pre><span></span><code>➜ python parallel_asyncio.py
-Parallel with Asyncio
-GIL False
-Elapsed time: 0.5552260875701904
-</code></pre></div>
-
-<p>Without free-threading:</p>
-<div class="highlight"><pre><span></span><code>➜  python parallel_asyncio.py
-Parallel with Asyncio
-GIL True
-Elapsed time: 1.6787209510803223
-</code></pre></div>
-
-<p>The results are as expected, when we use AsyncIO to run our code concurrently we observe the speed-up we'd expect from parallel execution.</p>
-<h3>But why do this?</h3>
-<p>Generally when it comes to Asyncio, the discussion around it is always about the performance or lack there of. Whilst peroformance is certain important, the ability to reason about concurrency is the biggest benefit.</p>
-<p>I personally think the addition of <code>TaskGroup</code> makes Asyncio concurrent tasks rather easy to reason about, we can use this to sychronise the results of threaded tasks. </p>
-<p>Depending on your familiarity with AsyncIO, it might actually be the simplest way to start a thread. This is kind of what makes go routines so convenient in golang.</p>
-<p>There's also the possibility to mix IO bound async tasks and CPU bound tasks this way. Something like this:</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-    <span class="n">io_task_future</span> <span class="o">=</span> <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">fetch</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
-    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">to_thread</span><span class="p">(</span><span class="n">cpu_bound_task</span><span class="p">))</span>
-    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">to_thread</span><span class="p">(</span><span class="n">cpu_bound_task</span><span class="p">))</span>
-
-<span class="k">await</span> <span class="n">to_thread</span><span class="p">(</span><span class="n">compute_results</span><span class="p">,</span> <span class="k">await</span> <span class="n">io_task_future</span><span class="p">)</span>
-</code></pre></div>
-
-<h3>Concrete Examples</h3>
-<p>Right now it's too hard to tell if this is what we want, I believe having some more concrete examples would give us a better idea. I will try to follow up on this if I think of anything.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>With the immanent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is free-threaded Python from <a href="https://peps.python.org/pep-0703/">PEP-703</a>.</p>
+<p>As I'm quite late to the party, there's already a of articles talking about it. I came accross …</p>
+                        <a class="readmore" href="./free-threaded-python-with-asyncio.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>

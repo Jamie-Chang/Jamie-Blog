@@ -4,33 +4,39 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog - Jamie Chang</title>
-                        <link rel="stylesheet" href="../theme/css/main.css" />
+                        <title>Closing Python Iterators</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+    <meta name="description" content="I recently came across a video by mcoding about Python iterators' unfortunate closing behaviour. To sum up the video, when an iterator is..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="../">Jamie's Blog</a></h1>
+                        <h1><a href="./">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li><a href="../category/blog.html">Blog</a></li>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./closing-python-iterators.html" rel="bookmark"
+             title="Permalink to Closing Python Iterators">Closing Python Iterators</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="../closing-python-iterators.html">Closing Python Iterators</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2024-09-28T00:00:00+01:00">
                 Published: Sat 28 September 2024
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>I recently came across a <a href="https://youtu.be/N56Jrqc7SBk?si=6WmYrq8C4E-gwn4_">video</a> by mcoding about Python iterators' unfortunate closing behaviour.</p>
+</footer><!-- /.post-info -->        <p>I recently came across a <a href="https://youtu.be/N56Jrqc7SBk?si=6WmYrq8C4E-gwn4_">video</a> by mcoding about Python iterators' unfortunate closing behaviour.</p>
 <p>To sum up the video, when an iterator is interrupted we intuitively we would expect the exit of a context manager or a finally block to be called but that's not <strong>necessarily</strong> the case. For example,</p>
 <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">generator_with_close</span><span class="p">():</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starting&quot;</span><span class="p">)</span>
@@ -134,60 +140,11 @@ Closing
 
 <h3>Conclusion</h3>
 <p>This issue is something that would catch me out on occasion, thanks to mcoding's video I finally have a good understanding on what's going on.</p>
-<p>I think in leu of a more sophisticated fix like PEP-533, we could use a combination of the two approaches I've given to mitigate the issue. This can be done by library authors or developers when defining the generators and doesn't rely on the caller to close them explicitly.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>I think in leu of a more sophisticated fix like PEP-533, we could use a combination of the two approaches I've given to mitigate the issue. This can be done by library authors or developers when defining the generators and doesn't rely on the caller to close them explicitly.</p>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../free-threaded-python-with-asyncio.html" rel="bookmark"
-                               title="Permalink to Free Threaded Python With Asyncio">Free Threaded Python With Asyncio</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-09-19T00:00:00+01:00">
-                Published: Thu 19 September 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>With the immanent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is free-threaded Python from <a href="https://peps.python.org/pep-0703/">PEP-703</a>.</p>
-<p>As I'm quite late to the party, there's already a of articles talking about it. I came accross …</p>
-                        <a class="readmore" href="../free-threaded-python-with-asyncio.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../my-first-blog-post.html" rel="bookmark"
-                               title="Permalink to My First Blog Post">My First Blog Post</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-09-18T00:00:00+01:00">
-                Published: Wed 18 September 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>My name is Jamie Chang, I'm a software engineer in London. I like all things Python, but I'll try to mix it up sometimes. I decided to start this blog to get some of the ideas out from my head and to practice communicating technical topics.</p>
-<p>For this site, I'm …</p>
-                        <a class="readmore" href="../my-first-blog-post.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>
