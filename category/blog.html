@@ -64,7 +64,7 @@ Closing
 <p>This sounds pretty terrible, but in practice is probably not that big of an issue. The reasons to use <code>with</code>/<code>finally</code> tend to be for closing resouces, so we can just shift where we define and close the resource:</p>
 <div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">create_db</span><span class="p">()</span> <span class="k">as</span> <span class="n">db</span><span class="p">:</span>
     <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">query</span><span class="p">(</span><span class="n">db</span><span class="p">);</span>
-        <span class="err">`</span><span class="o">...</span>
+        <span class="o">...</span>
 </code></pre></div>
 
 <p>Generally, I believe this is a better pattern. We often use dependencies more than once. And this is a case where explicit is better. </p>
