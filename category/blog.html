@@ -19,7 +19,213 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../closing-python-iterators.html">Closing Python Iterators</a></h1>
+                        <h1 class="entry-title"><a href="../typeddicts-are-better-than-you-think.html">TypedDicts are better than you think</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2024-10-01T00:00:00+01:00">
+                Published: Tue 01 October 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p><code>TypedDict</code> was introduced in <a href="https://peps.python.org/pep-0589/">PEP-589</a> which landed in Python 3.8.</p>
+<p>The primary use case was to create type annotations for dictionaries. For example,</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Movie</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span>
+
+
+<span class="n">movie</span><span class="p">:</span> <span class="n">Movie</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Avatar&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p>I remember thinking at the time that this was pretty neat, but I tend to use <code>dataclass</code> or <code>pydantic</code> to represent 'record' type data. Instead I use dictionaries more as a collection, so the standard <code>dict[KT, VT]</code> annotation is enough.</p>
+<h3>Non-totality</h3>
+<p>I revisited typeddicts when I looked at implementing a HTTP patch endpoint.</p>
+<p>Let's suppose I have a data structure represented by the following dataclass:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">User</span><span class="p">:</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">UUID</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">subscription</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div>
+
+<p>Where <code>subscription = None</code> means no subscription.</p>
+<p>Let's say we want to option to patch name, subscription. You might define the patch body using dataclass:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">PatchUser</span><span class="p">:</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">subscription</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div>
+
+<p>Here we have a problem, for subscription does <code>None</code> mean don't change or remove subscription. </p>
+<p>We can fix this a number of ways, for example, we can take the string <code>'none'</code> to mean no subscription instead, or make a new sentinel value called <code>NoChange</code> to indicate no changes.</p>
+<p>These solutions all feel a little awkward, this is because dataclasses don't have a concept of a field being missing. But this is where dictionaries shine. Dictionaries are not general expected to have all the fields available. We get a <code>KeyError</code> if a field is missing and there are convenience methods such as <code>.get(key, [default])</code> to fetch a key that is not guaranteed to be present.</p>
+<p>This makes <code>TypedDict</code> the ideal data structure in this scenario:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">PatchUser</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">subscription</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div>
+
+<p>Since <code>total</code> is False here (by default it is set to True), <code>name</code> or <code>subscription</code> can be absent from the dictionary. Which represents the PATCH operation much better than a <code>dataclass</code> or Pydantic model.</p>
+<p>Further additions in <a href="https://peps.python.org/pep-0655/">PEP-655</a> allows us to mark individual fields as <code>Required</code> or <code>NotRequired</code> which further increases its flexibility.</p>
+<blockquote>
+<p>If you're wondering about FastAPI support for TypedDict, <a href="https://docs.pydantic.dev/2.3/usage/types/dicts_mapping/#typeddict">Pydantic supports it out of the box</a>. So your TypedDict can be used in a FastAPI endpoint.</p>
+</blockquote>
+<h3>Using <code>TypedDict</code> as <code>**kwargs</code></h3>
+<p><a href="https://peps.python.org/pep-0692/">PEP-692</a> introduced the ability to type variadic keyword arguments using <code>TypedDict</code>.</p>
+<p>So the following two snippets are equivalent.
+Without <code>TypedDict</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">my_function</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">option1</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">option2</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>Using <code>TypedDict</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TypedDict</span><span class="p">,</span> <span class="n">Unpack</span>
+
+
+<span class="k">class</span> <span class="nc">Options</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+    <span class="n">option1</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">option2</span><span class="p">:</span> <span class="nb">str</span>
+
+
+<span class="k">def</span> <span class="nf">my_function</span><span class="p">(</span><span class="o">**</span><span class="n">options</span><span class="p">:</span> <span class="n">Unpack</span><span class="p">[</span><span class="n">Options</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>At a glance I can say that the TypedDict option is rather verbose. Though it does become more useful if Options were used in multiple function definitions.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">my_function2</span><span class="p">(</span><span class="o">**</span><span class="n">options</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="o">...</span>
+
+
+<span class="k">def</span> <span class="nf">my_function3</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">other_option</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>Where it truely shines is once again with non-totality.</p>
+<p>Suppose we have the following scenario, where we want to create a custom version of pytest.fixture, but still pass through some arguments.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">fixture</span><span class="p">(</span><span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;module&quot;</span><span class="p">,</span> <span class="n">autouse</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="n">autouse</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Here to get the typing right I not only have to find the type of each argument but also the default value. It would be better if we use <code>**kwargs</code> so we can just avoid passing the arguments through. And to keep type information we just need to use our trusty <code>TypedDict</code> once more:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">FixtureOptions</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">autouse</span><span class="p">:</span> <span class="nb">bool</span>
+
+
+<span class="k">def</span> <span class="nf">fixture</span><span class="p">(</span><span class="o">**</span><span class="n">options</span><span class="p">:</span> <span class="n">Unpack</span><span class="p">[</span><span class="n">FixtureOptions</span><span class="p">]):</span>
+    <span class="c1"># Some custom implementations</span>
+    <span class="o">...</span>
+    <span class="k">return</span> <span class="n">pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="o">**</span><span class="n">options</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Non-totallity means that we don't have to pass in scope and autouse. We can just have the default.</p>
+<h4>Sentinels</h4>
+<p>We can achieve similar behaviour with sentinels:</p>
+<div class="highlight"><pre><span></span><code><span class="n">UNSPECIFIED</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>  <span class="c1"># Has to be Any type so it could be set as default for other types.</span>
+
+<span class="k">def</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">option1</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">UNSPECIFIED</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">...</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">option1</span> <span class="ow">is</span> <span class="n">UNSPECIFIED</span><span class="p">:</span>
+        <span class="o">...</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>Sentinels work well enough here, but we have to remember to handle them. Additionally type annotations for sentinels can be a bit awkward, here we made <code>UNSPECIFIED</code> an <code>Any</code> type, but it means that inside the function <code>option1</code> is only typed as <code>bool</code>. There are options to expose the sentinel type but they may add even more confusion.</p>
+<h3>Using <code>TypedDict</code> to pass in dependencies</h3>
+<p>We can do even more with <a href="https://peps.python.org/pep-0692/">PEP-692</a>! When I first learned about the PEP, I thought it was only about function signature. But reading through it more thoroughly, I discovered that another consequence of the PEP is that type checkers can now check for function invocation when using TypedDicts:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">purge</span><span class="p">(</span><span class="n">queue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">...</span><span class="p">:</span>
+    <span class="o">...</span>
+
+
+<span class="k">class</span> <span class="nc">Options</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+    <span class="n">queue</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span>
+
+
+<span class="k">class</span> <span class="nc">WrongOptions</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+    <span class="n">queue</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="n">timedelta</span>
+
+
+<span class="n">options</span><span class="p">:</span> <span class="n">Options</span> <span class="o">=</span> <span class="o">...</span>
+<span class="n">purge</span><span class="p">(</span><span class="o">**</span><span class="n">options</span><span class="p">)</span>  <span class="c1"># ✅</span>
+
+<span class="n">wrong_options</span><span class="p">:</span> <span class="n">WrongOptions</span> <span class="o">=</span> <span class="o">...</span>
+<span class="n">purge</span><span class="p">(</span><span class="o">**</span><span class="n">wrong_options</span><span class="p">)</span>  <span class="c1"># ❌</span>
+</code></pre></div>
+
+<p>This feature is necessary in many situations such as cases where we pass through the kwargs. For example, in the <code>fixture</code> example, when we invoke <code>pytest.fixture(**options)</code> the type checker will perform proper type checking.</p>
+<p>But we can use it in more creative ways.</p>
+<h4>Dependency Injection</h4>
+<p>Let's consider a situation where we have many resources that share some dependencies. </p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">UserClient</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Engine</span><span class="p">,</span> <span class="n">user_service</span><span class="p">:</span> <span class="n">APIClient</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+
+
+<span class="k">class</span> <span class="nc">ProjectClient</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Engine</span><span class="p">,</span> <span class="n">user_service</span><span class="p">:</span> <span class="n">APIClient</span><span class="p">,</span> <span class="n">project_service</span><span class="p">:</span> <span class="n">APIClient</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>We want a way to create all the dependencies in one place and pass in the dependencies.</p>
+<p>Essentially we need something that is the union of all kwargs of the resources. That suddernly sounds a lot like a TypedDict:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Dependencies</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+    <span class="n">db</span><span class="p">:</span> <span class="n">Engine</span>
+    <span class="n">user_service</span><span class="p">:</span> <span class="n">APIClient</span>
+    <span class="n">project_service</span><span class="p">:</span> <span class="n">APIClient</span>
+
+
+<span class="k">def</span> <span class="nf">create_deps</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dependencies</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>Unfortunately this won't work since <code>UserClient</code> can't take <code>project_service</code> as a kwarg.</p>
+<p>To fix this, we need to rewrite the resources such that we accept arbitrary arguments.</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">UserClient</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+<span class="o">...</span>
+</code></pre></div>
+
+<p>And then we can do the injection like this:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">ResourceWithMissing</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+
+
+<span class="k">def</span> <span class="nf">inject</span><span class="p">(</span><span class="n">deps</span><span class="p">:</span> <span class="n">Dependencies</span><span class="p">):</span>
+    <span class="n">UserClient</span><span class="p">(</span><span class="o">**</span><span class="n">deps</span><span class="p">)</span>  <span class="c1"># ✅</span>
+    <span class="n">ProjectClient</span><span class="p">(</span><span class="o">**</span><span class="n">deps</span><span class="p">)</span>  <span class="c1"># ✅</span>
+    <span class="n">ResourceWithMissing</span><span class="p">(</span><span class="o">**</span><span class="n">deps</span><span class="p">)</span>  <span class="c1"># ❌</span>
+    <span class="o">...</span>
+
+
+<span class="n">inject</span><span class="p">(</span><span class="n">create_deps</span><span class="p">(</span><span class="o">...</span><span class="p">))</span>
+</code></pre></div>
+
+<p>With the solution complete, we can now rely on the type system to check the dependency injection to see if any arguments are incorrect or missing. </p>
+<p>I will admit that changing resource signature with <code>**_</code> is not ideal, but this is a smaller change than most dependency injection frameworks. And we get static type checking which a lot of the frameworks won't support.</p>
+<h3>Upcoming Features</h3>
+<p><a href="https://peps.python.org/pep-0728/">PEP-728</a> will allow types of extra items to be defined, and a typed dict to be closed meaning no extra items can be defined.</p>
+<p>This new change looks like it'll help us define record types more precisely.</p>
+<p>I personally haven't thought of many other use cases for it, but as I've demonstrated above it's always worth reading through the PEP and experimenting with the new change. </p>
+<p><a href="https://peps.python.org/pep-0705/">PEP-705</a> might already be out by the time you read this. This will allow for read only items to be specified.</p>
+<p>This is primarily intended for situations where different typed dicts intuitively should be compatible but potential mutations (deletions) can create problems.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../closing-python-iterators.html" rel="bookmark"
+                               title="Permalink to Closing Python Iterators">Closing Python Iterators</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2024-09-28T00:00:00+01:00">
                 Published: Sat 28 September 2024
@@ -30,116 +236,11 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>I recently came across a <a href="https://youtu.be/N56Jrqc7SBk?si=6WmYrq8C4E-gwn4_">video</a> by mcoding about Python iterators' unfortunate closing behaviour.</p>
-<p>To sum up the video, when an iterator is interrupted we intuitively we would expect the exit of a context manager or a finally block to be called but that's not <strong>necessarily</strong> the case. For example,</p>
-<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">generator_with_close</span><span class="p">():</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starting&quot;</span><span class="p">)</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">yield</span>
-    <span class="k">finally</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Closing&quot;</span><span class="p">)</span>
-</code></pre></div>
-
-<p>if we then have the following code interrupt the generator:</p>
-<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">generator_with_close</span><span class="p">():</span>
-    <span class="k">break</span>
-</code></pre></div>
-
-<p>We actually get what we expected:</p>
-<div class="highlight"><pre><span></span><code>Starting
-Closing
-</code></pre></div>
-
-<p>But this is due to Python's garbage collection implicitly calling the close method on the generator.</p>
-<p>And as the video pointed out, this won't work if we keep any reference to the iterator. Nor is it necessarily the case for all Python implementation that we always garbage collect immediately. </p>
-<p>Additionally the asyncio version of this is even more problematic as we won't be able to run the async <code>aclose</code> during garbage collection.</p>
-<p>The <a href="https://peps.python.org/pep-0533/">PEP-533</a> proposal for fixing this ultimately cannot be accepted due to backwards compatibility concerns.</p>
-<h3>Calling <code>.close()</code></h3>
-<p>The best way to resolve this issue is to call <code>.close()</code> explicitly. Or with <code>contextlib.closing</code>. This is guaranteed to work and be correct but places the responsibility on the caller of the generator to close the iterator. </p>
-<p>The issue is, whether the iterator needs to be closed is implementation specific. So the caller either has to step into the implementation or verbosely call close for every generator.</p>
-<h3>Solutions</h3>
-<p>I believe there to be two correct ways to solve this issue, in lew of the PEP solution. Both method change the callee's signature to avoid any ambiguity.</p>
-<h4>Option 1</h4>
-<p>Never use <code>finally</code> or <code>with</code> inside generator functions.</p>
-<p>This sounds pretty terrible, but in practice is probably not that big of an issue. The reasons to use <code>with</code>/<code>finally</code> tend to be for closing resources, so we can just shift where we define and close the resource:</p>
-<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">create_db</span><span class="p">()</span> <span class="k">as</span> <span class="n">db</span><span class="p">:</span>
-    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">query</span><span class="p">(</span><span class="n">db</span><span class="p">);</span>
-        <span class="o">...</span>
-</code></pre></div>
-
-<p>Generally, I believe this is a better pattern. We often use dependencies more than once. And this is a case where explicit is better. </p>
-<h4>Option 2</h4>
-<p>I will concede that not all cases are covered by Option 1. For example, I have this following snippet of code to fetch messages from a broker:</p>
-<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">messages</span><span class="p">():</span>
-    <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">broker</span><span class="o">.</span><span class="n">messages</span><span class="p">():</span>
-        <span class="k">with</span> <span class="n">set_context</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="n">message</span><span class="o">.</span><span class="n">id</span><span class="p">):</span>
-            <span class="k">yield</span> <span class="n">message</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
-</code></pre></div>
-
-<p>I can lift <code>set_context</code> out of the generator. But it certainly makes more sense to set the id inside as the id is not needed outside.</p>
-<p>So I think it's better to have an explicit way to force people to close the generator. </p>
-<p>We can achieve this by converting the generator function to a contextmanager function:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
-<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">closing</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">ContextManager</span><span class="p">,</span> <span class="n">Generator</span> 
-
-
-<span class="k">def</span> <span class="nf">contextgenerator</span><span class="p">[</span><span class="n">T</span><span class="p">:</span> <span class="n">Generator</span><span class="p">,</span> <span class="o">**</span><span class="n">P</span><span class="p">](</span><span class="n">gen</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">ContextManager</span><span class="p">[</span><span class="n">T</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Wraps generators in a context manager.</span>
-
-<span class="sd">    This ensures generators are closed properly.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="nd">@wraps</span><span class="p">(</span><span class="n">gen</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">closing_gen</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ContextManager</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="n">closing</span><span class="p">(</span><span class="n">gen</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
-
-    <span class="k">return</span> <span class="n">closing_gen</span>
-</code></pre></div>
-
-<p>Then we just need to wrap the generator in a <code>@contextgenerator</code> like this:</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@contextgenerator</span>
-<span class="k">def</span> <span class="nf">messages</span><span class="p">():</span>
-    <span class="o">...</span>
-</code></pre></div>
-
-<p>And called this way:</p>
-<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">messages</span><span class="p">()</span> <span class="k">as</span> <span class="n">message_iterator</span><span class="p">:</span>
-    <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">message_iterator</span><span class="p">:</span>
-        <span class="o">...</span>
-</code></pre></div>
-
-<p>Here we rely on the decorator to communicate the change in signature to the end user.</p>
-<p>But the type checker will also pick up the fact that <code>messages</code> now returns a context manager as opposed to an iterator.</p>
-<p>The benefit here is that there is no way to start the generator without entering the context manager, thus ensuring that the generator closes.</p>
-<p>The caller can choose to use this when closing behaviour is required, or use a plain generator when not.</p>
-<p>For asyncio we have a similar solution:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
-<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">aclosing</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">AsyncContextManager</span><span class="p">,</span> <span class="n">AsyncGenerator</span>
-
-
-<span class="k">def</span> <span class="nf">asynccontextgenerator</span><span class="p">[</span><span class="n">T</span><span class="p">:</span> <span class="n">AsyncGenerator</span><span class="p">,</span> <span class="o">**</span><span class="n">P</span><span class="p">](</span><span class="n">gen</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Wraps generators in a context manager.</span>
-
-<span class="sd">    This ensures generators are closed properly.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="nd">@wraps</span><span class="p">(</span><span class="n">gen</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">closing_gen</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="n">aclosing</span><span class="p">(</span><span class="n">gen</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
-
-    <span class="k">return</span> <span class="n">closing_gen</span>
-</code></pre></div>
-
-<h3>Conclusion</h3>
-<p>This issue is something that would catch me out on occasion, thanks to mcoding's video I finally have a good understanding on what's going on.</p>
-<p>I think in leu of a more sophisticated fix like PEP-533, we could use a combination of the two approaches I've given to mitigate the issue. This can be done by library authors or developers when defining the generators and doesn't rely on the caller to close them explicitly.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>I recently came across a <a href="https://youtu.be/N56Jrqc7SBk?si=6WmYrq8C4E-gwn4_">video</a> by mcoding about Python iterators' unfortunate closing behaviour.</p>
+<p>To sum up the video, when an iterator is interrupted we intuitively we would expect the exit of a context manager or a finally block to be called but that's not <strong>necessarily</strong> the case. For example …</p>
+                        <a class="readmore" href="../closing-python-iterators.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
