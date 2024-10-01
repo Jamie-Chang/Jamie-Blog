@@ -44,7 +44,7 @@ I believe there to be two correct ways to solve this issue, in lew of the PEP so
 #### Option 1
 Never use `finally` or `with` inside generator functions.
 
-This sounds pretty terrible, but in practice is probably not that big of an issue. The reasons to use `with`/`finally` tend to be for closing resouces, so we can just shift where we define and close the resource:
+This sounds pretty terrible, but in practice is probably not that big of an issue. The reasons to use `with`/`finally` tend to be for closing resources, so we can just shift where we define and close the resource:
 
 ```python
 with create_db() as db:
