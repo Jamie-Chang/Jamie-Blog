@@ -7,7 +7,7 @@
                         <title>Free Threaded Python With Asyncio</title>
                         <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
-    <meta name="description" content="With the immanent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is..." />
+    <meta name="description" content="With the imminent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is..." />
         </head>
 
         <body id="index" class="home">
@@ -36,8 +36,8 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info -->        <p>With the immanent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is free-threaded Python from <a href="https://peps.python.org/pep-0703/">PEP-703</a>.</p>
-<p>As I'm quite late to the party, there's already a of articles talking about it. I came accross an excellent <a href="https://til.simonwillison.net/python/trying-free-threaded-python">article</a> from Simon Wilson, which successfully demonstrated parallelism for pure Python functions. Building on top of this I wanted to look at ways to synchronise threads beyond using <code>ThreadPoolExecutor.map</code>. </p>
+</footer><!-- /.post-info -->        <p>With the imminent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is free-threaded Python from <a href="https://peps.python.org/pep-0703/">PEP-703</a>.</p>
+<p>As I'm quite late to the party, there's already a lot of articles talking about it. I came accross an excellent <a href="https://til.simonwillison.net/python/trying-free-threaded-python">article</a> from Simon Willison, which successfully demonstrated parallelism for pure Python functions. Building on top of this I wanted to look at ways to synchronise threads beyond using <code>ThreadPoolExecutor.map</code>. </p>
 <p>Prior to Python 3.13 threads were used for IO bound tasks due to the GIL, Asyncio is also used for IO (duh...) and we can wrap threads using <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread"><code>asyncio.to_thread</code></a>. For example,</p>
 <div class="highlight"><pre><span></span><code><span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">io_bound_task</span><span class="p">,</span> <span class="s2">&quot;first_arg&quot;</span><span class="p">,</span> <span class="n">optional</span><span class="o">=</span><span class="s2">&quot;optional&quot;</span><span class="p">)</span>
 </code></pre></div>
@@ -108,8 +108,8 @@ Elapsed time: 1.6787209510803223
 
 <p>The results are as expected, when we use AsyncIO to run our code concurrently we observe the speed-up we'd expect from parallel execution.</p>
 <h3>But why do this?</h3>
-<p>Generally when it comes to Asyncio, the discussion around it is always about the performance or lack there of. Whilst peroformance is certain important, the ability to reason about concurrency is the biggest benefit.</p>
-<p>I personally think the addition of <code>TaskGroup</code> makes Asyncio concurrent tasks rather easy to reason about, we can use this to sychronise the results of threaded tasks. </p>
+<p>Generally when it comes to Asyncio, the discussion around it is always about the performance or lack there of. Whilst performance is certainly important, the ability to reason about concurrency is the biggest benefit.</p>
+<p>I personally think the addition of <code>TaskGroup</code> makes AsyncIO concurrent tasks rather easy to reason about, we can use this to sychronise the results of threaded tasks. </p>
 <p>Depending on your familiarity with AsyncIO, it might actually be the simplest way to start a thread. This is kind of what makes go routines so convenient in golang.</p>
 <p>There's also the possibility to mix IO bound async tasks and CPU bound tasks this way. Something like this:</p>
 <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
