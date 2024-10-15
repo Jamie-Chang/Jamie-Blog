@@ -2,9 +2,9 @@ Title: Free Threaded Python With Asyncio
 Date: 2024.09.19
 Category: Blog
 
-With the immanent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is free-threaded Python from [PEP-703](https://peps.python.org/pep-0703/).
+With the imminent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is free-threaded Python from [PEP-703](https://peps.python.org/pep-0703/).
 
-As I'm quite late to the party, there's already a of articles talking about it. I came accross an excellent [article](https://til.simonwillison.net/python/trying-free-threaded-python) from Simon Wilson, which successfully demonstrated parallelism for pure Python functions. Building on top of this I wanted to look at ways to synchronise threads beyond using `ThreadPoolExecutor.map`. 
+As I'm quite late to the party, there's already a lot of articles talking about it. I came accross an excellent [article](https://til.simonwillison.net/python/trying-free-threaded-python) from Simon Willison, which successfully demonstrated parallelism for pure Python functions. Building on top of this I wanted to look at ways to synchronise threads beyond using `ThreadPoolExecutor.map`. 
 
 Prior to Python 3.13 threads were used for IO bound tasks due to the GIL, Asyncio is also used for IO (duh...) and we can wrap threads using [`asyncio.to_thread`](https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread). For example,
 
@@ -82,9 +82,9 @@ Elapsed time: 1.6787209510803223
 The results are as expected, when we use AsyncIO to run our code concurrently we observe the speed-up we'd expect from parallel execution.
 
 ### But why do this?
-Generally when it comes to Asyncio, the discussion around it is always about the performance or lack there of. Whilst peroformance is certain important, the ability to reason about concurrency is the biggest benefit.
+Generally when it comes to Asyncio, the discussion around it is always about the performance or lack there of. Whilst performance is certainly important, the ability to reason about concurrency is the biggest benefit.
 
-I personally think the addition of `TaskGroup` makes Asyncio concurrent tasks rather easy to reason about, we can use this to sychronise the results of threaded tasks. 
+I personally think the addition of `TaskGroup` makes AsyncIO concurrent tasks rather easy to reason about, we can use this to sychronise the results of threaded tasks. 
 
 Depending on your familiarity with AsyncIO, it might actually be the simplest way to start a thread. This is kind of what makes go routines so convenient in golang.
 
