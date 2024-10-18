@@ -1,5 +1,5 @@
 Title: TypedDicts are better than you think
-Published: 2024-10-01
+Date: 2024-10-01
 Category: Blog
 
 `TypedDict` was introduced in [PEP-589](https://peps.python.org/pep-0589/) which landed in Python 3.8.
