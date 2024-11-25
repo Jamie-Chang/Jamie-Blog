@@ -23,6 +23,7 @@ LINKS = (
 SOCIAL = (
     ("Github", "https://github.com/Jamie-Chang/"),
     ("LinkedIn", "https://www.linkedin.com/in/jamie-chang-4423ba125/"),
+    ("Bluesky", "https://bsky.app/profile/jamie-chang.bsky.social/"),
 )
 
 DEFAULT_PAGINATION = 10
