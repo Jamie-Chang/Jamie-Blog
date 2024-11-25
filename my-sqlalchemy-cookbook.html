@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>My SQLAlchemy Cookbook</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+    <meta name="description" content="I've worked with SQLAlchemy for a while now, and in my opinion it's the best ORM in Python. It's feature rich with strong support for all major..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./my-sqlalchemy-cookbook.html" rel="bookmark"
+             title="Permalink to My SQLAlchemy Cookbook">My SQLAlchemy Cookbook</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2024-11-25T00:00:00+00:00">
+                Published: Mon 25 November 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>I've worked with SQLAlchemy for a while now, and in my opinion it's the best ORM in Python. It's feature rich with strong support for all major databases. And it maintains the SQL feel without losing things like typing.</p>
+<p>However there are some challenges here. Despite having very nice documentation and good abstractions for beginners, there can sometimes be an abundance of choice, which can make it more difficult to start on a problem and make it harder to collaborate. </p>
+<h2>Library</h2>
+<p>It's tempting to write a library on top of SQLAlchemy that includes the patterns you want to use. However it's hard to find any other reason to do so. Code in SQLAlchemy is already very concise, further abstractions won't yield any tangible benefits to size and complexity of the user code.</p>
+<p>There are also many downsides to writing a library namely maintenance and development velocity.</p>
+<h2>Cookbook</h2>
+<p>My preferred way is to have a single place to keep all the patterns I use.</p>
+<p>I was inspired by the official <a href="https://docs.python.org/3/howto/logging-cookbook.html">Python Logging Cookbook</a>. It manages to provide code examples and explanations for logging without needing to bloat the Python standard library more than necessary. </p>
+<p>The cookbook is written using <a href="https://jupyter.org/try-jupyter/lab/index.html">JupyterLite</a> in the web, this is a nice trick I stole from <a href="https://duckdb.org/2024/10/02/pyodide.html">DuckDB's blog</a>.</p>
+<hr>
+<p><iframe
+  src="https://jamie-chang.github.io/cookbooks/notebooks/index.html?path=sqlalchemy.ipynb"
+  width="100%"
+  height="900em"
+></iframe>
+</p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
