@@ -19,7 +19,120 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./my-sqlalchemy-cookbook.html">My SQLAlchemy Cookbook</a></h1>
+                        <h1 class="entry-title"><a href="./python-in-python-sandboxing-llm-generated-code.html">Python-in-Python Sandboxing LLM Generated Code</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2024-12-02T00:00:00+00:00">
+                Published: Mon 02 December 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>I've been experimenting with <a href="https://www.langchain.com/">Langchain</a> for GPT based queries. One problem we often encounter with GPT is hallucinations. This makes certain classes of problems unsuited to GPT, one example is maths and statistics. Whilst there are improvements for recent models often the maths cannot be trusted.</p>
+<p>When I try to ask a data heavy question on https://chatgpt.com/, it generates and runs Python code and then returns the answer. I wanted to find a way to do this when using the API ideally as a langchain <a href="https://python.langchain.com/docs/concepts/tools/">tool</a>.</p>
+<h3>Can we just run the code?</h3>
+<p>One solution is to run the code in a subprocess. A simple tool implementation might be:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@tool</span>
+<span class="k">def</span> <span class="nf">run_python</span><span class="p">(</span><span class="n">python_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run Python code and capture the results printed to stdout.</span>
+
+<span class="sd">    numpy np is not available, no other 3rd party libraries are available.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="n">python_code</span><span class="p">],</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</code></pre></div>
+
+<p>So this definitely works! But it makes me feel very uncomfortable. Allowing arbitrary code to execute on a system level can be a huge security issue. If the prompt comes from a user, it's possible they can make LLM generate code that can take control or expose files on the system. </p>
+<p>Even if there is strict control of the prompt, we would need to manage the lifecycle of the process to make sure the computation doesn't take too long or too much resources. </p>
+<h3>Builtin Langchain Solutions</h3>
+<p>Looking at langchain for some help, I can see that if offers a suite of <a href="https://python.langchain.com/docs/integrations/tools/#code-interpreter">code interpreter tools</a>.</p>
+<p>The interpreters are hosted as separate services, some are available only in the cloud and some can be self hosted. For cloud based interpreter there's still the question of whether you can trust the service. Especially since we're likely going to send data over. There's also the matter of cost.</p>
+<p>The self-hosting options are certainly viable, but it's still going to require spinning up a separate Docker container.</p>
+<h3>Python Sandbox</h3>
+<p>I wanted to find Python sandboxes that were simple to setup.</p>
+<h4>PyPy sandbox</h4>
+<p>The first sandbox I came across is from <a href="https://doc.pypy.org/en/latest/sandbox.html">PyPy</a>. With this we can apply the same <code>subprocess.run</code> command but just invoke the sandboxed version of PyPy as opposed to the regular Python interpreter. </p>
+<p>I've ran into problems running it:</p>
+<div class="highlight"><pre><span></span><code>➜<span class="w">  </span>sandbox<span class="w"> </span>git:<span class="o">(</span>main<span class="o">)</span><span class="w"> </span>./pypy_interact.py<span class="w">     </span>
+<span class="w">  </span>File<span class="w"> </span><span class="s2">&quot;/Users/jamie.chang/personal-projects/pypy/pypy/sandbox/./pypy_interact.py&quot;</span>,<span class="w"> </span>line<span class="w"> </span><span class="m">58</span>
+<span class="w">    </span><span class="s1">&#39;pypy-c&#39;</span>:<span class="w"> </span>RealFile<span class="o">(</span>self.executable,<span class="w"> </span><span class="nv">mode</span><span class="o">=</span><span class="m">0111</span><span class="o">)</span>,
+<span class="w">                                             </span>^
+SyntaxError:<span class="w"> </span>leading<span class="w"> </span>zeros<span class="w"> </span><span class="k">in</span><span class="w"> </span>decimal<span class="w"> </span>integer<span class="w"> </span>literals<span class="w"> </span>are<span class="w"> </span>not<span class="w"> </span>permitted<span class="p">;</span><span class="w"> </span>use<span class="w"> </span>an<span class="w"> </span>0o<span class="w"> </span>prefix<span class="w"> </span><span class="k">for</span><span class="w"> </span>octal<span class="w"> </span>integers
+</code></pre></div>
+
+<p>A closer look at the docs however reveal that this might not be as actively maintained as I had hoped. There might be newer efforts of this, but I'm not sure how to access them.</p>
+<h4>WASM</h4>
+<p>In the past I've heard about WASM being used as a runtime which can offer isolation. For example, <a href="https://developers.cloudflare.com/workers/runtime-apis/webassembly/">cloudflare's edge workers</a>. <a href="https://wasi.dev/">WASI</a> was introduced in large part to define and restrict what system calls are available to the wasm process. </p>
+<p>When researching this I came across an <a href="https://til.simonwillison.net/webassembly/python-in-a-wasm-sandbox">article</a> by Simon Willison, with working code examples on how to achieve this using <a href="https://github.com/bytecodealliance/wasmtime">wasmtime</a> and <a href="https://wasmlabs.dev/articles/python-wasm32-wasi/">VMWare's build of python.wasm</a>.</p>
+<p>That's pretty much all the hard work done for us! </p>
+<p>So I've done some minor modification to Simon's code, using the latest release of <code>python.wasm</code> found <a href="https://github.com/vmware-labs/webassembly-language-runtimes/releases/tag/python%2F3.12.0%2B20231211-040d5a6">here</a> the code is otherwise unchanged.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">run_python_code</span><span class="p">(</span><span class="n">code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">fuel</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">400_000_000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">engine_cfg</span> <span class="o">=</span> <span class="n">Config</span><span class="p">()</span>
+    <span class="n">engine_cfg</span><span class="o">.</span><span class="n">consume_fuel</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">engine_cfg</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="n">linker</span> <span class="o">=</span> <span class="n">Linker</span><span class="p">(</span><span class="n">Engine</span><span class="p">(</span><span class="n">engine_cfg</span><span class="p">))</span>
+    <span class="n">linker</span><span class="o">.</span><span class="n">define_wasi</span><span class="p">()</span>
+
+    <span class="n">python_module</span> <span class="o">=</span> <span class="n">Module</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">linker</span><span class="o">.</span><span class="n">engine</span><span class="p">,</span> <span class="s2">&quot;python-3.12.0.wasm&quot;</span><span class="p">)</span>
+
+    <span class="n">config</span> <span class="o">=</span> <span class="n">WasiConfig</span><span class="p">()</span>
+
+    <span class="n">config</span><span class="o">.</span><span class="n">argv</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="n">code</span><span class="p">)</span>
+    <span class="n">config</span><span class="o">.</span><span class="n">preopen_dir</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">NamedTemporaryFile</span><span class="p">()</span> <span class="k">as</span> <span class="n">out</span><span class="p">:</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">stdout_file</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">name</span>
+
+        <span class="n">store</span> <span class="o">=</span> <span class="n">Store</span><span class="p">(</span><span class="n">linker</span><span class="o">.</span><span class="n">engine</span><span class="p">)</span>
+
+        <span class="c1"># Limits how many instructions can be executed:</span>
+        <span class="n">store</span><span class="o">.</span><span class="n">set_fuel</span><span class="p">(</span><span class="n">fuel</span><span class="p">)</span>
+        <span class="n">store</span><span class="o">.</span><span class="n">set_wasi</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="n">instance</span> <span class="o">=</span> <span class="n">linker</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">python_module</span><span class="p">)</span>
+
+        <span class="c1"># _start is the default wasi main function</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">exports</span><span class="p">(</span><span class="n">store</span><span class="p">)[</span><span class="s2">&quot;_start&quot;</span><span class="p">]</span>
+        <span class="n">start</span><span class="p">(</span><span class="n">store</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+
+
+<span class="nd">@tool</span>
+<span class="k">def</span> <span class="nf">run_python</span><span class="p">(</span><span class="n">python_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run Python code capturing the stdout.</span>
+
+<span class="sd">    numpy np is not available, no other 3rd party libraries are available.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">run_python_code</span><span class="p">(</span><span class="n">python_code</span><span class="p">)</span>
+</code></pre></div>
+
+<p>This feels much closer to the correct solution and not just because the code is already written for me.</p>
+<p>I like that the solution relies on the <code>WASI</code> standard. This is currently a rather trendy technology and the support for it is increasing. By default <code>WASI</code> programs do not have access to anything on the filesystem, and extra permissions must be requested.</p>
+<p>Wasmtime has also made things lot easier. The Python bindings mean that we can run the <code>WASM</code> binary inside the same Python process, without a need to create subprocesses, hence the title "Python-in-Python" or more accurately (but not as catchy) "Python-in-WASM-in-Python".</p>
+<p>The portability of <code>WASM</code> means that the same method can be used to run Python sandbox in other languages and other platforms. There's even competing runtimes for <code>WASM</code> like <a href="https://github.com/wasmerio/wasmer-python">wasmer</a>.</p>
+<p>Also I found out later that the <a href="https://python.langchain.com/docs/integrations/tools/riza/">Riza Interpreter</a> with a supported langchain tool is also <code>WASM</code> based. Though it's still hosted in a separate container.</p>
+<h3>Further Work</h3>
+<p>There are a few small caveats here. For one I only have surface knowledge when it comes to <code>WASM</code> and wasmer. There might be security concerns I haven't thought about.</p>
+<p>Also you might have noticed that for the tool implementation, I've stated in the description that</p>
+<blockquote>
+<p>"numpy np is not available, no other 3rd party libraries are available."
+This is because GPT has a tendency to use <code>numpy</code> whenever possible. I've not worked out exactly how to make libraries like numpy available to <code>python.wasm</code>, there is some mention of how to do this in the wasmlabs <a href="https://wasmlabs.dev/articles/python-wasm32-wasi/">article</a> but it means a more complex setup process and I'm uncertain that this will work for <code>numpy</code> which contains native binary.</p>
+</blockquote>
+<p>There's definitely more work that can be done to simplify the setup process even more. Maybe it can even be made pip installable. It might also be good to investigate working with other languages.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./my-sqlalchemy-cookbook.html" rel="bookmark"
+                               title="Permalink to My SQLAlchemy Cookbook">My SQLAlchemy Cookbook</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2024-11-25T00:00:00+00:00">
                 Published: Mon 25 November 2024
@@ -30,27 +143,11 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>I've worked with SQLAlchemy for a while now, and in my opinion it's the best ORM in Python. It's feature rich with strong support for all major databases. And it maintains the SQL feel without losing things like typing.</p>
-<p>However there are some challenges here. Despite having very nice documentation and good abstractions for beginners, there can sometimes be an abundance of choice, which can make it more difficult to start on a problem and make it harder to collaborate. </p>
-<h2>Library</h2>
-<p>It's tempting to write a library on top of SQLAlchemy that includes the patterns you want to use. However it's hard to find any other reason to do so. Code in SQLAlchemy is already very concise, further abstractions won't yield any tangible benefits to size and complexity of the user code.</p>
-<p>There are also many downsides to writing a library namely maintenance and development velocity.</p>
-<h2>Cookbook</h2>
-<p>My preferred way is to have a single place to keep all the patterns I use.</p>
-<p>I was inspired by the official <a href="https://docs.python.org/3/howto/logging-cookbook.html">Python Logging Cookbook</a>. It manages to provide code examples and explanations for logging without needing to bloat the Python standard library more than necessary. </p>
-<p>The cookbook is written using <a href="https://jupyter.org/try-jupyter/lab/index.html">JupyterLite</a> in the web, this is a nice trick I stole from <a href="https://duckdb.org/2024/10/02/pyodide.html">DuckDB's blog</a>.</p>
-<hr>
-<p><iframe
-  src="https://jamie-chang.github.io/cookbooks/notebooks/index.html?path=sqlalchemy.ipynb"
-  width="100%"
-  height="900em"
-></iframe>
-</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>I've worked with SQLAlchemy for a while now, and in my opinion it's the best ORM in Python. It's feature rich with strong support for all major databases. And it maintains the SQL feel without losing things like typing.</p>
+<p>However there are some challenges here. Despite having very nice documentation …</p>
+                        <a class="readmore" href="./my-sqlalchemy-cookbook.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
