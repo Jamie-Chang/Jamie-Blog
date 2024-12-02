@@ -106,6 +106,8 @@ I like that the solution relies on the `WASI` standard. This is currently a rath
 
 Wasmtime has also made things lot easier. The Python bindings mean that we can run the `WASM` binary inside the same Python process, without a need to create subprocesses, hence the title "Python-in-Python" or more accurately (but not as catchy) "Python-in-WASM-in-Python".
 
+Wasmtime provides a [`fuel` mechanism](https://docs.wasmtime.dev/api/wasmtime/struct.Store.html#method.set_fuel) which limits the number of `wasm` instructions that runs. This is a good way to limit the processing for each `Python` call and prevent denial of service attacks. 
+
 The portability of `WASM` means that the same method can be used to run Python sandbox in other languages and other platforms. There's even competing runtimes for `WASM` like [wasmer](https://github.com/wasmerio/wasmer-python).
 
 Also I found out later that the [Riza Interpreter](https://python.langchain.com/docs/integrations/tools/riza/) with a supported langchain tool is also `WASM` based. Though it's still hosted in a separate container.
