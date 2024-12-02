@@ -116,9 +116,9 @@ SyntaxError:<span class="w"> </span>leading<span class="w"> </span>zeros<span cl
 <p>There are a few small caveats here. For one I only have surface knowledge when it comes to <code>WASM</code> and wasmer. There might be security concerns I haven't thought about.</p>
 <p>Also you might have noticed that for the tool implementation, I've stated in the description that</p>
 <blockquote>
-<p>"numpy np is not available, no other 3rd party libraries are available."
-This is because GPT has a tendency to use <code>numpy</code> whenever possible. I've not worked out exactly how to make libraries like numpy available to <code>python.wasm</code>, there is some mention of how to do this in the wasmlabs <a href="https://wasmlabs.dev/articles/python-wasm32-wasi/">article</a> but it means a more complex setup process and I'm uncertain that this will work for <code>numpy</code> which contains native binary.</p>
+<p>"numpy np is not available, no other 3rd party libraries are available."</p>
 </blockquote>
+<p>This is because GPT has a tendency to use <code>numpy</code> whenever possible. I've not worked out exactly how to make libraries like numpy available to <code>python.wasm</code>, there is some mention of how to do this in the wasmlabs <a href="https://wasmlabs.dev/articles/python-wasm32-wasi/">article</a> but it means a more complex setup process and I'm uncertain that this will work for <code>numpy</code> which contains native binary.</p>
 <p>There's definitely more work that can be done to simplify the setup process even more. Maybe it can even be made pip installable. It might also be good to investigate working with other languages.</p>                    </article>
                 </aside><!-- /#featured -->
                     <section id="content" class="body">
