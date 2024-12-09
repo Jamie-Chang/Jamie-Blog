@@ -19,7 +19,177 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../python-in-python-sandboxing-llm-generated-code.html">Python-in-Python Sandboxing LLM Generated Code</a></h1>
+                        <h1 class="entry-title"><a href="../customising-pattern-matching-behaviour.html">Customising Pattern Matching Behaviour</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2024-12-09T00:00:00+00:00">
+                Published: Mon 09 December 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>I've been doing <a href="https://adventofcode.com/">advent of code</a> again this year. There are two Python features I always rely on, iterators and pattern matching. Iterators allow for operations on each of its elements without allocating memory for a collection. Ever since pattern matching was introduced in Python 3.10, it's been particularly useful to unpack nested object structure. </p>
+<p>Unfortunately pattern matching and iterators don't work well together. By definition elements of an iterator do not necessarily exist so there's nothing to match against. Often to pattern match we must first consume the iterator:</p>
+<div class="highlight"><pre><span></span><code><span class="k">match</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span> 
+    <span class="k">case</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="k">_</span><span class="p">]:</span>  <span class="c1"># Won&#39;t match of course</span>
+        <span class="o">...</span>
+
+<span class="k">match</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)):</span>
+    <span class="k">case</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="k">_</span><span class="p">]:</span>  <span class="c1"># matches now since iterator is consumed</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>Ideally we'd be able to consume the head elements of the iterator on demand, but this isn't possible directly with iterators.</p>
+<h3>Official Support for Custom Matching</h3>
+<p>In the original PEP, there's mention of the idea of <a href="https://peps.python.org/pep-0622/#custom-matching-protocol">custom matchers</a>. But the idea was ultimately deferred due to the lack of a clear use case. </p>
+<h3>Matching Properties</h3>
+<p>But it turns out we don't really need any of this. We can match any named attributes of an object even a <code>property</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Repeat</span><span class="p">:</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">times</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">repeated</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">times</span>
+
+
+<span class="k">match</span> <span class="n">Repeat</span><span class="p">(</span><span class="s2">&quot;abcd&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+    <span class="k">case</span> <span class="n">Repeat</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="n">times</span><span class="p">,</span> <span class="n">repeated</span><span class="o">=</span><span class="nb">list</span><span class="p">()</span> <span class="k">as</span> <span class="n">repeated</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;After </span><span class="si">{</span><span class="n">times</span><span class="si">}</span><span class="s2"> times&quot;</span><span class="p">,</span> <span class="n">repeated</span><span class="p">)</span>
+</code></pre></div>
+
+<p>This is really useful as we need to dynamically unpack the iterator if we want to match the iterator. We can create an object with the <code>next</code> property that evaluates the next elements on demand.</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Node</span><span class="p">:</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_iter</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">),</span> <span class="n">it</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Node</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">)</span>
+
+
+<span class="k">match</span> <span class="n">Node</span><span class="o">.</span><span class="n">from_iter</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))):</span>
+    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">next</span><span class="o">=</span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 0 and 1&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>There is a bug in the code, consider the following match statement:</p>
+<div class="highlight"><pre><span></span><code><span class="k">match</span> <span class="n">Node</span><span class="o">.</span><span class="n">from_iter</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))):</span>
+    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span> <span class="nb">next</span><span class="o">=</span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 9 and 8&quot;</span><span class="p">)</span>
+    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">next</span><span class="o">=</span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 0 and 1&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The looks like it'll match in the second <code>case</code>, but it can't. This is because the first <code>case</code> checks the first 2 elements by consuming them. </p>
+<p>But the fix is actually really simple, we simple use <code>cached_property</code> to cache the result of <code>next</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Node</span><span class="p">:</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_iter</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">),</span> <span class="n">it</span><span class="p">)</span>
+
+    <span class="nd">@cached_property</span>
+    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Node</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">)</span>
+</code></pre></div>
+
+<h3>Matching positionally using <code>__match_args__</code></h3>
+<p>Matching named attributes can be very verbose. We can specify which arguments to match sequentially by adding  <a href="https://peps.python.org/pep-0622/#special-attribute-match-args"><code>__match_args__</code></a> to the class:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Node</span><span class="p">:</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+
+    <span class="n">__match_args__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="s2">&quot;next&quot;</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_iter</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">),</span> <span class="n">it</span><span class="p">)</span>
+
+    <span class="nd">@cached_property</span>
+    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Node</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">)</span>
+
+
+<span class="k">match</span> <span class="n">Node</span><span class="o">.</span><span class="n">from_iter</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))):</span>
+    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 9 and 8&quot;</span><span class="p">)</span>
+    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 0 and 1&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<h3>Matching the end of iteration</h3>
+<p>Finally we need to consider the <code>StopIteration</code> at the end of the iterator.</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Node</span><span class="p">:</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+
+    <span class="n">__match_args__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="s2">&quot;next&quot;</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_iter</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Node</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">),</span> <span class="n">it</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@cached_property</span>
+    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Node</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">match</span> <span class="n">Node</span><span class="o">.</span><span class="n">from_iter</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">))):</span>
+    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 9 and 8&quot;</span><span class="p">)</span>
+    <span class="k">case</span> <span class="n">Node</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 0&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<h3>Conclusion</h3>
+<p>You might still be wondering if this is actually useful. I've published this as <a href="https://github.com/Jamie-Chang/pattern-utils">pattern-utils</a> so you can try it out. Beware the implementation is slightly different to facilitate matching generator with return, for example,</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">pattern_utils</span> <span class="kn">import</span> <span class="n">generator</span> <span class="k">as</span> <span class="n">gen</span>
+
+
+<span class="k">def</span> <span class="nf">example_generator</span><span class="p">():</span>
+    <span class="k">yield</span> <span class="s2">&quot;some resource&quot;</span>
+    <span class="k">return</span> <span class="s2">&quot;done&quot;</span>
+
+
+<span class="k">match</span> <span class="n">gen</span><span class="o">.</span><span class="n">matcher</span><span class="p">(</span><span class="n">example_generator</span><span class="p">()):</span>
+    <span class="k">case</span> <span class="n">gen</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="n">gen</span><span class="o">.</span><span class="n">Empty</span><span class="p">(</span><span class="n">end_result</span><span class="p">)):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="n">end_result</span><span class="p">)</span>
+</code></pre></div>
+
+<p>I think more important is using the same technique of writing a wrapper with properties to better exploit pattern matching. If I discover other common use cases I will update the library.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../python-in-python-sandboxing-llm-generated-code.html" rel="bookmark"
+                               title="Permalink to Python-in-Python Sandboxing LLM Generated Code">Python-in-Python Sandboxing LLM Generated Code</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2024-12-02T00:00:00+00:00">
                 Published: Mon 02 December 2024
@@ -30,102 +200,11 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>I've been experimenting with <a href="https://www.langchain.com/">Langchain</a> for GPT based queries. One problem we often encounter with GPT is hallucinations. This makes certain classes of problems unsuited to GPT, one example is maths and statistics. Whilst there are improvements for recent models often the maths cannot be trusted.</p>
-<p>When I try to ask a data heavy question on https://chatgpt.com/, it generates and runs Python code and then returns the answer. I wanted to find a way to do this when using the API ideally as a langchain <a href="https://python.langchain.com/docs/concepts/tools/">tool</a>.</p>
-<h3>Can we just run the code?</h3>
-<p>One solution is to run the code in a subprocess. A simple tool implementation might be:</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@tool</span>
-<span class="k">def</span> <span class="nf">run_python</span><span class="p">(</span><span class="n">python_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run Python code and capture the results printed to stdout.</span>
-
-<span class="sd">    numpy np is not available, no other 3rd party libraries are available.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="n">python_code</span><span class="p">],</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-</code></pre></div>
-
-<p>So this definitely works! But it makes me feel very uncomfortable. Allowing arbitrary code to execute on a system level can be a huge security issue. If the prompt comes from a user, it's possible they can make LLM generate code that can take control or expose files on the system. </p>
-<p>Even if there is strict control of the prompt, we would need to manage the lifecycle of the process to make sure the computation doesn't take too long or too much resources. </p>
-<h3>Builtin Langchain Solutions</h3>
-<p>Looking at langchain for some help, I can see that if offers a suite of <a href="https://python.langchain.com/docs/integrations/tools/#code-interpreter">code interpreter tools</a>.</p>
-<p>The interpreters are hosted as separate services, some are available only in the cloud and some can be self hosted. For cloud based interpreter there's still the question of whether you can trust the service. Especially since we're likely going to send data over. There's also the matter of cost.</p>
-<p>The self-hosting options are certainly viable, but it's still going to require spinning up a separate Docker container.</p>
-<h3>Python Sandbox</h3>
-<p>I wanted to find Python sandboxes that were simple to setup.</p>
-<h4>PyPy sandbox</h4>
-<p>The first sandbox I came across is from <a href="https://doc.pypy.org/en/latest/sandbox.html">PyPy</a>. With this we can apply the same <code>subprocess.run</code> command but just invoke the sandboxed version of PyPy as opposed to the regular Python interpreter. </p>
-<p>I've ran into problems running it:</p>
-<div class="highlight"><pre><span></span><code>➜<span class="w">  </span>sandbox<span class="w"> </span>git:<span class="o">(</span>main<span class="o">)</span><span class="w"> </span>./pypy_interact.py<span class="w">     </span>
-<span class="w">  </span>File<span class="w"> </span><span class="s2">&quot;/Users/jamie.chang/personal-projects/pypy/pypy/sandbox/./pypy_interact.py&quot;</span>,<span class="w"> </span>line<span class="w"> </span><span class="m">58</span>
-<span class="w">    </span><span class="s1">&#39;pypy-c&#39;</span>:<span class="w"> </span>RealFile<span class="o">(</span>self.executable,<span class="w"> </span><span class="nv">mode</span><span class="o">=</span><span class="m">0111</span><span class="o">)</span>,
-<span class="w">                                             </span>^
-SyntaxError:<span class="w"> </span>leading<span class="w"> </span>zeros<span class="w"> </span><span class="k">in</span><span class="w"> </span>decimal<span class="w"> </span>integer<span class="w"> </span>literals<span class="w"> </span>are<span class="w"> </span>not<span class="w"> </span>permitted<span class="p">;</span><span class="w"> </span>use<span class="w"> </span>an<span class="w"> </span>0o<span class="w"> </span>prefix<span class="w"> </span><span class="k">for</span><span class="w"> </span>octal<span class="w"> </span>integers
-</code></pre></div>
-
-<p>A closer look at the docs however reveal that this might not be as actively maintained as I had hoped. There might be newer efforts of this, but I'm not sure how to access them.</p>
-<h4>WASM</h4>
-<p>In the past I've heard about WASM being used as a runtime which can offer isolation. For example, <a href="https://developers.cloudflare.com/workers/runtime-apis/webassembly/">cloudflare's edge workers</a>. <a href="https://wasi.dev/">WASI</a> was introduced in large part to define and restrict what system calls are available to the wasm process. </p>
-<p>When researching this I came across an <a href="https://til.simonwillison.net/webassembly/python-in-a-wasm-sandbox">article</a> by Simon Willison, with working code examples on how to achieve this using <a href="https://github.com/bytecodealliance/wasmtime">wasmtime</a> and <a href="https://wasmlabs.dev/articles/python-wasm32-wasi/">VMWare's build of python.wasm</a>.</p>
-<p>That's pretty much all the hard work done for us! </p>
-<p>So I've done some minor modification to Simon's code, using the latest release of <code>python.wasm</code> found <a href="https://github.com/vmware-labs/webassembly-language-runtimes/releases/tag/python%2F3.12.0%2B20231211-040d5a6">here</a> the code is otherwise unchanged.</p>
-<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">run_python_code</span><span class="p">(</span><span class="n">code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">fuel</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">400_000_000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="n">engine_cfg</span> <span class="o">=</span> <span class="n">Config</span><span class="p">()</span>
-    <span class="n">engine_cfg</span><span class="o">.</span><span class="n">consume_fuel</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="n">engine_cfg</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="kc">True</span>
-
-    <span class="n">linker</span> <span class="o">=</span> <span class="n">Linker</span><span class="p">(</span><span class="n">Engine</span><span class="p">(</span><span class="n">engine_cfg</span><span class="p">))</span>
-    <span class="n">linker</span><span class="o">.</span><span class="n">define_wasi</span><span class="p">()</span>
-
-    <span class="n">python_module</span> <span class="o">=</span> <span class="n">Module</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">linker</span><span class="o">.</span><span class="n">engine</span><span class="p">,</span> <span class="s2">&quot;python-3.12.0.wasm&quot;</span><span class="p">)</span>
-
-    <span class="n">config</span> <span class="o">=</span> <span class="n">WasiConfig</span><span class="p">()</span>
-
-    <span class="n">config</span><span class="o">.</span><span class="n">argv</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="n">code</span><span class="p">)</span>
-    <span class="n">config</span><span class="o">.</span><span class="n">preopen_dir</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
-
-    <span class="k">with</span> <span class="n">NamedTemporaryFile</span><span class="p">()</span> <span class="k">as</span> <span class="n">out</span><span class="p">:</span>
-        <span class="n">config</span><span class="o">.</span><span class="n">stdout_file</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">name</span>
-
-        <span class="n">store</span> <span class="o">=</span> <span class="n">Store</span><span class="p">(</span><span class="n">linker</span><span class="o">.</span><span class="n">engine</span><span class="p">)</span>
-
-        <span class="c1"># Limits how many instructions can be executed:</span>
-        <span class="n">store</span><span class="o">.</span><span class="n">set_fuel</span><span class="p">(</span><span class="n">fuel</span><span class="p">)</span>
-        <span class="n">store</span><span class="o">.</span><span class="n">set_wasi</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
-        <span class="n">instance</span> <span class="o">=</span> <span class="n">linker</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">python_module</span><span class="p">)</span>
-
-        <span class="c1"># _start is the default wasi main function</span>
-        <span class="n">start</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">exports</span><span class="p">(</span><span class="n">store</span><span class="p">)[</span><span class="s2">&quot;_start&quot;</span><span class="p">]</span>
-        <span class="n">start</span><span class="p">(</span><span class="n">store</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
-
-
-<span class="nd">@tool</span>
-<span class="k">def</span> <span class="nf">run_python</span><span class="p">(</span><span class="n">python_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run Python code capturing the stdout.</span>
-
-<span class="sd">    numpy np is not available, no other 3rd party libraries are available.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">run_python_code</span><span class="p">(</span><span class="n">python_code</span><span class="p">)</span>
-</code></pre></div>
-
-<p>This feels much closer to the correct solution and not just because the code is already written for me.</p>
-<p>I like that the solution relies on the <code>WASI</code> standard. This is currently a rather trendy technology and the support for it is increasing. By default <code>WASI</code> programs do not have access to anything on the filesystem, and extra permissions must be requested.</p>
-<p>Wasmtime has also made things lot easier. The Python bindings mean that we can run the <code>WASM</code> binary inside the same Python process, without a need to create subprocesses, hence the title "Python-in-Python" or more accurately (but not as catchy) "Python-in-WASM-in-Python".</p>
-<p>Wasmtime provides a <a href="https://docs.wasmtime.dev/api/wasmtime/struct.Store.html#method.set_fuel"><code>fuel</code> mechanism</a> which limits the number of <code>wasm</code> instructions that runs. This is a good way to limit the processing for each <code>Python</code> call and prevent denial of service attacks. </p>
-<p>The portability of <code>WASM</code> means that the same method can be used to run Python sandbox in other languages and other platforms. There's even competing runtimes for <code>WASM</code> like <a href="https://github.com/wasmerio/wasmer-python">wasmer</a>.</p>
-<p>Also I found out later that the <a href="https://python.langchain.com/docs/integrations/tools/riza/">Riza Interpreter</a> with a supported langchain tool is also <code>WASM</code> based. Though it's still hosted in a separate container.</p>
-<h3>Further Work</h3>
-<p>There are a few small caveats here. For one I only have surface knowledge when it comes to <code>WASM</code> and wasmer. There might be security concerns I haven't thought about.</p>
-<p>Also you might have noticed that for the tool implementation, I've stated in the description that</p>
-<blockquote>
-<p>"numpy np is not available, no other 3rd party libraries are available."</p>
-</blockquote>
-<p>This is because GPT has a tendency to use <code>numpy</code> whenever possible. I've not worked out exactly how to make libraries like numpy available to <code>python.wasm</code>, there is some mention of how to do this in the wasmlabs <a href="https://wasmlabs.dev/articles/python-wasm32-wasi/">article</a> but it means a more complex setup process and I'm uncertain that this will work for <code>numpy</code> which contains native binary.</p>
-<p>There's definitely more work that can be done to simplify the setup process even more. Maybe it can even be made pip installable. It might also be good to investigate working with other languages.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>I've been experimenting with <a href="https://www.langchain.com/">Langchain</a> for GPT based queries. One problem we often encounter with GPT is hallucinations. This makes certain classes of problems unsuited to GPT, one example is maths and statistics. Whilst there are improvements for recent models often the maths cannot be trusted.</p>
+<p>When I try to …</p>
+                        <a class="readmore" href="../python-in-python-sandboxing-llm-generated-code.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
