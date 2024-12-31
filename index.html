@@ -19,7 +19,367 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./customising-pattern-matching-behaviour.html">Customising Pattern Matching Behaviour</a></h1>
+                        <h1 class="entry-title"><a href="./how-free-are-threads-in-python-now.html">How free are threads in Python now?</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2024-12-31T00:00:00+00:00">
+                Published: Tue 31 December 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>Free-threaded Python (<a href="https://peps.python.org/pep-0703/">PEP-703</a>) was released in October 2024. 
+It enables true multi-threaded execution without the restriction of the <a href="https://docs.python.org/3/glossary.html#term-global-interpreter-lock">GIL</a>.</p>
+<p>I previously covered this in <a href="./python-free-threading-asyncio.md">Free Threaded Python With Asyncio</a>, the example used there was selected because it very clearly demonstrates the performance increase, or moreover, the threads "running free".</p>
+<p>But that's not really code that solves a problem. It's simply repeating the same calculation. As I've been having a lot of fun with advent of code this December, it provided a very good testbed for free threading. </p>
+<h2>AOC Day 6</h2>
+<blockquote>
+<p>Spoilers for day 6 2024 ahead! full source code <a href="https://github.com/Jamie-Chang/advent2024-python">here</a></p>
+</blockquote>
+<p><a href="https://adventofcode.com/2024/day/6">Day 6</a> was a good example of a problem that can be solved using parallelisation.</p>
+<p>Part 1 involved tracing the path of a guard through a map. Part 2 then asks for locations where we could place a single obstacle and cause the guard to form a loop. </p>
+<p>Here's my full solution:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">pairwise</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Hashable</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">Self</span><span class="p">,</span> <span class="n">assert_never</span>
+
+
+<span class="nb">type</span> <span class="n">Pair</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+
+
+<span class="n">up</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">right</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">down</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">left</span> <span class="o">=</span> <span class="mi">3</span>
+
+
+<span class="k">def</span> <span class="nf">turn</span><span class="p">(</span><span class="n">direction</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">direction</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">4</span>
+
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">Ranges</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Traversable location in the map.&quot;&quot;&quot;</span>
+    <span class="n">rows</span><span class="p">:</span> <span class="nb">range</span>
+    <span class="n">cols</span><span class="p">:</span> <span class="nb">range</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">slice</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Pair</span><span class="p">]:</span>
+        <span class="k">match</span> <span class="n">key</span><span class="p">:</span>
+            <span class="k">case</span> <span class="nb">int</span><span class="p">()</span> <span class="k">as</span> <span class="n">r</span><span class="p">,</span> <span class="nb">slice</span><span class="p">()</span> <span class="k">as</span> <span class="n">cols</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">((</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cols</span><span class="p">[</span><span class="n">cols</span><span class="p">])</span>
+            <span class="k">case</span> <span class="nb">slice</span><span class="p">()</span> <span class="k">as</span> <span class="n">rows</span><span class="p">,</span> <span class="nb">int</span><span class="p">()</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">((</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="n">rows</span><span class="p">])</span>
+            <span class="k">case</span><span class="w"> </span><span class="k">_</span> <span class="k">as</span> <span class="n">other</span><span class="p">:</span>
+                <span class="n">assert_never</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">walk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="n">Pair</span><span class="p">,</span> <span class="n">direction</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Pair</span><span class="p">]:</span>
+        <span class="k">match</span> <span class="n">direction</span><span class="p">:</span>
+            <span class="k">case</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">((</span><span class="n">row</span><span class="p">,</span> <span class="n">start</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="n">start</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="p">::</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">case</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">((</span><span class="n">row</span><span class="p">,</span> <span class="n">start</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="n">start</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="p">::</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="k">case</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">((</span><span class="n">start</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cols</span><span class="p">[</span><span class="n">start</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="p">::</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">case</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">((</span><span class="n">start</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cols</span><span class="p">[</span><span class="n">start</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="p">::</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="kc">False</span>
+
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">Grid</span><span class="p">:</span>
+    <span class="n">start</span><span class="p">:</span> <span class="n">Pair</span>
+    <span class="n">tiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">bool</span><span class="p">]]</span>
+    <span class="n">ranges</span><span class="p">:</span> <span class="n">Ranges</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_lines</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">lines</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">):</span>
+            <span class="n">row</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">char</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
+                <span class="n">coord</span> <span class="o">=</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;^&quot;</span><span class="p">:</span>
+                    <span class="n">start</span> <span class="o">=</span> <span class="n">coord</span>
+                <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">char</span> <span class="o">==</span> <span class="s2">&quot;#&quot;</span><span class="p">)</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="n">start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">rows</span><span class="p">,</span> <span class="n">Ranges</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rows</span><span class="p">)),</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">]))))</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">Pair</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tiles</span><span class="p">[</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">key</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+
+
+<span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">read_lines</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+    <span class="k">with</span> <span class="n">path</span><span class="o">.</span><span class="n">open</span><span class="p">()</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">walk</span><span class="p">(</span><span class="n">grid</span><span class="p">:</span> <span class="n">Grid</span><span class="p">,</span> <span class="n">obstruction</span><span class="p">:</span> <span class="n">Pair</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Pair</span><span class="p">]:</span>
+    <span class="n">direction</span> <span class="o">=</span> <span class="n">up</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">start</span>
+
+    <span class="k">yield</span> <span class="n">start</span>
+
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">walk</span> <span class="o">=</span> <span class="n">pairwise</span><span class="p">(</span><span class="n">grid</span><span class="o">.</span><span class="n">ranges</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">direction</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">prev</span><span class="p">,</span> <span class="n">curr</span> <span class="ow">in</span> <span class="n">walk</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">grid</span><span class="p">[</span><span class="n">curr</span><span class="p">]</span> <span class="ow">or</span> <span class="n">curr</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
+                <span class="n">direction</span> <span class="o">=</span> <span class="n">turn</span><span class="p">(</span><span class="n">direction</span><span class="p">)</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="n">prev</span>
+                <span class="k">break</span>
+
+            <span class="k">yield</span> <span class="n">curr</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span>
+
+
+<span class="k">def</span> <span class="nf">loops</span><span class="p">[</span><span class="n">T</span><span class="p">:</span> <span class="n">Hashable</span><span class="p">](</span><span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="n">visited</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">it</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">visited</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="n">visited</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="k">with</span> <span class="n">read_lines</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;inputs&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;d6.txt&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">lines</span><span class="p">:</span>
+        <span class="n">grid</span> <span class="o">=</span> <span class="n">Grid</span><span class="o">.</span><span class="n">from_lines</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+
+    <span class="n">path</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">walk</span><span class="p">(</span><span class="n">grid</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;part1&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+
+    <span class="n">candidates</span> <span class="o">=</span> <span class="p">(</span><span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">grid</span><span class="o">.</span><span class="n">start</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="s2">&quot;part2&quot;</span><span class="p">,</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="n">loops</span><span class="p">(</span><span class="n">pairwise</span><span class="p">(</span><span class="n">walk</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">node</span><span class="p">)))),</span>
+    <span class="p">)</span>
+</code></pre></div>
+
+<p>A few details I want to highlight here:
+- <code>Grid</code> implements <code>__getitem__</code> so we can access locations on a map more directly e.g. <code>grid[1, 2]</code> will access location (1, 2)
+- <code>Ranges</code> represents the full range of locations in the map and allows us to easily trace paths in a single direction
+- <code>walk</code> brings everything together and handles the logic when we hit an obstruction.</p>
+<p>Part 2 is what we're more interested in here. We iterate for all locations on the path (around 5000 in my case) and check if adding an obstruction there forms a loop. </p>
+<h2>Parallelisation</h2>
+<p>I timed just part 2 and it takes around 4 seconds on my 11 core M3 Mac. However it should be simple to parallelise, as each of these walks are independent and the grid is only being read not modified. </p>
+<p>Using <code>ThreadPoolExecutor</code>, we can change the last part of the code to run in parallel:</p>
+<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">node</span><span class="p">:</span> <span class="n">loops</span><span class="p">(</span><span class="n">pairwise</span><span class="p">(</span><span class="n">walk</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">node</span><span class="p">))),</span>
+        <span class="n">candidates</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;part2&quot;</span><span class="p">,</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span><span class="p">))</span>
+</code></pre></div>
+
+<p>I was then shocked to find that the execution was almost twice as slow at almost 10 seconds.</p>
+<h2>Hypothesis</h2>
+<p>There are several potential reasons to explain this kind of behaviour.</p>
+<h3>Specialization</h3>
+<p>Python 3.11 released with performance enhancements via <a href="https://peps.python.org/pep-0659/">Specialization</a>.</p>
+<p>Free-threaded Python has specialisation disabled in threaded code, see https://peps.python.org/pep-0703/#improved-specialization for more details</p>
+<p>The performance overhead should however be fairly small, according to the <a href="https://peps.python.org/pep-0703/#performance">PEP</a> the slowdown should be within 10%.</p>
+<h3>Lock contention</h3>
+<p>The GIL's job was to protect objects from concurrent access. This is still important in free-threaded python, so there must be per-object locks in place of the GIL.</p>
+<p>These locks can still cause threads to block waiting on them. </p>
+<h3>Thread start up time</h3>
+<p>This is more of an issue associated with processes, sub-interpreters but not threads. See <a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html#how-do-sub-interpreters-compare-in-performance-in-real-terms">Anthony Shaw's post</a>. So the startup time cannot explain the slowness. </p>
+<h2>Profiling</h2>
+<p>To test my theories, my immediate thought was just run <code>cProfile</code>. </p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>cProfile<span class="w"> </span>d6.py
+</code></pre></div>
+
+<p>... and nothing! The process hangs, and no output is shown. It turns out there's a <a href="https://github.com/python/cpython/issues/125165">bug</a> in cProfile for free-threaded builds of Python 🤦.</p>
+<p>Well this made the problem exponentially harder. I've tried a few other profiler options without success. I briefly considered looking into <a href="https://docs.python.org/3/library/sys.monitoring.html">sys.monitoring</a> but it would probably take me a lot more research to write a profiler.</p>
+<h2>Experiment, Research, Repeat</h2>
+<p>Without good profiling the only thing to do is to understand the problem better and try a bunch of things.</p>
+<h3>Time per thread count</h3>
+<p>First thing I checked the performance with respect to the thread count, by default, python sets the <code>max_worker</code> count to n + 4 where n is the number of cores in the system. </p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">workers</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">):</span>
+    <span class="n">candidates</span> <span class="o">=</span> <span class="p">(</span><span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">grid</span><span class="o">.</span><span class="n">start</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">timer</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">workers</span><span class="w"> </span><span class="si">= }</span><span class="s2">: &quot;</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">node</span><span class="p">:</span> <span class="n">loops</span><span class="p">(</span><span class="n">pairwise</span><span class="p">(</span><span class="n">walk</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">node</span><span class="p">))),</span>
+                <span class="n">candidates</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;part2&quot;</span><span class="p">,</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span><span class="p">),</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;; &quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="o">(</span>advent2024-python<span class="o">)</span><span class="w"> </span>➜<span class="w">  </span>advent2024-python<span class="w"> </span>git:<span class="o">(</span>main<span class="o">)</span><span class="w"> </span>✗<span class="w"> </span>python<span class="w"> </span>d6.py
+part1<span class="w"> </span><span class="m">4883</span>
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span>:<span class="w">  </span><span class="m">4</span>.060725<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2</span>:<span class="w">  </span><span class="m">4</span>.789434<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">3</span>:<span class="w">  </span><span class="m">5</span>.203642<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">4</span>:<span class="w">  </span><span class="m">5</span>.516271<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">5</span>:<span class="w">  </span><span class="m">6</span>.114952<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">6</span>:<span class="w">  </span><span class="m">7</span>.461776<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">7</span>:<span class="w">  </span><span class="m">7</span>.562252<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">8</span>:<span class="w">  </span><span class="m">8</span>.026832<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">9</span>:<span class="w">  </span><span class="m">8</span>.335291<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">10</span>:<span class="w">  </span><span class="m">8</span>.731357<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">11</span>:<span class="w">  </span><span class="m">9</span>.152564<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">12</span>:<span class="w">  </span><span class="m">9</span>.476967<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">13</span>:<span class="w">  </span><span class="m">9</span>.589462<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">14</span>:<span class="w">  </span><span class="m">9</span>.955716<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">15</span>:<span class="w">  </span><span class="m">9</span>.728167<span class="w"> </span>s<span class="w"> </span>elapsed
+</code></pre></div>
+
+<p>So more thread means less performance here, this strongly suggests some sort of lock contention.</p>
+<h3>How locking works</h3>
+<p>Built-in types use <a href="https://docs.python.org/3.13/howto/free-threading-python.html#thread-safety">internal locks</a> to guarantee thread safety.</p>
+<p>I read the <a href="https://peps.python.org/pep-0703/#container-thread-safety">PEP</a> and it appears that the locking is rather complicated. For the most part read access is "<a href="https://peps.python.org/pep-0703/#optimistically-avoiding-locking">optimistic</a>". Since we only read the list it's unlikely to be the culprit. However, to eliminate any doubts I've switched to the immutable tuple, which does not require locking:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">Grid</span><span class="p">:</span>
+    <span class="n">start</span><span class="p">:</span> <span class="n">Pair</span>
+    <span class="n">tiles</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">ranges</span><span class="p">:</span> <span class="n">Ranges</span>
+</code></pre></div>
+
+<p>As expected this did not solve the issue and the performance degradation did not go away.</p>
+<h3>Reference counting</h3>
+<p>This is going very deep into Python internals, not something I'm particularly comfortable with. I did get a bit of a clue <a href="https://github.com/python/cpython/issues/120040#issuecomment-2152986725">here</a> where someone else also ran into performance issues.</p>
+<p><a href="https://github.com/python/cpython/blob/main/InternalDocs/garbage_collector.md">Reference counting</a> is the method used by Python for garbage collection. The idea is that each object stores a counter for the number of references which is then used for garbage collection when the references hit 0. </p>
+<p>The bigger implication here is that referencing an object will require the counter to be incremented, which requires locking when the object is referenced from multiple threads.</p>
+<p>A form of reference counting called "<a href="https://peps.python.org/pep-0703/#biased-reference-counting">biased reference counting</a>" is used in free-threaded Python. This allows faster reference count access to objects created within the thread than objects created from different threads.</p>
+<p>Overall, this means that even read-only access can be slowed down due to reference counting.</p>
+<h3>Immortal objects</h3>
+<p>See <a href="https://peps.python.org/pep-0683/">PEP-683</a>, this is a recent change too that skips reference counting by marking certain objects as immortal. Immortalization is <a href="https://peps.python.org/pep-0703/#immortalization">implemented</a> in free-threaded python as well. It's only really applied to <code>True</code>, <code>False</code>, <code>None</code> as well as classes and top level functions. </p>
+<p>Here my grid is already using booleans so it's already using immortal objects. I did use <code>Enum</code> in an earlier version and there was definitely an improvement of the performance here. But it wasn't very significant. Nevertheless it might solve performance issues in other situations.</p>
+<h2>The Breakthrough</h2>
+<p>After many iterations, I finally looked at the following line:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span> <span class="n">grid</span><span class="p">[</span><span class="n">current</span><span class="p">]</span> <span class="ow">or</span> <span class="n">current</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
+</code></pre></div>
+
+<p>This uses the magic method <code>__getitem__</code> </p>
+<div class="highlight"><pre><span></span><code>    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">Pair</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tiles</span><span class="p">[</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">key</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+</code></pre></div>
+
+<p>which references the <code>Grid</code> object and gets the in turn then references the <code>tiles</code> attribute. </p>
+<p>The code also lives in the <code>walk</code> function inside the double loop so it's called frequently!</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">walk</span><span class="p">(</span><span class="n">grid</span><span class="p">:</span> <span class="n">Grid</span><span class="p">,</span> <span class="n">obstruction</span><span class="p">:</span> <span class="n">Pair</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Pair</span><span class="p">]:</span>
+    <span class="o">...</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="o">...</span>
+        <span class="k">for</span> <span class="n">prev</span><span class="p">,</span> <span class="n">curr</span> <span class="ow">in</span> <span class="n">walk</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">grid</span><span class="p">[</span><span class="n">curr</span><span class="p">]</span> <span class="ow">or</span> <span class="n">curr</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
+                <span class="o">...</span>
+            <span class="o">...</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<blockquote>
+<p>I'd like to claim that I intuitively looked here, but really I looked in a lot of different places before finding this.</p>
+</blockquote>
+<p>In any case we can bypass the <code>__getitem__</code> call by</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">prev</span><span class="p">,</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="ow">in</span> <span class="n">walk</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">grid</span><span class="o">.</span><span class="n">tiles</span><span class="p">[</span><span class="n">r</span><span class="p">][</span><span class="n">c</span><span class="p">]</span> <span class="ow">or</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
+</code></pre></div>
+
+<p>Running the code again: </p>
+<div class="highlight"><pre><span></span><code><span class="o">(</span>advent2024-python<span class="o">)</span><span class="w"> </span>➜<span class="w">  </span>advent2024-python<span class="w"> </span>git:<span class="o">(</span>main<span class="o">)</span><span class="w"> </span>✗<span class="w"> </span>python<span class="w"> </span>d6_threads.py
+part1<span class="w"> </span><span class="m">4883</span>
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span>:<span class="w">  </span><span class="m">3</span>.801581<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2</span>:<span class="w">  </span><span class="m">3</span>.10458<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">3</span>:<span class="w">  </span><span class="m">2</span>.925348<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">4</span>:<span class="w">  </span><span class="m">2</span>.944652<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">5</span>:<span class="w">  </span><span class="m">3</span>.200314<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">6</span>:<span class="w">  </span><span class="m">4</span>.337672<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">7</span>:<span class="w">  </span><span class="m">4</span>.507129<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">8</span>:<span class="w">  </span><span class="m">4</span>.739261<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">9</span>:<span class="w">  </span><span class="m">4</span>.932432<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">10</span>:<span class="w">  </span><span class="m">5</span>.219045<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">11</span>:<span class="w">  </span><span class="m">5</span>.798776<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">12</span>:<span class="w">  </span><span class="m">6</span>.20557<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">13</span>:<span class="w">  </span><span class="m">6</span>.459673<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">14</span>:<span class="w">  </span><span class="m">6</span>.571967<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">15</span>:<span class="w">  </span><span class="m">6</span>.590083<span class="w"> </span>s<span class="w"> </span>elapsed
+</code></pre></div>
+
+<p>This is actually the first time we've seen positive performance gain. Curiously, the higher thread counts still result in negative performance. </p>
+<p>Taking this further we still reference <code>grid</code> inside the loop, so we can assign tiles to the outside instead:</p>
+<div class="highlight"><pre><span></span><code>    <span class="n">tiles</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">tiles</span> 
+
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">walk</span> <span class="o">=</span> <span class="n">pairwise</span><span class="p">(</span><span class="n">ranges</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">direction</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">prev</span><span class="p">,</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="ow">in</span> <span class="n">walk</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tiles</span><span class="p">[</span><span class="n">r</span><span class="p">][</span><span class="n">c</span><span class="p">]</span> <span class="ow">or</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
+                <span class="o">...</span>
+</code></pre></div>
+
+<p>Once again:</p>
+<div class="highlight"><pre><span></span><code><span class="o">(</span>advent2024-python<span class="o">)</span><span class="w"> </span>➜<span class="w">  </span>advent2024-python<span class="w"> </span>git:<span class="o">(</span>main<span class="o">)</span><span class="w"> </span>✗<span class="w"> </span>python<span class="w"> </span>d6_threads.py
+part1<span class="w"> </span><span class="m">4883</span>
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span>:<span class="w">  </span><span class="m">3</span>.572743<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2</span>:<span class="w">  </span><span class="m">2</span>.257732<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">3</span>:<span class="w">  </span><span class="m">1</span>.665534<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">4</span>:<span class="w">  </span><span class="m">1</span>.38678<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">5</span>:<span class="w">  </span><span class="m">1</span>.383013<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">6</span>:<span class="w">  </span><span class="m">2</span>.540588<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">7</span>:<span class="w">  </span><span class="m">3</span>.520335<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">8</span>:<span class="w">  </span><span class="m">4</span>.365446<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">9</span>:<span class="w">  </span><span class="m">5</span>.072404<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">10</span>:<span class="w">  </span><span class="m">5</span>.722957<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">11</span>:<span class="w">  </span><span class="m">6</span>.087521<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">12</span>:<span class="w">  </span><span class="m">6</span>.179896<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">13</span>:<span class="w">  </span><span class="m">6</span>.174642<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">14</span>:<span class="w">  </span><span class="m">6</span>.194982<span class="w"> </span>s<span class="w"> </span>elapsed
+part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span><span class="w"> </span><span class="nv">workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">15</span>:<span class="w">  </span><span class="m">6</span>.100845<span class="w"> </span>s<span class="w"> </span>elapsed
+</code></pre></div>
+
+<p>A decent performance when using 3, 4 or 5 workers.</p>
+<h3>Worker count</h3>
+<p>It seems to me like there's a sweet spot for the number of cores vs the reference contention. 4 seems to be quite consistently good on my machine too cores then the reference count contention starts dominating the timing.</p>
+<p>It's also possible that it's an indication of performance cores vs efficiency cores on the M3 processor, but I believe this is less likely as we've already demonstrated how dramatic the differences are when it comes to reference count contention.</p>
+<h2>Key Takeaways</h2>
+<p>When looking at free threading in Python here are the following key things to look for.</p>
+<h3>Threads are not free</h3>
+<p>Threads are not free in terms of performance, you definitely have to pay for it. And concurrent access means you can't really be free of locks.</p>
+<h3>Avoid shared mutable writes</h3>
+<p>In this example we didn't have any shared writes, however in based on my previous testing, this can be extremely slow.</p>
+<p>Try to structure objects so that they don't need to be mutated across threads.</p>
+<h3>Minimise shared reads</h3>
+<p>I don't believe shared reads that can be avoided, the ease of memory access is the biggest advantage of multi-threading. </p>
+<h3>Worker count may be important</h3>
+<p>A direct takeaway from the idea that "threads are not free" is that you may need to reduce the number of threads based on the situation. </p>
+<p>It's important to test the code with different number of worker threads.</p>
+<h3>Profiling is important</h3>
+<p>Profiling is extremely important, I hope cProfile gets fixed or some other profiler can help with this situation.</p>
+<h2>Conclusion</h2>
+<p>There's a lot to unpack here, but my biggest thought is that multi-threading in Python is actually deceptively difficult. Simple Python operations may have an amplified performance impact. </p>
+<p>Debugging performance problems should get easier when we have profiling working again, so this shouldn't be a big issue for engineers looking to solve parallel problems.</p>
+<p>However I'm a bit worried about existing multi-threaded code. Before free-threaded python, threads were used for IO bound operations when the GIL was released. It's going to be a big challenge if one day the GIL is disabled and the performance may become many times slower. </p>
+<p>I'm starting to think that the approach <a href="https://peps.python.org/pep-0554/">sub-interpreters</a> is taking, with brand new concurrency primitives and shared memory data structures has a lot of merits. I like the idea of adding a new dimension of concurrency as opposed to modifying the current. Perhaps I'll try to implement my AOC solution using sub-interpreters.</p>
+<p>Finally, despite the effort it took me here, I can see that a lot of work has gone into Python to make the GIL optional. From immortalization to biased reference counting and many more I haven't covered. There is definitely a lot of space for performance improvement. I can't wait to see how the framework authors <a href="https://peps.python.org/pep-0703/#motivation">take advantage</a> of free-threading.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./customising-pattern-matching-behaviour.html" rel="bookmark"
+                               title="Permalink to Customising Pattern Matching Behaviour">Customising Pattern Matching Behaviour</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2024-12-09T00:00:00+00:00">
                 Published: Mon 09 December 2024
@@ -30,158 +390,10 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>I've been doing <a href="https://adventofcode.com/">advent of code</a> again this year. There are two Python features I always rely on, iterators and pattern matching. Iterators allow for operations on each of its elements without allocating memory for a collection. Ever since pattern matching was introduced in Python 3.10, it's been particularly useful to unpack nested object structure. </p>
-<p>Unfortunately pattern matching and iterators don't work well together. By definition elements of an iterator do not necessarily exist so there's nothing to match against. Often to pattern match we must first consume the iterator:</p>
-<div class="highlight"><pre><span></span><code><span class="k">match</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span> 
-    <span class="k">case</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="k">_</span><span class="p">]:</span>  <span class="c1"># Won&#39;t match of course</span>
-        <span class="o">...</span>
-
-<span class="k">match</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)):</span>
-    <span class="k">case</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="k">_</span><span class="p">]:</span>  <span class="c1"># matches now since iterator is consumed</span>
-        <span class="o">...</span>
-</code></pre></div>
-
-<p>Ideally we'd be able to consume the head elements of the iterator on demand, but this isn't possible directly with iterators.</p>
-<h3>Official Support for Custom Matching</h3>
-<p>In the original PEP, there's mention of the idea of <a href="https://peps.python.org/pep-0622/#custom-matching-protocol">custom matchers</a>. But the idea was ultimately deferred due to the lack of a clear use case. </p>
-<h3>Matching Properties</h3>
-<p>But it turns out we don't really need any of this. We can match any named attributes of an object even a <code>property</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">Repeat</span><span class="p">:</span>
-    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">times</span><span class="p">:</span> <span class="nb">int</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">repeated</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">times</span>
-
-
-<span class="k">match</span> <span class="n">Repeat</span><span class="p">(</span><span class="s2">&quot;abcd&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
-    <span class="k">case</span> <span class="n">Repeat</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="n">times</span><span class="p">,</span> <span class="n">repeated</span><span class="o">=</span><span class="nb">list</span><span class="p">()</span> <span class="k">as</span> <span class="n">repeated</span><span class="p">):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;After </span><span class="si">{</span><span class="n">times</span><span class="si">}</span><span class="s2"> times&quot;</span><span class="p">,</span> <span class="n">repeated</span><span class="p">)</span>
-</code></pre></div>
-
-<p>This is really useful as we need to dynamically unpack the iterator if we want to match the iterator. We can create an object with the <code>next</code> property that evaluates the next elements on demand.</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">Node</span><span class="p">:</span>
-    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_iter</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">),</span> <span class="n">it</span><span class="p">)</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">Node</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">)</span>
-
-
-<span class="k">match</span> <span class="n">Node</span><span class="o">.</span><span class="n">from_iter</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))):</span>
-    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">next</span><span class="o">=</span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 0 and 1&quot;</span><span class="p">)</span>
-</code></pre></div>
-
-<p>There is a bug in the code, consider the following match statement:</p>
-<div class="highlight"><pre><span></span><code><span class="k">match</span> <span class="n">Node</span><span class="o">.</span><span class="n">from_iter</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))):</span>
-    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span> <span class="nb">next</span><span class="o">=</span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 9 and 8&quot;</span><span class="p">)</span>
-    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">next</span><span class="o">=</span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 0 and 1&quot;</span><span class="p">)</span>
-</code></pre></div>
-
-<p>The looks like it'll match in the second <code>case</code>, but it can't. This is because the first <code>case</code> checks the first 2 elements by consuming them. </p>
-<p>But the fix is actually really simple, we simple use <code>cached_property</code> to cache the result of <code>next</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">Node</span><span class="p">:</span>
-    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_iter</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">),</span> <span class="n">it</span><span class="p">)</span>
-
-    <span class="nd">@cached_property</span>
-    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">Node</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">)</span>
-</code></pre></div>
-
-<h3>Matching positionally using <code>__match_args__</code></h3>
-<p>Matching named attributes can be very verbose. We can specify which arguments to match sequentially by adding  <a href="https://peps.python.org/pep-0622/#special-attribute-match-args"><code>__match_args__</code></a> to the class:</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">Node</span><span class="p">:</span>
-    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
-
-    <span class="n">__match_args__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="s2">&quot;next&quot;</span><span class="p">)</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_iter</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">),</span> <span class="n">it</span><span class="p">)</span>
-
-    <span class="nd">@cached_property</span>
-    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">Node</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">)</span>
-
-
-<span class="k">match</span> <span class="n">Node</span><span class="o">.</span><span class="n">from_iter</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))):</span>
-    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 9 and 8&quot;</span><span class="p">)</span>
-    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 0 and 1&quot;</span><span class="p">)</span>
-</code></pre></div>
-
-<h3>Matching the end of iteration</h3>
-<p>Finally we need to consider the <code>StopIteration</code> at the end of the iterator.</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">Node</span><span class="p">:</span>
-    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
-
-    <span class="n">__match_args__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="s2">&quot;next&quot;</span><span class="p">)</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_iter</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">it</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Node</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">),</span> <span class="n">it</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-
-    <span class="nd">@cached_property</span>
-    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Node</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">Node</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">it</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-
-
-<span class="k">match</span> <span class="n">Node</span><span class="o">.</span><span class="n">from_iter</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">))):</span>
-    <span class="k">case</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="k">_</span><span class="p">)):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 9 and 8&quot;</span><span class="p">)</span>
-    <span class="k">case</span> <span class="n">Node</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starts with 0&quot;</span><span class="p">)</span>
-</code></pre></div>
-
-<h3>Conclusion</h3>
-<p>You might still be wondering if this is actually useful. I've published this as <a href="https://github.com/Jamie-Chang/pattern-utils">pattern-utils</a> so you can try it out. Beware the implementation is slightly different to facilitate matching generator with return, for example,</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">pattern_utils</span> <span class="kn">import</span> <span class="n">generator</span> <span class="k">as</span> <span class="n">gen</span>
-
-
-<span class="k">def</span> <span class="nf">example_generator</span><span class="p">():</span>
-    <span class="k">yield</span> <span class="s2">&quot;some resource&quot;</span>
-    <span class="k">return</span> <span class="s2">&quot;done&quot;</span>
-
-
-<span class="k">match</span> <span class="n">gen</span><span class="o">.</span><span class="n">matcher</span><span class="p">(</span><span class="n">example_generator</span><span class="p">()):</span>
-    <span class="k">case</span> <span class="n">gen</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="n">gen</span><span class="o">.</span><span class="n">Empty</span><span class="p">(</span><span class="n">end_result</span><span class="p">)):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="n">end_result</span><span class="p">)</span>
-</code></pre></div>
-
-<p>I think more important is using the same technique of writing a wrapper with properties to better exploit pattern matching. If I discover other common use cases I will update the library.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>I've been doing <a href="https://adventofcode.com/">advent of code</a> again this year. There are two Python features I always rely on, iterators and pattern matching. Iterators allow for operations on each of its elements without allocating memory for a collection. Ever since pattern matching was introduced in Python 3.10, it's been particularly …</p>
+                        <a class="readmore" href="./customising-pattern-matching-behaviour.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
