@@ -5,7 +5,7 @@ Category: Blog
 Free-threaded Python ([PEP-703](https://peps.python.org/pep-0703/)) was released in October 2024. 
 It enables true multi-threaded execution without the restriction of the [GIL](https://docs.python.org/3/glossary.html#term-global-interpreter-lock).
 
-I previously covered this in [Free Threaded Python With Asyncio](./python-free-threading-asyncio.md), the example used there was selected because it very clearly demonstrates the performance increase, or moreover, the threads "running free".
+I previously covered this in [Free Threaded Python With Asyncio](./free-threaded-python-with-asyncio.html), the example used there was selected because it very clearly demonstrates the performance increase, or moreover, the threads "running free".
 
 But that's not really code that solves a problem. It's simply repeating the same calculation. As I've been having a lot of fun with advent of code this December, it provided a very good testbed for free threading. 
 
