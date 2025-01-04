@@ -1,10 +1,231 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2024-12-31T00:00:00+00:00</updated><entry><title>How free are threads in Python now?</title><link href="https://blog.changs.co.uk/how-free-are-threads-in-python-now.html" rel="alternate"></link><published>2024-12-31T00:00:00+00:00</published><updated>2024-12-31T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2024-12-31:/how-free-are-threads-in-python-now.html</id><summary type="html">&lt;p&gt;Free-threaded Python (&lt;a href="https://peps.python.org/pep-0703/"&gt;PEP-703&lt;/a&gt;) was released in October 2024. 
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-01-03T00:00:00+00:00</updated><entry><title>How good are sub-interpreters in Python now?</title><link href="https://blog.changs.co.uk/how-good-are-sub-interpreters-in-python-now.html" rel="alternate"></link><published>2025-01-03T00:00:00+00:00</published><updated>2025-01-03T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-01-03:/how-good-are-sub-interpreters-in-python-now.html</id><summary type="html">&lt;h2&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;I wrote about free-threading recently in &lt;a href="./how-free-are-threads-in-python-now.html"&gt;How free are threads in Python now?&lt;/a&gt;. Where I found some unexpected difficulties parallelising my solution.&lt;/p&gt;
+&lt;p&gt;In the conclusion section I wrote:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I'm starting to think that the approach &lt;a href="https://peps.python.org/pep-0554/"&gt;sub-interpreters&lt;/a&gt; is taking, with brand new concurrency primitives and shared memory data structures has …&lt;/p&gt;&lt;/blockquote&gt;</summary><content type="html">&lt;h2&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;I wrote about free-threading recently in &lt;a href="./how-free-are-threads-in-python-now.html"&gt;How free are threads in Python now?&lt;/a&gt;. Where I found some unexpected difficulties parallelising my solution.&lt;/p&gt;
+&lt;p&gt;In the conclusion section I wrote:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I'm starting to think that the approach &lt;a href="https://peps.python.org/pep-0554/"&gt;sub-interpreters&lt;/a&gt; is taking, with brand new concurrency primitives and shared memory data structures has a lot of merits. I like the idea of adding a new dimension of concurrency as opposed to modifying the current. Perhaps I'll try to implement my AOC solution using sub-interpreters.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This week I tried sub-interpreters for the first time and was pleasantly surprised.&lt;/p&gt;
+&lt;h2&gt;Sub-interpreters&lt;/h2&gt;
+&lt;p&gt;The PEP to look at is &lt;a href="https://peps.python.org/pep-0734"&gt;PEP 734 - Multiple Interpreters in the Stdlib&lt;/a&gt;. But this is only possible because of the continued work in &lt;a href="https://peps.python.org/pep-0684"&gt;PEP 684 - A Per-Interpreter GIL&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;In short, instead of achieving parallelism by removing the GIL, we create isolated memory spaces in the same process each paired with a GIL. The isolated memory spaces are the interpreter state, and memory access within the interpreter state is subject to the interpreter's GIL. Different interpreters are then able to run in parallel as they access independent memory spaces.&lt;/p&gt;
+&lt;p&gt;Certain objects can be shared via &lt;a href="https://peps.python.org/pep-0734/#shareable-objects"&gt;sharable objects&lt;/a&gt;. This is only possible because the interpreters all live in the same process. In multi-processing this is much harder to achieve.&lt;/p&gt;
+&lt;p&gt;PEP-734 is not officially accepted for 3.13, but its features are usable via Eric Snow's &lt;a href="https://pypi.org/project/interpreters-pep-734"&gt;interpreters package&lt;/a&gt;.&lt;/p&gt;
+&lt;h2&gt;AOC Implementation&lt;/h2&gt;
+&lt;p&gt;Full implementation can be found &lt;a href="https://github.com/Jamie-Chang/advent2024-python/tree/main/subinterpreters"&gt;here&lt;/a&gt;. I'll focus on the parts that specifically use the specification in the PEP.&lt;/p&gt;
+&lt;p&gt;Features like &lt;a href="https://peps.python.org/pep-0554/#channels"&gt;channels&lt;/a&gt; that are outside of the most recent specification though available are not used.&lt;/p&gt;
+&lt;h3&gt;Types&lt;/h3&gt;
+&lt;p&gt;First I looked at all the types that can be shared between interpreters and it's not so hard to define them as an annotation:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# Create a type so that we can type check what we pass into the shared state.&lt;/span&gt;
+&lt;span class="nb"&gt;type&lt;/span&gt; &lt;span class="n"&gt;Shareable&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;
+    &lt;span class="nb"&gt;str&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;bytes&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;float&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;bool&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;tuple&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Shareable&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="n"&gt;Queue&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;memoryview&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Most shareable types are immutable with the exception of &lt;code&gt;Queue&lt;/code&gt; and &lt;code&gt;memoryview&lt;/code&gt;. They are the primary ways of passing data in and out of interpreters. &lt;code&gt;Queue.get&lt;/code&gt; can also act as a mechanism to synchronise between interpreters.&lt;/p&gt;
+&lt;h3&gt;Interpreter&lt;/h3&gt;
+&lt;p&gt;Interpreters can also be initialised with some global shareable state. For example:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;interp&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;prepare_main&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;queue&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;Queue&lt;/span&gt;&lt;span class="p"&gt;(),&lt;/span&gt; &lt;span class="n"&gt;value&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;5&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This is how we pass the &lt;code&gt;Queue&lt;/code&gt; or &lt;code&gt;memoryview&lt;/code&gt; objects into the interpreters in the first place.&lt;/p&gt;
+&lt;p&gt;Running code in interpreters requires using &lt;code&gt;Interpreter.exec&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;interp&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;interpreters&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;span class="n"&gt;interp&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exec&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;print(&lt;/span&gt;&lt;span class="se"&gt;\&amp;quot;&lt;/span&gt;&lt;span class="s2"&gt;hello world&lt;/span&gt;&lt;span class="se"&gt;\&amp;quot;&lt;/span&gt;&lt;span class="s2"&gt;)&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This is analogous to &lt;a href="https://docs.python.org/3/library/functions.html#exec"&gt;&lt;code&gt;exec&lt;/code&gt;&lt;/a&gt; but in the specified interpreter. &lt;/p&gt;
+&lt;p&gt;There are also other ways to execute code I chose not to use like &lt;a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor"&gt;InterpreterPoolExecutor&lt;/a&gt; which don't take advantage of shared objects, or &lt;code&gt;Interpreter.call&lt;/code&gt; which places limitations on the function called.&lt;/p&gt;
+&lt;p&gt;Note: &lt;code&gt;Interpreter.exec&lt;/code&gt; executes code in the foreground, so we would also need to wrap it in a thread.&lt;/p&gt;
+&lt;h3&gt;Calling a function&lt;/h3&gt;
+&lt;p&gt;Many of the examples in the PEO use an import inside the interpreter:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;    &lt;span class="n"&gt;interp&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exec&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&amp;quot;&amp;quot;if True:&lt;/span&gt;
+&lt;span class="s2"&gt;        from mymodule import edit_data&lt;/span&gt;
+&lt;span class="s2"&gt;        while True:&lt;/span&gt;
+&lt;span class="s2"&gt;            token = control.get()&lt;/span&gt;
+&lt;span class="s2"&gt;            edit_data(data)&lt;/span&gt;
+&lt;span class="s2"&gt;            control.put(token)&lt;/span&gt;
+&lt;span class="s2"&gt;        &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This is because functions are objects that are not shareable. So it's often just easier to have the interpreter recreate the function by importing. &lt;/p&gt;
+&lt;h3&gt;My wrapper&lt;/h3&gt;
+&lt;p&gt;Putting this all together, I wrote a wrapper to:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;create interpreters inside thread&lt;/li&gt;
+&lt;li&gt;import a function inside the interpreters to execute on input from the task queue&lt;/li&gt;
+&lt;li&gt;collect the results and close the interpreters&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;Executor&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="fm"&gt;__init__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="n"&gt;module&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="n"&gt;entrypoint&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="n"&gt;workers&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Shareable&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;tasks&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;interpreters&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create_queue&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;results&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;interpreters&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create_queue&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;bind&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;
+
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;code&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;dedent&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;            from &lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;module&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt; import &lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;entrypoint&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt; as entrypoint&lt;/span&gt;
+&lt;span class="s2"&gt;            from interpreters_backport import interpreters&lt;/span&gt;
+
+&lt;span class="s2"&gt;            tasks = interpreters.Queue(&lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;tasks&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt;)&lt;/span&gt;
+&lt;span class="s2"&gt;            results = interpreters.Queue(&lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;results&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt;)&lt;/span&gt;
+
+&lt;span class="s2"&gt;            while True:&lt;/span&gt;
+&lt;span class="s2"&gt;                req = tasks.get()&lt;/span&gt;
+&lt;span class="s2"&gt;                if req is None:&lt;/span&gt;
+&lt;span class="s2"&gt;                    # Stop!&lt;/span&gt;
+&lt;span class="s2"&gt;                    break&lt;/span&gt;
+&lt;span class="s2"&gt;                try:&lt;/span&gt;
+&lt;span class="s2"&gt;                    res = entrypoint(*req, &lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;join&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt;=&lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;for&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="ow"&gt;in&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt;)&lt;/span&gt;
+&lt;span class="s2"&gt;                except Exception as e:&lt;/span&gt;
+&lt;span class="s2"&gt;                    results.put((False, repr(e)))&lt;/span&gt;
+&lt;span class="s2"&gt;                else:&lt;/span&gt;
+&lt;span class="s2"&gt;                    results.put((True, res))&lt;/span&gt;
+&lt;span class="s2"&gt;        &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;workers&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;workers&lt;/span&gt;
+
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;worker&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;interp&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;interpreters&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+        &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="n"&gt;interp&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;prepare_main&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="n"&gt;interp&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exec&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;code&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="n"&gt;interp&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;close&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+    &lt;span class="nd"&gt;@contextmanager&lt;/span&gt;
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;_get_results&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;expected&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Iterator&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Iterator&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Shareable&lt;/span&gt;&lt;span class="p"&gt;]]:&lt;/span&gt;
+        &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;_iter&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+            &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;_&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="nb"&gt;range&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;expected&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+                &lt;span class="n"&gt;success&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;res&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;cast&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+                    &lt;span class="nb"&gt;tuple&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Literal&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="kc"&gt;True&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;Shareable&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;tuple&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Literal&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="kc"&gt;False&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;
+                    &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;results&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;(),&lt;/span&gt;
+                &lt;span class="p"&gt;)&lt;/span&gt;
+                &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="ow"&gt;not&lt;/span&gt; &lt;span class="n"&gt;success&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                    &lt;span class="k"&gt;raise&lt;/span&gt; &lt;span class="n"&gt;InterpreterError&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;res&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+                &lt;span class="k"&gt;yield&lt;/span&gt; &lt;span class="n"&gt;res&lt;/span&gt;
+
+        &lt;span class="n"&gt;it&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;_iter&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+        &lt;span class="k"&gt;try&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;closing&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;it&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+                &lt;span class="k"&gt;yield&lt;/span&gt; &lt;span class="n"&gt;_iter&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+        &lt;span class="k"&gt;finally&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;_&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="nb"&gt;range&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;workers&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+                &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;tasks&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;put&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# Signal for interpreters to finish&lt;/span&gt;
+
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;map&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;its&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Iterable&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Shareable&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Iterator&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Shareable&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+        &lt;span class="n"&gt;threads&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Thread&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;target&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;worker&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;_&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="nb"&gt;range&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;workers&lt;/span&gt;&lt;span class="p"&gt;)]&lt;/span&gt;
+        &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;thread&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;threads&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="n"&gt;thread&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;start&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+        &lt;span class="n"&gt;tasks&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;
+        &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;elem&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;its&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="n"&gt;tasks&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="mi"&gt;1&lt;/span&gt;
+            &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;tasks&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;put&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;elem&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+        &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;_get_results&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;tasks&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="n"&gt;results&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="k"&gt;yield from&lt;/span&gt; &lt;span class="n"&gt;results&lt;/span&gt;
+
+        &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;t&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;threads&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="n"&gt;t&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;join&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This is derived from a lot of the examples in the PEP. However, there are a few quirks.&lt;/p&gt;
+&lt;p&gt;There's a &lt;a href="https://github.com/ericsnowcurrently/interpreters/issues/20"&gt;bug&lt;/a&gt; preventing me from passing queues inside the interpreters directly, so I used a workaround by passing &lt;code&gt;Queue.id&lt;/code&gt; inside the interpreter.&lt;/p&gt;
+&lt;p&gt;In &lt;code&gt;_get_results&lt;/code&gt; we signal termination using &lt;code&gt;self.tasks.put(None)&lt;/code&gt;. This is done after collecting the results to prevent the interpreter from terminating before we collect objects returned from it.&lt;/p&gt;
+&lt;p&gt;The following example demonstrates what happens when the interpreters close too soon:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;textwrap&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;dedent&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;interpreters_backport&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;interpreters&lt;/span&gt;
+
+&lt;span class="n"&gt;interp&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;interpreters&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;span class="n"&gt;queue&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;interpreters&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create_queue&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;span class="n"&gt;interp&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exec&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+    &lt;span class="n"&gt;dedent&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;        from interpreters_backport import interpreters&lt;/span&gt;
+&lt;span class="s2"&gt;        queue = interpreters.Queue(&lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;queue&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;id&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt;)&lt;/span&gt;
+&lt;span class="s2"&gt;        queue.put((1, 2, 3))&lt;/span&gt;
+&lt;span class="s2"&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;interp&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;close&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;span class="nb"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;queue&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;())&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;You receive the output &lt;code&gt;interpreters_backport.interpreters.queues.UNBOUND&lt;/code&gt;., where &lt;code&gt;(1, 2, 3)&lt;/code&gt; is expected.&lt;/p&gt;
+&lt;h3&gt;Running the executor&lt;/h3&gt;
+&lt;p&gt;Modifying my implementation we can run the executor:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;candidates&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;((&lt;/span&gt;&lt;span class="n"&gt;start&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;node&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;node&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;path&lt;/span&gt; &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;node&lt;/span&gt; &lt;span class="o"&gt;!=&lt;/span&gt; &lt;span class="n"&gt;start&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;executor&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Executor&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;implementations.d6&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;solve&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;workers&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;workers&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;grid&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;grid&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;timer&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="si"&gt;= }&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="nb"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;part2&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;sum&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;res&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;executor&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;map&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;candidates&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;res&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt; &lt;span class="n"&gt;end&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;; &amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;where the solve function is located in a module &lt;code&gt;implementations.d6&lt;/code&gt;. &lt;/p&gt;
+&lt;p&gt;Since &lt;code&gt;grid&lt;/code&gt; is a constant, it's injected into each interpreter at the start too.&lt;/p&gt;
+&lt;h3&gt;The Results&lt;/h3&gt;
+&lt;p&gt;Results running using 1 to 15 workers. As a reminder we have 11 threads available on my machine.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;➜&lt;span class="w"&gt;  &lt;/span&gt;subinterpreters&lt;span class="w"&gt; &lt;/span&gt;git:&lt;span class="o"&gt;(&lt;/span&gt;main&lt;span class="o"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;✗&lt;span class="w"&gt; &lt;/span&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;d6.py
+Reading&lt;span class="w"&gt; &lt;/span&gt;inline&lt;span class="w"&gt; &lt;/span&gt;script&lt;span class="w"&gt; &lt;/span&gt;metadata&lt;span class="w"&gt; &lt;/span&gt;from&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="sb"&gt;`&lt;/span&gt;d6.py&lt;span class="sb"&gt;`&lt;/span&gt;
+part1&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;4883&lt;/span&gt;
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;.575728&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;2&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt;.858705&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt;.284574&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;4&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.977416&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;5&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.8245&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;6&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.739645&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;7&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.692572&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;8&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.68285&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;9&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.623754&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;10&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.625284&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;11&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.600622&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;12&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.627131&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;13&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.578773&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;14&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.586851&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+part2&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;1655&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;workers&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;15&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.600652&lt;span class="w"&gt; &lt;/span&gt;s&lt;span class="w"&gt; &lt;/span&gt;elapsed
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This surprised me a lot. After my efforts with free-threading, I was definitely expecting a lot more tweaks before getting anywhere. &lt;/p&gt;
+&lt;p&gt;Compared to my results of free threading:&lt;/p&gt;
+&lt;p&gt;&lt;img alt="interpreters vs threads" src="https://blog.changs.co.uk/images/AoC-day-6.png"&gt;&lt;/p&gt;
+&lt;p&gt;The speedup is much more predictable, where free-threading performance bottlenecks very quickly.&lt;/p&gt;
+&lt;h2&gt;My Overall Experience&lt;/h2&gt;
+&lt;p&gt;There's a lot to unpack here, not just on sub-interpreters but also free-threading. &lt;/p&gt;
+&lt;h3&gt;Sub-interpreters are unfinished/unpolished&lt;/h3&gt;
+&lt;p&gt;It's no surprise here. PEP-734 is not yet accepted, so the bugs are understandable. &lt;/p&gt;
+&lt;p&gt;There's definitely a lack of examples and documentation, but hopefully it's something that the community can help with.&lt;/p&gt;
+&lt;p&gt;I also think that maybe there's a high level abstraction missing here. The API is inspired by Golang and &lt;a href="https://en.wikipedia.org/wiki/Communicating_sequential_processes"&gt;CSP&lt;/a&gt; in general. It's probably not what Pythonistas are most familiar with. Using &lt;code&gt;exec&lt;/code&gt; also feels a bit strange. Hopefully the wider community can start creating abstractions that make it more usable.&lt;/p&gt;
+&lt;h3&gt;Free-threading is deceptively hard&lt;/h3&gt;
+&lt;p&gt;In my last post I wrote:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;However I'm a bit worried about existing multi-threaded code. Before free-threaded python, threads were used for IO bound operations when the GIL was released. It's going to be a big challenge if one day the GIL is disabled and the performance may become many times slower. &lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This worries me the most, people are used to threads and that's supposed to be a positive, but in reality they are just used to the GIL.&lt;/p&gt;
+&lt;p&gt;Sub-interpreters are a new feature so it has an advantage here.&lt;/p&gt;
+&lt;h3&gt;Memory management is key&lt;/h3&gt;
+&lt;p&gt;Despite the awkwardness working with interpreters, when it finally ran it was achieved the goal of speeding up execution. By exposing mechanisms to explicitly manage memory the execution becomes a lot more predictable.&lt;/p&gt;
+&lt;p&gt;When it comes to free-threading, this is definitely missed. My hope is that over the next few releases we'll see frameworks work on memory management making free threading more viable.&lt;/p&gt;
+&lt;h2&gt;Finally&lt;/h2&gt;
+&lt;p&gt;I wasn't originally planning on using sub-interpreters in the first place, but I'm now fully behind the idea.&lt;/p&gt;
+&lt;p&gt;I hope it gathers a lot more interest this year and we'll see more interesting use cases and examples. &lt;/p&gt;
+&lt;p&gt;If this post piqued your interest then there's a lot more resources out there:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Anthony Shaw's &lt;a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html"&gt;post&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Yury Selivanov's &lt;a href="https://www.youtube.com/watch?v=fwRMdncVOnA"&gt;talk&lt;/a&gt; which also mentions a new framework called &lt;a href="https://github.com/edgedb/memhive"&gt;memhive&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><category term="Blog"></category></entry><entry><title>How free are threads in Python now?</title><link href="https://blog.changs.co.uk/how-free-are-threads-in-python-now.html" rel="alternate"></link><published>2024-12-31T00:00:00+00:00</published><updated>2024-12-31T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2024-12-31:/how-free-are-threads-in-python-now.html</id><summary type="html">&lt;p&gt;Free-threaded Python (&lt;a href="https://peps.python.org/pep-0703/"&gt;PEP-703&lt;/a&gt;) was released in October 2024. 
 It enables true multi-threaded execution without the restriction of the &lt;a href="https://docs.python.org/3/glossary.html#term-global-interpreter-lock"&gt;GIL&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;I previously covered this in &lt;a href="./python-free-threading-asyncio.md"&gt;Free Threaded Python With Asyncio&lt;/a&gt;, the example used there was selected because it very clearly demonstrates the performance increase, or moreover, the threads "running free".&lt;/p&gt;
+&lt;p&gt;I previously covered this in &lt;a href="./free-threaded-python-with-asyncio.html"&gt;Free Threaded Python With Asyncio&lt;/a&gt;, the example used there was selected because it very clearly demonstrates the performance increase, or moreover, the threads "running free".&lt;/p&gt;
 &lt;p&gt;But …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Free-threaded Python (&lt;a href="https://peps.python.org/pep-0703/"&gt;PEP-703&lt;/a&gt;) was released in October 2024. 
 It enables true multi-threaded execution without the restriction of the &lt;a href="https://docs.python.org/3/glossary.html#term-global-interpreter-lock"&gt;GIL&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;I previously covered this in &lt;a href="./python-free-threading-asyncio.md"&gt;Free Threaded Python With Asyncio&lt;/a&gt;, the example used there was selected because it very clearly demonstrates the performance increase, or moreover, the threads "running free".&lt;/p&gt;
+&lt;p&gt;I previously covered this in &lt;a href="./free-threaded-python-with-asyncio.html"&gt;Free Threaded Python With Asyncio&lt;/a&gt;, the example used there was selected because it very clearly demonstrates the performance increase, or moreover, the threads "running free".&lt;/p&gt;
 &lt;p&gt;But that's not really code that solves a problem. It's simply repeating the same calculation. As I've been having a lot of fun with advent of code this December, it provided a very good testbed for free threading. &lt;/p&gt;
 &lt;h2&gt;AOC Day 6&lt;/h2&gt;
 &lt;blockquote&gt;

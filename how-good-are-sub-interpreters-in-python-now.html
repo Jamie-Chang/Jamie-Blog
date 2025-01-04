@@ -4,33 +4,39 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog - Jamie Chang</title>
-                        <link rel="stylesheet" href="../theme/css/main.css" />
+                        <title>How good are sub-interpreters in Python now?</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+    <meta name="description" content="Introduction I wrote about free-threading recently in How free are threads in Python now?. Where I found some unexpected difficulties..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="../">Jamie's Blog</a></h1>
+                        <h1><a href="./">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li><a href="../category/blog.html">Blog</a></li>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./how-good-are-sub-interpreters-in-python-now.html" rel="bookmark"
+             title="Permalink to How good are sub-interpreters in Python now?">How good are sub-interpreters in Python now?</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="../how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-01-03T00:00:00+00:00">
                 Published: Fri 03 January 2025
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><h2>Introduction</h2>
+</footer><!-- /.post-info -->        <h2>Introduction</h2>
 <p>I wrote about free-threading recently in <a href="./how-free-are-threads-in-python-now.html">How free are threads in Python now?</a>. Where I found some unexpected difficulties parallelising my solution.</p>
 <p>In the conclusion section I wrote:</p>
 <blockquote>
@@ -222,7 +228,7 @@ part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span>
 
 <p>This surprised me a lot. After my efforts with free-threading, I was definitely expecting a lot more tweaks before getting anywhere. </p>
 <p>Compared to my results of free threading:</p>
-<p><img alt="interpreters vs threads" src="../images/AoC-day-6.png"></p>
+<p><img alt="interpreters vs threads" src="./images/AoC-day-6.png"></p>
 <p>The speedup is much more predictable, where free-threading performance bottlenecks very quickly.</p>
 <h2>My Overall Experience</h2>
 <p>There's a lot to unpack here, not just on sub-interpreters but also free-threading. </p>
@@ -247,207 +253,11 @@ part2<span class="w"> </span><span class="m">1655</span><span class="p">;</span>
 <ul>
 <li>Anthony Shaw's <a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html">post</a></li>
 <li>Yury Selivanov's <a href="https://www.youtube.com/watch?v=fwRMdncVOnA">talk</a> which also mentions a new framework called <a href="https://github.com/edgedb/memhive">memhive</a></li>
-</ul>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</ul>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../how-free-are-threads-in-python-now.html" rel="bookmark"
-                               title="Permalink to How free are threads in Python now?">How free are threads in Python now?</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-12-31T00:00:00+00:00">
-                Published: Tue 31 December 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Free-threaded Python (<a href="https://peps.python.org/pep-0703/">PEP-703</a>) was released in October 2024. 
-It enables true multi-threaded execution without the restriction of the <a href="https://docs.python.org/3/glossary.html#term-global-interpreter-lock">GIL</a>.</p>
-<p>I previously covered this in <a href="./free-threaded-python-with-asyncio.html">Free Threaded Python With Asyncio</a>, the example used there was selected because it very clearly demonstrates the performance increase, or moreover, the threads "running free".</p>
-<p>But …</p>
-                        <a class="readmore" href="../how-free-are-threads-in-python-now.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../customising-pattern-matching-behaviour.html" rel="bookmark"
-                               title="Permalink to Customising Pattern Matching Behaviour">Customising Pattern Matching Behaviour</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-12-09T00:00:00+00:00">
-                Published: Mon 09 December 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I've been doing <a href="https://adventofcode.com/">advent of code</a> again this year. There are two Python features I always rely on, iterators and pattern matching. Iterators allow for operations on each of its elements without allocating memory for a collection. Ever since pattern matching was introduced in Python 3.10, it's been particularly …</p>
-                        <a class="readmore" href="../customising-pattern-matching-behaviour.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-in-python-sandboxing-llm-generated-code.html" rel="bookmark"
-                               title="Permalink to Python-in-Python Sandboxing LLM Generated Code">Python-in-Python Sandboxing LLM Generated Code</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-12-02T00:00:00+00:00">
-                Published: Mon 02 December 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I've been experimenting with <a href="https://www.langchain.com/">Langchain</a> for GPT based queries. One problem we often encounter with GPT is hallucinations. This makes certain classes of problems unsuited to GPT, one example is maths and statistics. Whilst there are improvements for recent models often the maths cannot be trusted.</p>
-<p>When I try to …</p>
-                        <a class="readmore" href="../python-in-python-sandboxing-llm-generated-code.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../my-sqlalchemy-cookbook.html" rel="bookmark"
-                               title="Permalink to My SQLAlchemy Cookbook">My SQLAlchemy Cookbook</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-11-25T00:00:00+00:00">
-                Published: Mon 25 November 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I've worked with SQLAlchemy for a while now, and in my opinion it's the best ORM in Python. It's feature rich with strong support for all major databases. And it maintains the SQL feel without losing things like typing.</p>
-<p>However there are some challenges here. Despite having very nice documentation …</p>
-                        <a class="readmore" href="../my-sqlalchemy-cookbook.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../typeddicts-are-better-than-you-think.html" rel="bookmark"
-                               title="Permalink to TypedDicts are better than you think">TypedDicts are better than you think</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-10-01T00:00:00+01:00">
-                Published: Tue 01 October 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p><code>TypedDict</code> was introduced in <a href="https://peps.python.org/pep-0589/">PEP-589</a> which landed in Python 3.8.</p>
-<p>The primary use case was to create type annotations for dictionaries. For example,</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Movie</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
-    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span>
-
-
-<span class="n">movie</span><span class="p">:</span> <span class="n">Movie</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Avatar&quot;</span><span class="p">}</span>
-</code></pre></div>
-
-<p>I remember thinking at the time that this was pretty neat, but I tend to use <code>dataclass …</code></p>
-                        <a class="readmore" href="../typeddicts-are-better-than-you-think.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../closing-python-iterators.html" rel="bookmark"
-                               title="Permalink to Closing Python Iterators">Closing Python Iterators</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-09-28T00:00:00+01:00">
-                Published: Sat 28 September 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I recently came across a <a href="https://youtu.be/N56Jrqc7SBk?si=6WmYrq8C4E-gwn4_">video</a> by mcoding about Python iterators' unfortunate closing behaviour.</p>
-<p>To sum up the video, when an iterator is interrupted we intuitively we would expect the exit of a context manager or a finally block to be called but that's not <strong>necessarily</strong> the case. For example …</p>
-                        <a class="readmore" href="../closing-python-iterators.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../free-threaded-python-with-asyncio.html" rel="bookmark"
-                               title="Permalink to Free Threaded Python With Asyncio">Free Threaded Python With Asyncio</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-09-19T00:00:00+01:00">
-                Published: Thu 19 September 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>With the imminent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is free-threaded Python from <a href="https://peps.python.org/pep-0703/">PEP-703</a>.</p>
-<p>As I'm quite late to the party, there's already a lot of articles talking about it. I came …</p>
-                        <a class="readmore" href="../free-threaded-python-with-asyncio.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../my-first-blog-post.html" rel="bookmark"
-                               title="Permalink to My First Blog Post">My First Blog Post</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-09-18T00:00:00+01:00">
-                Published: Wed 18 September 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>My name is Jamie Chang, I'm a software engineer in London. I like all things Python, but I'll try to mix it up sometimes. I decided to start this blog to get some of the ideas out from my head and to practice communicating technical topics.</p>
-<p>For this site, I'm …</p>
-                        <a class="readmore" href="../my-first-blog-post.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>
