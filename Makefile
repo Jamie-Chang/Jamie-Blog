@@ -1,6 +1,6 @@
 PY?=
 PELICAN?=pelican
-PELICANOPTS=
+PELICANOPTS=-t theme/notmyidea
 
 BASEDIR=$(CURDIR)
 INPUTDIR=$(BASEDIR)/content
