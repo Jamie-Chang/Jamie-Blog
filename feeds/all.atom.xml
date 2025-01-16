@@ -18,7 +18,7 @@
 &lt;p&gt;&lt;iframe
   src="https://jamie-chang.github.io/cookbooks/notebooks/index.html?path=pattern.ipynb"
   width="100%"
-  height="900em"
+  height="1200em"
   style="border: 1px black;"
 &gt;&lt;/iframe&gt;
 &lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>How good are sub-interpreters in Python now?</title><link href="https://blog.changs.co.uk/how-good-are-sub-interpreters-in-python-now.html" rel="alternate"></link><published>2025-01-03T00:00:00+00:00</published><updated>2025-01-03T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-01-03:/how-good-are-sub-interpreters-in-python-now.html</id><summary type="html">&lt;h2&gt;Introduction&lt;/h2&gt;
