@@ -1,5 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-01-03T00:00:00+00:00</updated><entry><title>How good are sub-interpreters in Python now?</title><link href="https://blog.changs.co.uk/how-good-are-sub-interpreters-in-python-now.html" rel="alternate"></link><published>2025-01-03T00:00:00+00:00</published><updated>2025-01-03T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-01-03:/how-good-are-sub-interpreters-in-python-now.html</id><summary type="html">&lt;h2&gt;Introduction&lt;/h2&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-01-16T00:00:00+00:00</updated><entry><title>Jamie's Pattern Matching Cookbook</title><link href="https://blog.changs.co.uk/jamies-pattern-matching-cookbook.html" rel="alternate"></link><published>2025-01-16T00:00:00+00:00</published><updated>2025-01-16T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-01-16:/jamies-pattern-matching-cookbook.html</id><summary type="html">&lt;p&gt;Structural pattern matching is probably the coolest new syntax introduced to Python. Added in 3.10, it's been a few years now and more people are writing apps in 3.10&lt;a href="https://lp.jetbrains.com/python-developers-survey-2023/#python-versions"&gt;*&lt;/a&gt; than any other version now.&lt;/p&gt;
+&lt;p&gt;Though even with the wide adoption of 3.10 and more people being exposed …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Structural pattern matching is probably the coolest new syntax introduced to Python. Added in 3.10, it's been a few years now and more people are writing apps in 3.10&lt;a href="https://lp.jetbrains.com/python-developers-survey-2023/#python-versions"&gt;*&lt;/a&gt; than any other version now.&lt;/p&gt;
+&lt;p&gt;Though even with the wide adoption of 3.10 and more people being exposed to the &lt;code&gt;match&lt;/code&gt; and &lt;code&gt;case&lt;/code&gt; syntax, I find still some resistance towards more advanced usage of it. This is natural as new syntax will always take time. Even something as simple as &lt;code&gt;:=&lt;/code&gt; walrus operator took some time for the community to warm up to it. &lt;/p&gt;
+&lt;p&gt;Given the massive potential of pattern matching, I thought it be good to compile a cookbook for it so that people can familiarise themselves with it. I once again created the cookbook using &lt;a href="https://jupyter.org/try-jupyter/lab/index.html"&gt;JupyterLite&lt;/a&gt;, and surprisingly I found a lot holes in my own knowledge of pattern matching. &lt;/p&gt;
+&lt;p&gt;So please read though it, play with it, copy it, create your own. It's okay to decide not to use all the features of pattern matching, but it's certainly good to build a knowledge base for yourself.&lt;/p&gt;
+&lt;h2&gt;Cookbook&lt;/h2&gt;
+&lt;p&gt;Same as before I've created a cookbook using &lt;a href="https://jupyter.org/try-jupyter/lab/index.html"&gt;JupyterLite&lt;/a&gt; in the web. You can interact with it here, &lt;/p&gt;
+&lt;h4&gt;Browse my Cookbooks&lt;/h4&gt;
+&lt;p&gt;My cookbooks are hosted statically &lt;a href="https://jamie-chang.github.io/cookbooks"&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The source code can be found &lt;a href="https://github.com/Jamie-Chang/cookbooks"&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;h4&gt;Downloading the notebook&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;Click the "JupyterLab" button above.&lt;/li&gt;
+&lt;li&gt;In the file view, right click and select "Download"&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;iframe
+  src="https://jamie-chang.github.io/cookbooks/notebooks/index.html?path=pattern.ipynb"
+  width="100%"
+  height="900em"
+&gt;&lt;/iframe&gt;
+&lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>How good are sub-interpreters in Python now?</title><link href="https://blog.changs.co.uk/how-good-are-sub-interpreters-in-python-now.html" rel="alternate"></link><published>2025-01-03T00:00:00+00:00</published><updated>2025-01-03T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-01-03:/how-good-are-sub-interpreters-in-python-now.html</id><summary type="html">&lt;h2&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;I wrote about free-threading recently in &lt;a href="./how-free-are-threads-in-python-now.html"&gt;How free are threads in Python now?&lt;/a&gt;. Where I found some unexpected difficulties parallelising my solution.&lt;/p&gt;
 &lt;p&gt;In the conclusion section I wrote:&lt;/p&gt;
 &lt;blockquote&gt;
