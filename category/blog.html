@@ -20,7 +20,174 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../jamies-pattern-matching-cookbook.html">Jamie's Pattern Matching Cookbook</a></h1>
+                        <h1 class="entry-title"><a href="../sqlalchemy-footgun-discarding-the-statement.html">Sqlalchemy Footgun: Discarding the statement</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2025-02-02T00:00:00+00:00">
+                Published: Sun 02 February 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>This one has frustrated me for a while. </p>
+<p>It starts off with a REST API route. For example in fastAPI</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">search_users</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">User</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Finds users optionally filter by user_id&quot;&quot;&quot;</span>
+    <span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">User</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">User</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span><span class="o">.</span><span class="n">scalars</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+</code></pre></div>
+
+<p>Then we get asked to filter by a <code>User.name</code> or something else:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">search_users</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">User</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Finds users optionally filter by user_id&quot;&quot;&quot;</span>
+    <span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">User</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">User</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+        <span class="n">statement</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">User</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span><span class="o">.</span><span class="n">scalars</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+</code></pre></div>
+
+<p>And we're done! Right? </p>
+<p>Nope, <code>statement.where</code> creates a new Select object, but since that object is not assigned to anything it is never used. 
+The <code>statement</code> we execute with is the original <code>select(User).order_by(User.name)</code>. We then get all the users in the database 
+as opposed to the specific user we were looking for.</p>
+<h2>Solutions</h2>
+<p>This has happened to me enough times that I wanted to do something about it.</p>
+<h3>Testing</h3>
+<p>Well it goes without saying, go and test your endpoint with all the possible parameters. Whilst this should always be done, it takes 
+a longer time for problems to be discovered.</p>
+<p>For this problem I will focus on other approaches that may allow it to be caught sooner. </p>
+<h3>New Type Annotation</h3>
+<p>To me this issue should be caught by static type checkers, we want to catch this issue as soon as possible so something that works as an LSP is ideal.</p>
+<p>This is a potential type annotation for it:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Select</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">where</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NoDiscard</span><span class="p">[</span><span class="n">Self</span><span class="p">]:</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>References:</p>
+<ul>
+<li><a href="https://discuss.python.org/t/proposal-typing-no-discard-a-decorator-to-indicate-that-the-return-value-should-not-be-discarded/33138">Python.org discussion</a> </li>
+<li><a href="https://github.com/python/mypy/issues/6936">MyPy discussion</a></li>
+</ul>
+<p>I think this definitely should be added and still hope that this gets turned into a PEP and added to Python. But unfortunately there's just too many directions
+this ideas is pulled in, so we will need to wait and see.</p>
+<h3>Linting and Type Checking</h3>
+<p>I found out that <a href="https://github.com/microsoft/pyright">Pyright</a> actually offers the following configuration:</p>
+<blockquote>
+<p>reportUnusedCallResult [boolean or string, optional]: Generate or suppress diagnostics for call statements whose return value is not used in any way and is not None. The default value for this setting is "none".</p>
+</blockquote>
+<p>This only checks for functions whose return value is not <code>None</code> so at least it won't flag functions like <code>print</code>. </p>
+<p>But there are still 
+functions that this will unnecessarily flag up. For example, </p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">some_task</span><span class="p">(</span><span class="o">...</span><span class="p">))</span>
+</code></pre></div>
+
+<p><code>create_task</code> returns a <code>Future</code> but it's not necessary to use it. The over all noise on my code base was just too much here.
+But it's worth a try to see how many false positive you get on your code base.</p>
+<h3>The Builder Pattern</h3>
+<p>Looking at the problem from a different angle.</p>
+<p>The issue is <code>Select.where</code> creates a brand new <code>Select</code> object so has no side effects (pure function), 
+and I'm introducing bugs by confusing a pure function with one that has side effects.</p>
+<p>So a simple fix is to make all operations impure.</p>
+<p>We can wrap the <code>Select</code> object using the following class:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Builder</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">:</span> <span class="n">Select</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">statement</span> <span class="o">=</span> <span class="n">statement</span>
+
+    <span class="k">def</span> <span class="nf">where</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">conditions</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">statement</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">statement</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">*</span><span class="n">conditions</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Incidentally this is known as the builder pattern, methods on an object build up a mutable internal state and 
+finally when we're done building we extract the internal state.</p>
+<h3>The Operator Approach</h3>
+<p>The approach I went with is a bit more "interesting" but it's perhaps not as pythonic.</p>
+<p>Consider the corrected code from my example: </p>
+<div class="highlight"><pre><span></span><code><span class="n">statement</span> <span class="o">=</span> <span class="n">statement</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">User</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span><span class="p">)</span>
+</code></pre></div>
+
+<p>One big reason I forget the <code>statement =</code> is that it's just a big more verbose. If only there was a short hand to call <code>.where</code> and immediately assign it.</p>
+<p>That's exactly how inplace operator in python work:</p>
+<p>Instead of </p>
+<div class="highlight"><pre><span></span><code><span class="n">value</span> <span class="o">=</span> <span class="n">value</span> <span class="o">+</span> <span class="mi">1</span>
+</code></pre></div>
+
+<p>We write:</p>
+<div class="highlight"><pre><span></span><code><span class="n">value</span> <span class="o">+=</span> <span class="mi">1</span>
+</code></pre></div>
+
+<p>Almost all the operators can be overridden at an class level. Libraries like <a href="https://pypi.org/project/pipe/">pipe</a>
+overrides <code>__or__</code> (more precisely <code>__ror__</code>) and let's users use <code>|</code> to chain functions.</p>
+<p>So we can wrap any callable that takes a single argument with:
+Code sample in <a href="https://pyright-play.net/?code=GYJw9gtgBAJghgFzgYwDZwM4YKYagSwgAcwQFZEV0sAoUSKBATyPwDsBzA408gYTip0AI1TYaNAALwkaTBhpysUAAr4i2OKOwBtACoAaKACUAugC4aUa1ABE9gOog4RKHCjJBIsW7Yw3QmAA7gTkCGBQwtgEbABuYKgA1tj%2BQfgIABZQAAYAPtkAdFY29rYSNlDAbOZQAkJaYjr6pkZm5TYw2MBQAPo9nkJ9ABQ4qMBGsYIArtg1egCUUAC0AHwmlhUVpXWojBnRQc5EGv7AU2zICPhgbAWlxZtQINgIUyBsUKPABVVDk6gzebtaydbp9cAgYZfCbTWZQBbLNbGDaPOz2ACqOCgrA0qHY0XCHi8ewORxOlXOl2ut3uqKeLzeHy%2BPzYf1hQIkoN6GAAjlM4M8hgAPGrsBCLVYxBAo6zPV7vKBCqAAKkVEhovP5z38AF5VOpNNohj1NQLsED-jMoHqAEw0S3RXKfPlmmD22FQXJ603aiRAA">pyright playground</a></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span>
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Pipeable</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">R</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrap a callable and allow it to be involked with `|`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">T</span><span class="p">],</span> <span class="n">R</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Call the wrapped function.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__ror__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">R</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Use pipeline to call the wrapped function.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_square</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">x</span>
+
+
+<span class="n">squared</span> <span class="o">=</span> <span class="n">Pipeable</span><span class="p">(</span><span class="n">_square</span><span class="p">)</span>
+<span class="n">value</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">value</span> <span class="o">|</span> <span class="n">squared</span>
+<span class="n">value</span> <span class="o">|=</span> <span class="n">squared</span>
+</code></pre></div>
+
+<p>This allows us to use the shorthand <code>|=</code> with any function, making our code more concise and less error prone.</p>
+<p>The added benefit with Pyright is that it treats use <code>|</code> operator as an creating an expression, so <code>value | squared</code> will produce the "Expression value is unused" error. 
+No analogous feature exist in MyPy yet but this is great for people who use Pyright.</p>
+<p>Putting this together, we can do something like this:</p>
+<div class="highlight"><pre><span></span><code><span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">MyModel</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">MyModel</span><span class="o">.</span><span class="n">created_at</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+    <span class="n">statement</span> <span class="o">|=</span> <span class="n">where</span><span class="p">(</span><span class="n">MyModel</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">reverse</span><span class="p">:</span>
+    <span class="n">statement</span> <span class="o">|=</span> <span class="n">order_by</span><span class="p">(</span><span class="n">MyModel</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">desc</span><span class="p">())</span>
+</code></pre></div>
+
+<p>If you think this is useful or just want to try it for fun, I've built a package called <a href="https://github.com/Jamie-Chang/sqlalchemy-builder">sqlalchemy-builder</a>.</p>
+<p>If you don't want to install it, the recently released <a href="https://pydantic.run/store/a075fad4d27ad9d0">pydantic.run</a> is perfect for playing around with the code in your browser!</p>
+<h2>What have we learned?</h2>
+<p>From this experience, I'm seeing that there are some gaps in typing in Python, and it's unclear what changes are prioritise and what changes are ultimately
+left out of the language. I think a proper typing support is still preferred compared to the other methods which are more like workarounds.</p>
+<p>The discovery of operator overloading and Pyright as way to detect unused return value is a pleasant surprise and I hope to find other
+use cases for it. Using more syntax in Python might become controversial but I think it depends on the use case, for example, <a href="https://docs.python.org/3/library/pathlib.html">pathlib</a> makes
+heavy use of <code>/</code> operator.</p>
+<p>I'd love to hear feedback on <code>sqlalchemy-builder</code>, this solves a real problem for me, but I'm not sure if other people run into this issue.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../jamies-pattern-matching-cookbook.html" rel="bookmark"
+                               title="Permalink to Jamie's Pattern Matching Cookbook">Jamie's Pattern Matching Cookbook</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-01-16T00:00:00+00:00">
                 Published: Thu 16 January 2025
@@ -31,33 +198,11 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>Structural pattern matching is probably the coolest new syntax introduced to Python. Added in 3.10, it's been a few years now and more people are writing apps in 3.10<a href="https://lp.jetbrains.com/python-developers-survey-2023/#python-versions">*</a> than any other version now.</p>
-<p>Though even with the wide adoption of 3.10 and more people being exposed to the <code>match</code> and <code>case</code> syntax, I find still some resistance towards more advanced usage of it. This is natural as new syntax will always take time. Even something as simple as <code>:=</code> walrus operator took some time for the community to warm up to it. </p>
-<p>Given the massive potential of pattern matching, I thought it be good to compile a cookbook for it so that people can familiarise themselves with it. I once again created the cookbook using <a href="https://jupyter.org/try-jupyter/lab/index.html">JupyterLite</a>, and surprisingly I found a lot holes in my own knowledge of pattern matching. </p>
-<p>So please read though it, play with it, copy it, create your own. It's okay to decide not to use all the features of pattern matching, but it's certainly good to build a knowledge base for yourself.</p>
-<h2>Cookbook</h2>
-<p>Same as before I've created a cookbook using <a href="https://jupyter.org/try-jupyter/lab/index.html">JupyterLite</a> in the web. You can interact with it here, </p>
-<h4>Browse my Cookbooks</h4>
-<p>My cookbooks are hosted statically <a href="https://jamie-chang.github.io/cookbooks">here</a>.</p>
-<p>The source code can be found <a href="https://github.com/Jamie-Chang/cookbooks">here</a>.</p>
-<h4>Downloading the notebook</h4>
-<ul>
-<li>Click the "JupyterLab" button above.</li>
-<li>In the file view, right click and select "Download"</li>
-</ul>
-<hr>
-<p><iframe
-  src="https://jamie-chang.github.io/cookbooks/notebooks/index.html?path=pattern.ipynb"
-  width="100%"
-  height="900em"
-  style="border: 1px solid #EEEEEE;"
-></iframe>
-</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>Structural pattern matching is probably the coolest new syntax introduced to Python. Added in 3.10, it's been a few years now and more people are writing apps in 3.10<a href="https://lp.jetbrains.com/python-developers-survey-2023/#python-versions">*</a> than any other version now.</p>
+<p>Though even with the wide adoption of 3.10 and more people being exposed …</p>
+                        <a class="readmore" href="../jamies-pattern-matching-cookbook.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -254,30 +399,14 @@ It enables true multi-threaded execution without the restriction of the <a href=
                         <a class="readmore" href="../free-threaded-python-with-asyncio.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../my-first-blog-post.html" rel="bookmark"
-                               title="Permalink to My First Blog Post">My First Blog Post</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-09-18T00:00:00+01:00">
-                Published: Wed 18 September 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>My name is Jamie Chang, I'm a software engineer in London. I like all things Python, but I'll try to mix it up sometimes. I decided to start this blog to get some of the ideas out from my head and to practice communicating technical topics.</p>
-<p>For this site, I'm …</p>
-                        <a class="readmore" href="../my-first-blog-post.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
                     </ol><!-- /#posts-list -->
+  <nav>
+    <ul>
+      <li>Page 1 / 2</li>
+        <li><a href="../category/blog2.html">&rang;</a></li>
+        <li><a href="../category/blog2.html">&Rang;</a></li>
+    </ul>
+  </nav>
                     </section><!-- /#content -->
                 <section id="extras" class="body">
                                 <div class="social">
