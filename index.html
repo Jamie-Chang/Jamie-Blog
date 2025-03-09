@@ -94,10 +94,13 @@ For example, the signature of add in the following snippet is automatically infe
 <span class="nb">sum</span> <span class="o">@</span> <span class="n">compose</span><span class="p">(</span><span class="n">eq</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="mi">2020</span><span class="p">))</span>  <span class="c1"># check sum equal to 2020 </span>
 
 <span class="c1"># Mixing `|` and `@`</span>
-<span class="n">inputs</span>
-<span class="o">|</span> <span class="nb">map</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="n">mul</span> <span class="o">@</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># multiply all inputs by 2</span>
-<span class="o">|</span> <span class="nb">sum</span>  <span class="c1"># add them up</span>
-<span class="o">|</span> <span class="n">eq</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="mi">2020</span><span class="p">)</span>  <span class="c1"># check if they sum to 2020</span>
+<span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">Pipeline</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+    <span class="o">|</span> <span class="nb">map</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="n">mul</span> <span class="o">@</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># multiply all inputs by 2</span>
+    <span class="o">|</span> <span class="nb">sum</span>  <span class="c1"># add them up</span>
+    <span class="o">|</span> <span class="n">eq</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="mi">2020</span><span class="p">)</span>  <span class="c1"># check if they sum to 2020</span>
+    <span class="o">|</span> <span class="nb">print</span>  <span class="c1"># print the result</span>
+<span class="p">)</span>
 </code></pre></div>
 
 <h3>Further Reading</h3>

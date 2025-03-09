@@ -66,10 +66,13 @@ For example, the signature of add in the following snippet is automatically infe
 &lt;span class="nb"&gt;sum&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;compose&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;eq&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;2020&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;  &lt;span class="c1"&gt;# check sum equal to 2020 &lt;/span&gt;
 
 &lt;span class="c1"&gt;# Mixing `|` and `@`&lt;/span&gt;
-&lt;span class="n"&gt;inputs&lt;/span&gt;
-&lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;map&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;mul&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# multiply all inputs by 2&lt;/span&gt;
-&lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;sum&lt;/span&gt;  &lt;span class="c1"&gt;# add them up&lt;/span&gt;
-&lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="n"&gt;eq&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;2020&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# check if they sum to 2020&lt;/span&gt;
+&lt;span class="n"&gt;_&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;
+    &lt;span class="n"&gt;Pipeline&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;inputs&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;map&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;mul&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# multiply all inputs by 2&lt;/span&gt;
+    &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;sum&lt;/span&gt;  &lt;span class="c1"&gt;# add them up&lt;/span&gt;
+    &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="n"&gt;eq&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;2020&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# check if they sum to 2020&lt;/span&gt;
+    &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;print&lt;/span&gt;  &lt;span class="c1"&gt;# print the result&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;h3&gt;Further Reading&lt;/h3&gt;
