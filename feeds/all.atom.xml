@@ -1,5 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-02-02T00:00:00+00:00</updated><entry><title>Sqlalchemy Footgun: Discarding the statement</title><link href="https://blog.changs.co.uk/sqlalchemy-footgun-discarding-the-statement.html" rel="alternate"></link><published>2025-02-02T00:00:00+00:00</published><updated>2025-02-02T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-02-02:/sqlalchemy-footgun-discarding-the-statement.html</id><summary type="html">&lt;p&gt;This one has frustrated me for a while. &lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-03-09T00:00:00+00:00</updated><entry><title>Putting the fun back in functional programming</title><link href="https://blog.changs.co.uk/putting-the-fun-back-in-functional-programming.html" rel="alternate"></link><published>2025-03-09T00:00:00+00:00</published><updated>2025-03-09T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-03-09:/putting-the-fun-back-in-functional-programming.html</id><summary type="html">&lt;p&gt;I recently put some effort into creating &lt;a href="https://github.com/Jamie-Chang/better-functools"&gt;better-functools&lt;/a&gt;. It's a package that adds some tooling for functional programming in Python. And allows us to write some unique looking code in a manner similar to functional languages:&lt;/p&gt;
+&lt;p&gt;&lt;img alt="better-functools" src="https://blog.changs.co.uk/images/better-functools.png"&gt;
+&lt;a href="https://pydantic.run/store/a075fad4d27ad9d0"&gt;Try in sandbox&lt;/a&gt;&lt;/p&gt;
+&lt;h3&gt;Why?&lt;/h3&gt;
+&lt;p&gt;At a glance this doesn't look very "Pythonic". More complex …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I recently put some effort into creating &lt;a href="https://github.com/Jamie-Chang/better-functools"&gt;better-functools&lt;/a&gt;. It's a package that adds some tooling for functional programming in Python. And allows us to write some unique looking code in a manner similar to functional languages:&lt;/p&gt;
+&lt;p&gt;&lt;img alt="better-functools" src="https://blog.changs.co.uk/images/better-functools.png"&gt;
+&lt;a href="https://pydantic.run/store/a075fad4d27ad9d0"&gt;Try in sandbox&lt;/a&gt;&lt;/p&gt;
+&lt;h3&gt;Why?&lt;/h3&gt;
+&lt;p&gt;At a glance this doesn't look very "Pythonic". More complex expressions and syntax are often controversial in Python, but I don't think it's a good enough reason to avoid it. Python is a multi-paradigm language, but it can be awkward to do anything but the expected OOP. New syntax can really help with expanding what's possible with Python. A good example of new syntax is pattern matching, which is a feature that came from functional languages. I'm keen on using this to make functional programming more available to a wider user base, as opposed to the stereotypical functional bros.&lt;/p&gt;
+&lt;h3&gt;Inspiration&lt;/h3&gt;
+&lt;p&gt;If you can't tell already, this is largely inspired by ML specifically &lt;a href="https://ocaml.org/"&gt;OCaml&lt;/a&gt;. Last Christmas I decided to solve &lt;a href="https://github.com/Jamie-Chang/advent2024/tree/main"&gt;Advent of Code&lt;/a&gt; in OCaml and I loved it.&lt;/p&gt;
+&lt;p&gt;The biggest takeaway from this experience is that you don't need to understand monads or the other mathematical concepts to program functionally. Those are probably things you come around later but it's not make functional programming fun.&lt;/p&gt;
+&lt;p&gt;What I loved most is the the system and ergonomics in OCaml. &lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Note: The ML family are not the only programming languages, other languages may have a stronger focus on ergonomics than type safety.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;OCaml is strongly typed but does not require explicit annotations, instead types are inferred.
+For example, the signature of add in the following snippet is automatically inferred as &lt;code&gt;+&lt;/code&gt; operator only takes integer values.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;let&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;b&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="n"&gt;b&lt;/span&gt;
+&lt;span class="c"&gt;(* val add : int -&amp;gt; int -&amp;gt; int = &amp;lt; fun &amp;gt; *)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This greatly reduces the burden on programmers. &lt;/p&gt;
+&lt;p&gt;On the topic of ergonomics, OCaml like many other functional languages has a lot of features to make composing functions and chaining function calls easier. The most notable of which are currying:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;let&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;b&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="n"&gt;b&lt;/span&gt;
+&lt;span class="k"&gt;let&lt;/span&gt; &lt;span class="n"&gt;inc&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="mi"&gt;1&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;And &lt;a href="https://cs3110.github.io/textbook/chapters/hop/pipelining.html"&gt;pipeline&lt;/a&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="o"&gt;;&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="o"&gt;;&lt;/span&gt; &lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="o"&gt;;&lt;/span&gt; &lt;span class="mi"&gt;4&lt;/span&gt;&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="o"&gt;|&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;map&lt;/span&gt; &lt;span class="n"&gt;inc&lt;/span&gt; &lt;span class="o"&gt;|&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;sum&lt;/span&gt; &lt;span class="o"&gt;|&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;string_of_int&lt;/span&gt; &lt;span class="o"&gt;|&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;print_endline&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The implication of this is that you rarely need to abstract out functions because you can easily compose and chain them inline when you need them.&lt;/p&gt;
+&lt;h3&gt;Functional patterns with &lt;code&gt;better-functools&lt;/code&gt; and Python&lt;/h3&gt;
+&lt;p&gt;So how can we use these ideas in Python?&lt;/p&gt;
+&lt;h4&gt;Currying&lt;/h4&gt;
+&lt;p&gt;We can also do currying in Python, but it's awkward as Python has many different types of arguments: defaulted, positional, keyword and combinations of all of them.&lt;/p&gt;
+&lt;p&gt;Instead I've added &lt;code&gt;@bind(...)&lt;/code&gt; as a short hand to bind an argument and always return a partial.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;inc&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The resulting expression is a bit more verbose than currying but has the same look and feel.&lt;/p&gt;
+&lt;h4&gt;pipeline&lt;/h4&gt;
+&lt;p&gt;The &lt;a href="https://cs3110.github.io/textbook/chapters/hop/pipelining.html"&gt;'pipeline'&lt;/a&gt; operator &lt;code&gt;|&amp;gt;&lt;/code&gt; in OCaml chains operations together in a clear and concise way. And I'm definitely not the only person to think this way:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://github.com/tc39/proposal-pipeline-operator"&gt;TC39&lt;/a&gt; is a proposal to add &lt;code&gt;|&amp;gt;&lt;/code&gt; in JS.&lt;/li&gt;
+&lt;li&gt;There are other python libraries that implement similar ideas e.g. &lt;a href="https://pypi.org/project/pipe/"&gt;pipe&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;In golang a &lt;a href="https://github.com/golang/go/issues/68534"&gt;rejected proposal&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;My approach uses the &lt;code&gt;|&lt;/code&gt; operator in python and you must explicitly start and end a pipeline&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;Pipeline&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;inputs&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="o"&gt;...&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="n"&gt;Pipeline&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;unwrap&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;The specific reason why I chose to make the &lt;code&gt;Pipeline&lt;/code&gt; explicit but not &lt;code&gt;@&lt;/code&gt; operations is mainly due to how common &lt;code&gt;|&lt;/code&gt; is vs &lt;code&gt;@&lt;/code&gt; in Python. Something I'll go in more depth in a future post. &lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h4&gt;Other Cool Patterns&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# Binding partially to the second argument not the first&lt;/span&gt;
+&lt;span class="n"&gt;func&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;itertools&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;combinations&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;func&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;arg&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Iterable&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+
+&lt;span class="c1"&gt;# Null coalescing &lt;/span&gt;
+&lt;span class="n"&gt;nvl&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;count_or_none&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;nvl&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;apply&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;)))&lt;/span&gt;  &lt;span class="c1"&gt;# increment count or return null&lt;/span&gt;
+
+&lt;span class="c1"&gt;# Composing functions inline&lt;/span&gt;
+&lt;span class="nb"&gt;sum&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;compose&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;eq&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;2020&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;  &lt;span class="c1"&gt;# check sum equal to 2020 &lt;/span&gt;
+
+&lt;span class="c1"&gt;# Mixing `|` and `@`&lt;/span&gt;
+&lt;span class="n"&gt;inputs&lt;/span&gt;
+&lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;map&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;mul&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# multiply all inputs by 2&lt;/span&gt;
+&lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="nb"&gt;sum&lt;/span&gt;  &lt;span class="c1"&gt;# add them up&lt;/span&gt;
+&lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="n"&gt;eq&lt;/span&gt; &lt;span class="o"&gt;@&lt;/span&gt; &lt;span class="n"&gt;bind&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;2020&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# check if they sum to 2020&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3&gt;Further Reading&lt;/h3&gt;
+&lt;p&gt;Overall it wasn't easy but I did learn a lot about Python's operators and type system. Don't worry if you'd like to know more about these topics, I'll have follow up more posts.&lt;/p&gt;
+&lt;p&gt;Here are some further reading material about functional programming:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Official Python documentation on functional programming in Python &lt;a href="https://docs.python.org/3/howto/functional.html"&gt;here&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://ocaml.org/docs/tour-of-ocaml"&gt;A tour of OCaml&lt;/a&gt; to get started with OCaml&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://www.youtube.com/watch?v=nuML9SmdbJ4"&gt;Dear Functional Bros&lt;/a&gt; an excellent video on functional programming and its relationship with OOP.&lt;/li&gt;
+&lt;/ul&gt;</content><category term="Blog"></category></entry><entry><title>Sqlalchemy Footgun: Discarding the statement</title><link href="https://blog.changs.co.uk/sqlalchemy-footgun-discarding-the-statement.html" rel="alternate"></link><published>2025-02-02T00:00:00+00:00</published><updated>2025-02-02T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-02-02:/sqlalchemy-footgun-discarding-the-statement.html</id><summary type="html">&lt;p&gt;This one has frustrated me for a while. &lt;/p&gt;
 &lt;p&gt;It starts off with a REST API route. For example in fastAPI&lt;/p&gt;
 &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="nd"&gt;@app&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;/&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
 &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;search_users&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Session&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="nb"&gt;list&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;User&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
