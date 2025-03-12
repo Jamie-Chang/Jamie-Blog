@@ -4,27 +4,58 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog - Authors</title>
+                        <title>Building a DSL with Python Operators</title>
                         <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="I've been a little obsessed with operator overloading lately. First using |= in sqlalchemy-builder and then using | and @ in better-functools. I..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
                         <h1><a href="./">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li><a href="./category/blog.html">Blog</a></li>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./building-a-dsl-with-python-operators.html" rel="bookmark"
+             title="Permalink to Building a DSL with Python Operators">Building a DSL with Python Operators</a></h1>
+      </header>
 
-    <section id="content" class="body">
-        <h1>Authors on Jamie's Blog</h1>
-        <ul>
-                <li><a href="./author/jamie-chang.html">Jamie Chang</a> (13)</li>
-        </ul>
-    </section>
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-03-12T00:00:00+00:00">
+                Published: Wed 12 March 2025
+        </abbr>
 
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>I've been a little obsessed with operator overloading lately. First using <code>|=</code> in <a href="./sqlalchemy-footgun-discarding-the-statement.html">sqlalchemy-builder</a> and then using <code>|</code> and <code>@</code> in <a href="./better-functools-python-functional-fun.html">better-functools</a>. </p>
+<p>I didn't actually know that these qualify as DSLs, specifically what's known as "internal DSLs". Funnily enough, I'm usually not a fan of DSLs. A few reasons come to mind:</p>
+<ul>
+<li>DSLs are most often half baked, pretty much every CI-CD pipeline uses a YAML based DSL that's frustrating to work with.</li>
+<li>DSLs lack the IDE support of a proper language.</li>
+<li>DSLs are another thing to learn, internal DSLs are especially annoying as you need to learn the host language too.</li>
+</ul>
+<p>But I realise now that DSLs are also an opportunity to introduce something new in a familiar environment. To demonstrate how and why, I've created another cookbook that builds a functional DSL from the ground up.</p>
+<p><iframe
+  src="https://jamie-chang.github.io/cookbooks/notebooks/index.html?path=operator.ipynb"
+  width="100%"
+  height="800em"
+  style="border: 1px solid #EEEEEE;"
+></iframe>
+</p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>

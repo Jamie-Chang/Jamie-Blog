@@ -20,7 +20,45 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./better-functools-python-functional-fun.html">better-functools: Python functional fun</a></h1>
+                        <h1 class="entry-title"><a href="./building-a-dsl-with-python-operators.html">Building a DSL with Python Operators</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2025-03-12T00:00:00+00:00">
+                Published: Wed 12 March 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>I've been a little obsessed with operator overloading lately. First using <code>|=</code> in <a href="./sqlalchemy-footgun-discarding-the-statement.html">sqlalchemy-builder</a> and then using <code>|</code> and <code>@</code> in <a href="./better-functools-python-functional-fun.html">better-functools</a>. </p>
+<p>I didn't actually know that these qualify as DSLs, specifically what's known as "internal DSLs". Funnily enough, I'm usually not a fan of DSLs. A few reasons come to mind:</p>
+<ul>
+<li>DSLs are most often half baked, pretty much every CI-CD pipeline uses a YAML based DSL that's frustrating to work with.</li>
+<li>DSLs lack the IDE support of a proper language.</li>
+<li>DSLs are another thing to learn, internal DSLs are especially annoying as you need to learn the host language too.</li>
+</ul>
+<p>But I realise now that DSLs are also an opportunity to introduce something new in a familiar environment. To demonstrate how and why, I've created another cookbook that builds a functional DSL from the ground up.</p>
+<p><iframe
+  src="https://jamie-chang.github.io/cookbooks/notebooks/index.html?path=operator.ipynb"
+  width="100%"
+  height="800em"
+  style="border: 1px solid #EEEEEE;"
+></iframe>
+</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./better-functools-python-functional-fun.html" rel="bookmark"
+                               title="Permalink to better-functools: Python functional fun">better-functools: Python functional fun</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-03-09T00:00:00+00:00">
                 Published: Sun 09 March 2025
@@ -31,91 +69,14 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>I recently put some effort into creating <a href="https://github.com/Jamie-Chang/better-functools">better-functools</a>. It's a package that adds some tooling for functional programming in Python. And allows us to write some unique looking code in a manner similar to functional languages:</p>
+</footer><!-- /.post-info -->                        <p>I recently put some effort into creating <a href="https://github.com/Jamie-Chang/better-functools">better-functools</a>. It's a package that adds some tooling for functional programming in Python. And allows us to write some unique looking code in a manner similar to functional languages:</p>
 <p><img alt="better-functools" src="./images/better-functools.png">
 <a href="https://pydantic.run/store/a075fad4d27ad9d0">Try in sandbox</a></p>
 <h3>Why?</h3>
-<p>At a glance this doesn't look very "Pythonic". More complex expressions and syntax are often controversial in Python, but I don't think it's a good enough reason to avoid it. Python is a multi-paradigm language, but it can be awkward to do anything but the expected OOP. New syntax can really help with expanding what's possible with Python. A good example of new syntax is pattern matching, which is a feature that came from functional languages. I'm keen on using this to make functional programming more available to a wider user base, as opposed to the stereotypical functional bros.</p>
-<h3>Inspiration</h3>
-<p>If you can't tell already, this is largely inspired by ML specifically <a href="https://ocaml.org/">OCaml</a>. Last Christmas I decided to solve <a href="https://github.com/Jamie-Chang/advent2024/tree/main">Advent of Code</a> in OCaml and I loved it.</p>
-<p>The biggest takeaway from this experience is that you don't need to understand monads or the other mathematical concepts to program functionally. Those are probably things you come around later but it's not make functional programming fun.</p>
-<p>What I loved most is the the system and ergonomics in OCaml. </p>
-<blockquote>
-<p>Note: The ML family are not the only programming languages, other languages may have a stronger focus on ergonomics than type safety.</p>
-</blockquote>
-<p>OCaml is strongly typed but does not require explicit annotations, instead types are inferred.
-For example, the signature of add in the following snippet is automatically inferred as <code>+</code> operator only takes integer values.</p>
-<div class="highlight"><pre><span></span><code><span class="k">let</span> <span class="n">add</span> <span class="n">a</span> <span class="n">b</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
-<span class="c">(* val add : int -&gt; int -&gt; int = &lt; fun &gt; *)</span>
-</code></pre></div>
-
-<p>This greatly reduces the burden on programmers. </p>
-<p>On the topic of ergonomics, OCaml like many other functional languages has a lot of features to make composing functions and chaining function calls easier. The most notable of which are currying:</p>
-<div class="highlight"><pre><span></span><code><span class="k">let</span> <span class="n">add</span> <span class="n">a</span> <span class="n">b</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
-<span class="k">let</span> <span class="n">inc</span> <span class="o">=</span> <span class="n">add</span> <span class="mi">1</span>
-</code></pre></div>
-
-<p>And <a href="https://cs3110.github.io/textbook/chapters/hop/pipelining.html">pipeline</a>:</p>
-<div class="highlight"><pre><span></span><code><span class="o">[</span><span class="mi">1</span><span class="o">;</span> <span class="mi">2</span><span class="o">;</span> <span class="mi">3</span><span class="o">;</span> <span class="mi">4</span><span class="o">]</span> <span class="o">|&gt;</span> <span class="n">map</span> <span class="n">inc</span> <span class="o">|&gt;</span> <span class="n">sum</span> <span class="o">|&gt;</span> <span class="n">string_of_int</span> <span class="o">|&gt;</span> <span class="n">print_endline</span>
-</code></pre></div>
-
-<p>The implication of this is that you rarely need to abstract out functions because you can easily compose and chain them inline when you need them.</p>
-<h3>Functional patterns with <code>better-functools</code> and Python</h3>
-<p>So how can we use these ideas in Python?</p>
-<h4>Currying</h4>
-<p>We can also do currying in Python, but it's awkward as Python has many different types of arguments: defaulted, positional, keyword and combinations of all of them.</p>
-<p>Instead I've added <code>@bind(...)</code> as a short hand to bind an argument and always return a partial.</p>
-<div class="highlight"><pre><span></span><code><span class="n">inc</span> <span class="o">=</span> <span class="n">add</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</code></pre></div>
-
-<p>The resulting expression is a bit more verbose than currying but has the same look and feel.</p>
-<h4>pipeline</h4>
-<p>The <a href="https://cs3110.github.io/textbook/chapters/hop/pipelining.html">'pipeline'</a> operator <code>|&gt;</code> in OCaml chains operations together in a clear and concise way. And I'm definitely not the only person to think this way:</p>
-<ul>
-<li><a href="https://github.com/tc39/proposal-pipeline-operator">TC39</a> is a proposal to add <code>|&gt;</code> in JS.</li>
-<li>There are other python libraries that implement similar ideas e.g. <a href="https://pypi.org/project/pipe/">pipe</a>.</li>
-<li>In golang a <a href="https://github.com/golang/go/issues/68534">rejected proposal</a></li>
-</ul>
-<p>My approach uses the <code>|</code> operator in python and you must explicitly start and end a pipeline</p>
-<div class="highlight"><pre><span></span><code><span class="n">Pipeline</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span> <span class="o">|</span> <span class="o">...</span> <span class="o">|</span> <span class="n">Pipeline</span><span class="o">.</span><span class="n">unwrap</span>
-</code></pre></div>
-
-<blockquote>
-<p>The specific reason why I chose to make the <code>Pipeline</code> explicit but not <code>@</code> operations is mainly due to how common <code>|</code> is vs <code>@</code> in Python. Something I'll go in more depth in a future post. </p>
-</blockquote>
-<h4>Other Cool Patterns</h4>
-<div class="highlight"><pre><span></span><code><span class="c1"># Binding partially to the second argument not the first</span>
-<span class="n">func</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span> <span class="o">@</span> <span class="n">func</span><span class="o">.</span><span class="n">arg</span><span class="p">(</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
-
-<span class="c1"># Null coalescing </span>
-<span class="n">nvl</span><span class="p">(</span><span class="n">count_or_none</span> <span class="o">@</span> <span class="n">nvl</span> <span class="o">@</span> <span class="n">apply</span><span class="p">(</span><span class="n">add</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="mi">1</span><span class="p">)))</span>  <span class="c1"># increment count or return null</span>
-
-<span class="c1"># Composing functions inline</span>
-<span class="nb">sum</span> <span class="o">@</span> <span class="n">compose</span><span class="p">(</span><span class="n">eq</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="mi">2020</span><span class="p">))</span>  <span class="c1"># check sum equal to 2020 </span>
-
-<span class="c1"># Mixing `|` and `@`</span>
-<span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">Pipeline</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
-    <span class="o">|</span> <span class="nb">map</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="n">mul</span> <span class="o">@</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># multiply all inputs by 2</span>
-    <span class="o">|</span> <span class="nb">sum</span>  <span class="c1"># add them up</span>
-    <span class="o">|</span> <span class="n">eq</span> <span class="o">@</span> <span class="n">bind</span><span class="p">(</span><span class="mi">2020</span><span class="p">)</span>  <span class="c1"># check if they sum to 2020</span>
-    <span class="o">|</span> <span class="nb">print</span>  <span class="c1"># print the result</span>
-<span class="p">)</span>
-</code></pre></div>
-
-<h3>Further Reading</h3>
-<p>Overall it wasn't easy but I did learn a lot about Python's operators and type system. Don't worry if you'd like to know more about these topics, I'll have follow up more posts.</p>
-<p>Here are some further reading material about functional programming:</p>
-<ul>
-<li>Official Python documentation on functional programming in Python <a href="https://docs.python.org/3/howto/functional.html">here</a></li>
-<li><a href="https://ocaml.org/docs/tour-of-ocaml">A tour of OCaml</a> to get started with OCaml</li>
-<li><a href="https://www.youtube.com/watch?v=nuML9SmdbJ4">Dear Functional Bros</a> an excellent video on functional programming and its relationship with OOP.</li>
-</ul>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>At a glance this doesn't look very "Pythonic". More complex …</p>
+                        <a class="readmore" href="./better-functools-python-functional-fun.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -318,29 +279,6 @@ It enables true multi-threaded execution without the restriction of the <a href=
 
 <p>I remember thinking at the time that this was pretty neat, but I tend to use <code>dataclass …</code></p>
                         <a class="readmore" href="./typeddicts-are-better-than-you-think.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./closing-python-iterators.html" rel="bookmark"
-                               title="Permalink to Closing Python Iterators">Closing Python Iterators</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-09-28T00:00:00+01:00">
-                Published: Sat 28 September 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I recently came across a <a href="https://youtu.be/N56Jrqc7SBk?si=6WmYrq8C4E-gwn4_">video</a> by mcoding about Python iterators' unfortunate closing behaviour.</p>
-<p>To sum up the video, when an iterator is interrupted we intuitively we would expect the exit of a context manager or a finally block to be called but that's not <strong>necessarily</strong> the case. For example …</p>
-                        <a class="readmore" href="./closing-python-iterators.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->
