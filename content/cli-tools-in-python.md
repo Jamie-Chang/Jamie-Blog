@@ -1,20 +1,21 @@
-Title: Why you should write scripts in Python Again
+Title: Why you should write your tools in Python Again
 Date: 2025-04-08
 Category: Blog
 
-## Why not in Python?
-You're probably thinking that there are plenty of popular tools written in Python. But most of them are tools built for Python development like `mypy` and `flake8`, where there's already a Python dev environment setup. In contrast, general purpose cli tools tend to be built in new languages like `rust` and `go`, for example, docker cli is currently written in go.
+You're probably thinking that there are already plenty of tools written in Python.
 
-This wasn't always the case, let's set our mind to the era of Python 2 specifically 2.7. 2.7 enjoyed an almost 10 year lifespan whilst the Python community was working on Python 3. The stability of 2.7 meant that it was easy to distribute tools as Python scripts. 
+But I see that most of the popular tools like `mypy` and `flake8` are built for development environments. In contrast, general purpose cli tools tend to be built in other languages, for example most of the docker/kubernetes clis are built in `go`.
 
-Then Python 3 arrived with lot's of nice stuff: `f-strings`, `dataclasses`, `pattern-matching` etc.. But no more stability, a script working on 3.5 might have problems on 3.7 and so on. 3rd party dependencies adding more dimension to the problem. 
+This wasn't always the case, let's set our mind to the era of Python 2. 2.7 enjoyed an almost 10 year lifespan whilst the Python community was working on Python 3. The stability of 2.7 meant that it was easy to distribute tools as Python scripts. 
 
-Compiled languages don't tend to have this problem as the binary executable is distributed, the executable no longer depends on the language itself, but on the platform it's running on. So tools must be built for every platform it's expected to run on. This turns out to be a relatively manageable number, though recent advancements in CPU architecture (apple silicon) has made it more complex.
+Then Python 3 arrived with lot's of nice stuff: `f-strings`, `dataclasses`, `pattern-matching` etc.. But no more stability, a script working on 3.5 might have problems on 3.7 and so on. 3rd party dependencies adding extra dimensions to the problem. 
+
+Compiled languages like `go` and `rust` don't tend to have this problem as the binary executable is distributed, the executable no longer depends on the language itself, but on the platform it's running on. So tools must be built for every platform it's expected to run on. However in many cases this is more manageable than Python's versions and dependencies.
 
 ## Writing a terminal app
 Fast forward to the present. I've been keen on writing scripts to automate some of the more mundane tasks. I wanted to write a terminal app to display my JIRA tickets, so I don't have to deal with the clunky web UI. 
 
-I've' heard a lot of good things about [textual](https://github.com/Textualize/textual), whilst lacking in patience to learn another language, I decided to give it a go.
+I've' heard a lot of good things about [textual](https://github.com/Textualize/textual), not having the patience to learn `rust`, I gave textual a go.
 
 I proudly present my little TUI (Terminal UI):
 
@@ -31,14 +32,14 @@ I proudly present my little TUI (Terminal UI):
   <script src="https://gist.github.com/Jamie-Chang/644db95fc536506d301920f3c9f46da8.js"></script>
 </details>
 
-The app is very simple, just displaying the tickets and title. That's kind of the point really, too much detail and we're no better than the web UI.
+The app itself is very simple, we're just displaying the tickets and title. Nothing fancy, speedy and to the point.
 
-I won't go into too much depth on the code itself, textual worked well as was fun to use. Instead let's discuss the massive improvements to scripting in Python.
+I won't go into too much depth on the code itself, textual worked well and was fun to use. Instead let's dive into how we distribute and run the script.
 
 ## So how has Python fixed its problems?
-In short, [uv](https://github.com/astral-sh/uv) came to the rescue. 
+In short, [uv](https://github.com/astral-sh/uv)!
 
-uv has been all the rage lately, for [good reasons](https://www.youtube.com/watch?v=8UuW8o4bHbw). Thanks to uv package management got a lot better.
+uv has been all the rage lately, for [good reasons](https://www.youtube.com/watch?v=8UuW8o4bHbw). Thanks to uv package management in Python got a lot better.
 
 In my specific case I used uv for the following.
 
@@ -65,7 +66,7 @@ Let me elaborate, at the top of my script we have:
 
 [PEP-723](https://peps.python.org/pep-0723/) inline metadata creates a standard to setting the metadata like dependencies at the top of the file.
 
-Breaking down each line we have `requires-python = ">=3.12"` for the python version and then the list of  `dependencies`.
+Breaking down each line we have `requires-python = ">=3.12"` for the python version and then the list of `dependencies`.
 
 Finally a uv specific [`exclude-newer`](https://docs.astral.sh/uv/reference/settings/#exclude-newer) that acts as a pseudo lockfile, limiting dependencies by date instead of by version.
 
@@ -97,4 +98,4 @@ The `rust` and `go` tools are definitely here to stay. In fact, `uv` is almost c
 
 Python's strength lies in the fact that it's simple, easy to get started with and iterate on. This applies even more so with cli scripting, where we generally one quick changes, small feedback loop and to not think about releases. 
 
-The takeaway here is that whilst `uv` doesn't remove all of the trade-offs, it has level the playing field and made scripting fun again.
+The takeaway here is that whilst Python doesn't fit every use case, uv has helped it level the playing field and made scripting fun again!
