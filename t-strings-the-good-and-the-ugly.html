@@ -8,7 +8,7 @@
                         <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
-    <meta name="description" content="This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has just released. It's definitely a chunky release with a lot of new..." />
+    <meta name="description" content="This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new..." />
         </head>
 
         <body id="index" class="home">
@@ -37,7 +37,7 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info -->        <p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has just released. It's definitely a chunky release with a lot of new features. But pretty much all I can think about are these new template strings (officially <code>t-strings</code>). </p>
+</footer><!-- /.post-info -->        <p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially <code>t-strings</code>). </p>
 <p><a href="https://peps.python.org/pep-0750/">PEP-750</a> officially introduces the concept. The idea is the syntax of <code>f-strings</code> but allowing customised behaviours.</p>
 <h2>Quick Recap of f-strings</h2>
 <p>F-strings were introduced in Python 3.7. The allow strings to formatted for concisely:</p>
@@ -63,7 +63,7 @@
 </code></pre></div>
 
 <h2>Why t-strings?</h2>
-<p>For me there are two big reasons for t-strings to exist.</p>
+<p>For me there are two big reasons for <code>t-strings</code> to exist.</p>
 <ul>
 <li><code>f-string</code> syntax but with custom rendering logic.</li>
 <li><code>f-string</code> but with deferred rendering.</li>
@@ -143,13 +143,13 @@
 </code></pre></div>
 
 <p>Honestly, I'm a little proud of this, but equally repulsed. I think it demonstrates one of the problems with <code>t-strings</code>. It's the fact that they are really not strings to begin with.</p>
-<p>They are an intermediate representation that can turn into strings, but there's no guarantee of its intentions. Fringe use cases like this are usually my forte, but here it looks kind of ugly and awkward to me.</p>
-<p>This coupled with the fact that we lose all typing information when we build our 't-string` make it hard to recommend here.</p>
+<p>They are an intermediate representation that can turn into strings, but there's no reason it has to be. </p>
+<p>Fringe use cases like this are usually my forte, but here it looks kind of ugly and awkward to me. This coupled with the fact that we lose all typing information when we build our 't-string` make it hard to recommend here.</p>
 <h2>Should we be using t-strings then?</h2>
 <p>I think <code>t-strings</code> are amazing and generally will be beneficial, I was definitely hyped about them. </p>
-<p>I have recently shifted my opinions on new syntax in Python. I used to hate any weird syntax, going so far as to prefer <code>dict.update(new_dict)</code> over <code>dict |= new_dict</code>. But after experimenting with <a href="./building-a-dsl-with-python-operators.html">DSLs</a>, I see how they can shift your thinking and become extremely useful.</p>
-<p>But I also see the other side of the argument. Before writing this post, I watched this excellent <a href="https://www.youtube.com/watch?v=_QYAoNCK574&amp;t=1640s">video</a> on this by anthonywritescode. He make a good argument about the added mental overhead looking at new syntax like in my second example. </p>
-<p>I can only say that we need to find our balance, for me, I'll prioritise on ways to use <code>t-string</code> as a string but will tread carefully on applications outside of strings. </p>
+<p>I have recently shifted my opinions on new syntax in Python. I used to hate any weird syntax, going so far as to prefer <code>dict.update(new_dict)</code> over the new <code>dict |= new_dict</code>. But my recent experiments with <a href="./building-a-dsl-with-python-operators.html">DSLs</a> showed me that done right, there is a place for new syntax to be very beneficial.</p>
+<p>I do also see the argument against new syntax. Before writing this post, I watched anthonywritescode's <a href="https://www.youtube.com/watch?v=_QYAoNCK574&amp;t=1640s">video</a>. He actually goes very in depth on <code>t-strings</code> made a good argument about the added mental overhead of this.</p>
+<p>Therefore I can only say that we need to find our balance here. For me, I'll pursue opportunities to use <code>t-string</code> to generate strings. But will tread more carefully when going off-piste to create complex objects.</p>
       </div><!-- /.entry-content -->
 
     </article>
