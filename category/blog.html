@@ -20,7 +20,143 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../why-you-should-write-your-tools-in-python-again.html">Why you should write your tools in Python Again</a></h1>
+                        <h1 class="entry-title"><a href="../t-strings-the-good-and-the-ugly.html">t-strings the good and the ugly</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2025-05-07T00:00:00+01:00">
+                Published: Wed 07 May 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has just released. It's definitely a chunky release with a lot of new features. But pretty much all I can think about are these new template strings (officially <code>t-strings</code>). </p>
+<p><a href="https://peps.python.org/pep-0750/">PEP-750</a> officially introduces the concept. The idea is the syntax of <code>f-strings</code> but allowing customised behaviours.</p>
+<h2>Quick Recap of f-strings</h2>
+<p>F-strings were introduced in Python 3.7. The allow strings to formatted for concisely:</p>
+<div class="highlight"><pre><span></span><code><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;world&quot;</span>
+<span class="sa">f</span><span class="s1">&#39;Hello </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span>
+
+<span class="c1"># instead of </span>
+<span class="s1">&#39;Hello </span><span class="si">{name}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+</code></pre></div>
+
+<p>There are also some lesser known but very useful features.</p>
+<h3>f-string with <code>=</code></h3>
+<p>Very useful for debugging, you can render both the name of the variable and the value with an <code>=</code> between. </p>
+<div class="highlight"><pre><span></span><code><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Jamie&quot;</span>
+<span class="k">assert</span> <span class="sa">f</span><span class="s1">&#39;User </span><span class="si">{</span><span class="n">name</span><span class="w"> </span><span class="si">= }</span><span class="s1">&#39;</span> <span class="o">==</span>  <span class="s1">&#39;User name = Jamie&#39;</span>
+</code></pre></div>
+
+<h3>f-string with formatting spec</h3>
+<p>We can also quickly format objects with f-strings, this is especially useful for formatting <code>datetime</code>s:</p>
+<div class="highlight"><pre><span></span><code><span class="n">cost</span> <span class="o">=</span> <span class="mi">15</span>
+<span class="k">assert</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">cost</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="o">==</span> <span class="s1">&#39;15.00&#39;</span>
+<span class="k">assert</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2025</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="si">:</span><span class="s1">%Y/%m/%d</span><span class="si">}</span><span class="s1">&#39;</span> <span class="o">==</span> <span class="s1">&#39;2025/01/01&#39;</span>
+</code></pre></div>
+
+<h2>Why t-strings?</h2>
+<p>For me there are two big reasons for t-strings to exist.</p>
+<ul>
+<li><code>f-string</code> syntax but with custom rendering logic.</li>
+<li><code>f-string</code> but with deferred rendering.</li>
+</ul>
+<p>In the PEP there are proposals to use this for <code>html</code> rendering and escaping or <code>sql</code> parameter substitution.</p>
+<div class="highlight"><pre><span></span><code><span class="n">evil</span> <span class="o">=</span> <span class="s2">&quot;&lt;script&gt;alert(&#39;evil&#39;)&lt;/script&gt;&quot;</span>
+<span class="n">template</span> <span class="o">=</span> <span class="n">t</span><span class="s2">&quot;&lt;p&gt;</span><span class="si">{evil}</span><span class="s2">&lt;/p&gt;&quot;</span>
+<span class="k">assert</span> <span class="n">html</span><span class="p">(</span><span class="n">template</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;&lt;p&gt;&amp;lt;script&amp;gt;alert(&#39;evil&#39;)&amp;lt;/script&amp;gt;&lt;/p&gt;&quot;</span>
+</code></pre></div>
+
+<p>Where the t-string returns a <code>string.templatelib.Template</code> object and the <code>html</code> function contains the custom logic for rendering the template. In this case we delay rendering the string and then our custom logic escapes any potentially harmful variables in the string.</p>
+<h2>How does it work?</h2>
+<p>According to the PEP, the <code>Template</code> object looks like: </p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Template</span><span class="p">:</span>
+    <span class="o">...</span>  <span class="c1"># Omitted a bunch of other fields</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="n">Interpolation</span><span class="p">]:</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>We can iterate the template for all the parts of the template. For a template of <code>t'Hello {name}!'</code> becomes:</p>
+<div class="highlight"><pre><span></span><code><span class="p">(</span><span class="s1">&#39;Hello&#39;</span><span class="p">,</span> <span class="n">Interpolation</span><span class="p">(</span><span class="s1">&#39;jamie&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">),</span> <span class="s1">&#39;!&#39;</span><span class="p">)</span>
+</code></pre></div>
+
+<h2>My use cases</h2>
+<p>I can see a lot of potential use cases many of them outlined in the PEP already.</p>
+<h3>Logging - a decent use case</h3>
+<p>My favourite use case so far is to solve a bit of a nit I have. The following code looks pretty innocent: </p>
+<div class="highlight"><pre><span></span><code><span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2"> - Something happened&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p><code>f-strings</code> are eager, so <code>user</code> is stringified immediately. This is fine for simple variables but might be expensive for large nested objects. Then consider running this code in production where we turn off <code>debug</code> logging, we would still need to pay the cost of calling <code>str(user)</code> even if we don't log. This is the rationale behind <a href="https://docs.astral.sh/ruff/rules/logging-f-string/#logging-f-string-g004">ruff's G004</a>.</p>
+<p><code>t-strings</code> by nature is 'deferred', so as long as we teach logging how to handle them they will work better than <code>f-string</code> here. </p>
+<p>The following snippet does exactly that:</p>
+<style type="text/css">
+  .gist-file
+  .gist-data {max-height: 500px;}
+</style>
+
+<script src="https://gist.github.com/Jamie-Chang/65466a5e95832f81b2ffbb0208cc11c2.js"></script>
+
+<p>Now we can directly use <code>t-strings</code> for logging as below:</p>
+<div class="highlight"><pre><span></span><code><span class="n">initialize</span><span class="p">()</span>
+
+<span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Jamie&quot;</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">t</span><span class="s1">&#39;{name = }&#39;</span><span class="p">)</span>
+</code></pre></div>
+
+<h3>A little ugly: shorthand kwargs</h3>
+<p>So this is where I think we can take this syntax a little too far. I had this idea a few weeks ago when <a href="https://peps.python.org/pep-0736/">PEP-736</a> was rejected. PEP-736 comes from the observation that there are often redundant writing when it comes to invocation by keyword arguments: </p>
+<div class="highlight"><pre><span></span><code><span class="n">User</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">birthday</span><span class="o">=</span><span class="n">birthday</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</code></pre></div>
+
+<p>This is actually something our <code>t-strings</code> can help with. The name of the variable and the value are captured simultaneously, so we just need to then turn the <code>t-string</code> into a dictionary:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">string.templatelib</span> <span class="kn">import</span> <span class="n">Interpolation</span><span class="p">,</span> <span class="n">Template</span>
+
+
+<span class="k">def</span> <span class="nf">kw</span><span class="p">(</span><span class="o">*</span><span class="n">templates</span><span class="p">:</span> <span class="n">Template</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="n">inter</span><span class="o">.</span><span class="n">expression</span><span class="p">:</span> <span class="n">inter</span><span class="o">.</span><span class="n">value</span> 
+        <span class="k">for</span> <span class="n">template</span> <span class="ow">in</span> <span class="n">templates</span> 
+        <span class="k">for</span> <span class="n">inter</span> <span class="ow">in</span> <span class="n">template</span><span class="o">.</span><span class="n">interpolations</span>
+    <span class="p">}</span>
+</code></pre></div>
+
+<p>Then we can apply it to a function call:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">User</span><span class="p">:</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">birthday</span><span class="p">:</span> <span class="n">date</span>
+
+<span class="n">User</span><span class="p">(</span><span class="o">**</span><span class="n">kw</span><span class="p">(</span><span class="n">t</span><span class="s2">&quot;</span><span class="si">{birthday}</span><span class="s2"> </span><span class="si">{name}</span><span class="s2">&quot;</span><span class="p">))</span>
+<span class="n">User</span><span class="p">(</span><span class="o">**</span><span class="n">kw</span><span class="p">(</span>
+    <span class="n">t</span><span class="s2">&quot;{birthday=}&quot;</span><span class="p">,</span>
+    <span class="n">t</span><span class="s2">&quot;{name=}&quot;</span><span class="p">,</span>
+<span class="p">))</span>
+</code></pre></div>
+
+<p>Honestly, I'm a little proud of this, but equally repulsed. I think it demonstrates one of the problems with <code>t-strings</code>. It's the fact that they are really not strings to begin with.</p>
+<p>They are an intermediate representation that can turn into strings, but there's no guarantee of its intentions. Fringe use cases like this are usually my forte, but here it looks kind of ugly and awkward to me.</p>
+<p>This coupled with the fact that we lose all typing information when we build our 't-string` make it hard to recommend here.</p>
+<h2>Should we be using t-strings then?</h2>
+<p>I think <code>t-strings</code> are amazing and generally will be beneficial, I was definitely hyped about them. </p>
+<p>I have recently shifted my opinions on new syntax in Python. I used to hate any weird syntax, going so far as to prefer <code>dict.update(new_dict)</code> over <code>dict |= new_dict</code>. But after experimenting with <a href="../building-a-dsl-with-python-operators.html">DSLs</a>, I see how they can shift your thinking and become extremely useful.</p>
+<p>But I also see the other side of the argument. Before writing this post, I watched this excellent <a href="https://www.youtube.com/watch?v=_QYAoNCK574&amp;t=1640s">video</a> on this by anthonywritescode. He make a good argument about the added mental overhead looking at new syntax like in my second example. </p>
+<p>I can only say that we need to find our balance, for me, I'll prioritise on ways to use <code>t-string</code> as a string. I'll be more cautious with appliations where we build complex objects with <code>t-strings</code>. </p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../why-you-should-write-your-tools-in-python-again.html" rel="bookmark"
+                               title="Permalink to Why you should write your tools in Python Again">Why you should write your tools in Python Again</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-04-08T00:00:00+01:00">
                 Published: Tue 08 April 2025
@@ -31,81 +167,11 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>You're probably thinking that there are already plenty of tools written in Python.</p>
-<p>But I see that most of the popular tools like <code>mypy</code> and <code>flake8</code> are built for development environments. In contrast, general purpose cli tools tend to be built in other languages, for example most of the docker/kubernetes clis are built in <code>go</code>.</p>
-<p>This wasn't always the case, let's set our mind to the era of Python 2. 2.7 enjoyed an almost 10 year lifespan whilst the Python community was working on Python 3. The stability of 2.7 meant that it was easy to distribute tools as Python scripts. </p>
-<p>Then Python 3 arrived with lot's of nice stuff: <code>f-strings</code>, <code>dataclasses</code>, <code>pattern-matching</code> etc.. But no more stability, a script working on 3.5 might have problems on 3.7 and so on. 3rd party dependencies adding extra dimensions to the problem. </p>
-<p>Compiled languages like <code>go</code> and <code>rust</code> don't tend to have this problem as the binary executable is distributed, the executable no longer depends on the language itself, but on the platform it's running on. So tools must be built for every platform it's expected to run on. However in many cases this is more manageable than Python's versions and dependencies.</p>
-<h2>Writing a terminal app</h2>
-<p>Fast forward to the present. I've been keen on writing scripts to automate some of the more mundane tasks. I wanted to write a terminal app to display my JIRA tickets, so I don't have to deal with the clunky web UI. </p>
-<p>I've' heard a lot of good things about <a href="https://github.com/Textualize/textual">textual</a>, not having the patience to learn <code>rust</code>, I gave textual a go.</p>
-<p>I proudly present my little TUI (Terminal UI):</p>
-<p><img alt="better-functools" src="../images/jira-list.png"></p>
-<style type="text/css">
-  .gist-file
-  .gist-data {max-height: 500px;}
-</style>
-
-<details>
-
-  <summary><i>Source code here</i></summary>
-  <script src="https://gist.github.com/Jamie-Chang/644db95fc536506d301920f3c9f46da8.js"></script>
-</details>
-
-<p>The app itself is very simple, we're just displaying the tickets and title. Nothing fancy, speedy and to the point.</p>
-<p>I won't go into too much depth on the code itself, textual worked well and was fun to use. Instead let's dive into how we distribute and run the script.</p>
-<h2>So how has Python fixed its problems?</h2>
-<p>In short, <a href="https://github.com/astral-sh/uv">uv</a>!</p>
-<p>uv has been all the rage lately, for <a href="https://www.youtube.com/watch?v=8UuW8o4bHbw">good reasons</a>. Thanks to uv package management in Python got a lot better.</p>
-<p>In my specific case I used uv for the following.</p>
-<ul>
-<li>manage dependencies such as Python version and packages</li>
-<li>execute the script in an isolated Python environment without any hassle.</li>
-</ul>
-<p>Let me elaborate, at the top of my script we have:</p>
-<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env -S uv run --script</span>
-<span class="c1"># /// script</span>
-<span class="c1"># requires-python = &quot;&gt;=3.12&quot;</span>
-<span class="c1"># dependencies = [</span>
-<span class="c1">#     &quot;requests&quot;,</span>
-<span class="c1">#     &quot;textual&quot;,</span>
-<span class="c1">#     &quot;platformdirs&quot;,</span>
-<span class="c1">#     &quot;tomli-w&quot;,</span>
-<span class="c1">#     &quot;keyring&quot;,</span>
-<span class="c1"># ]</span>
-<span class="c1"># [tool.uv]</span>
-<span class="c1"># exclude-newer = &quot;2025-04-09T00:00:00Z&quot;</span>
-<span class="c1"># ///</span>
-</code></pre></div>
-
-<p><a href="https://peps.python.org/pep-0723/">PEP-723</a> inline metadata creates a standard to setting the metadata like dependencies at the top of the file.</p>
-<p>Breaking down each line we have <code>requires-python = "&gt;=3.12"</code> for the python version and then the list of <code>dependencies</code>.</p>
-<p>Finally a uv specific <a href="https://docs.astral.sh/uv/reference/settings/#exclude-newer"><code>exclude-newer</code></a> that acts as a pseudo lockfile, limiting dependencies by date instead of by version.</p>
-<p>This is a whole Python project in one, and uv will happily run it with a single command:</p>
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>--script<span class="w"> </span>jira-tui.py
-</code></pre></div>
-
-<p>Note the shebang <code>#!/usr/bin/env -S uv run --script</code>, a neat trick from <a href="https://akrabat.com/using-uv-as-your-shebang-line/">Rob Allen</a>. On linux the shebang line will save us from typing <code>uv run --script</code> every time.</p>
-<p>Essentially uv has become the one stable runtime, as long as the user has uv scripts may be distributed easily.</p>
-<h2>Python's Broad Compatibility</h2>
-<p>Just distributing the script is not enough, we also need to make sure that the end user's platform can execute the script.</p>
-<p>Owing to Python's popularity, most packages support all major OS's and CPU architectures out of the box.</p>
-<p>In fact, it's so comfortable you hardly have to think about it:</p>
-<ul>
-<li>textual: the main framework was designed from the ground up to be as compatible as possible</li>
-<li>keyring: used to store credentials uses different secure storage based on the OS.</li>
-<li>standard lib packages like <code>pathlib</code> and <code>webbrowser</code> all work cross platform.</li>
-</ul>
-<p>The one time I actively considered platforms was where to store the config file, which was simply solved using the <a href="https://pypi.org/project/platformdirs/"><code>platformdirs</code></a> package.</p>
-<h2>How does python compare to other languages?</h2>
-<p>The <code>rust</code> and <code>go</code> tools are definitely here to stay. In fact, <code>uv</code> is almost completely written in <code>rust</code>. The main reason to use other languages are performance and concurrency. In my (biased) experience performance is not a priority for terminal applications, but your experiences may vary.</p>
-<p>Python's strength lies in the fact that it's simple, easy to get started with and iterate on. This applies even more so with cli scripting, where we generally one quick changes, small feedback loop and to not think about releases. </p>
-<p>The takeaway here is that whilst Python doesn't fit every use case, uv has helped it level the playing field and made scripting fun again!</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>You're probably thinking that there are already plenty of tools written in Python.</p>
+<p>But I see that most of the popular tools like <code>mypy</code> and <code>flake8</code> are built for development environments. In contrast, general purpose cli tools tend to be built in other languages, for example most of the docker …</p>
+                        <a class="readmore" href="../why-you-should-write-your-tools-in-python-again.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -305,29 +371,6 @@ It enables true multi-threaded execution without the restriction of the <a href=
 </footer><!-- /.post-info -->                        <p>I've been experimenting with <a href="https://www.langchain.com/">Langchain</a> for GPT based queries. One problem we often encounter with GPT is hallucinations. This makes certain classes of problems unsuited to GPT, one example is maths and statistics. Whilst there are improvements for recent models often the maths cannot be trusted.</p>
 <p>When I try to …</p>
                         <a class="readmore" href="../python-in-python-sandboxing-llm-generated-code.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../my-sqlalchemy-cookbook.html" rel="bookmark"
-                               title="Permalink to My SQLAlchemy Cookbook">My SQLAlchemy Cookbook</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-11-25T00:00:00+00:00">
-                Published: Mon 25 November 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I've worked with SQLAlchemy for a while now, and in my opinion it's the best ORM in Python. It's feature rich with strong support for all major databases. And it maintains the SQL feel without losing things like typing.</p>
-<p>However there are some challenges here. Despite having very nice documentation …</p>
-                        <a class="readmore" href="../my-sqlalchemy-cookbook.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->

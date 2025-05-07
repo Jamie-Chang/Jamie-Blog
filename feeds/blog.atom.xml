@@ -1,5 +1,118 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-04-08T00:00:00+01:00</updated><entry><title>Why you should write your tools in Python Again</title><link href="https://blog.changs.co.uk/why-you-should-write-your-tools-in-python-again.html" rel="alternate"></link><published>2025-04-08T00:00:00+01:00</published><updated>2025-04-08T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-04-08:/why-you-should-write-your-tools-in-python-again.html</id><summary type="html">&lt;p&gt;You're probably thinking that there are already plenty of tools written in Python.&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-05-07T00:00:00+01:00</updated><entry><title>t-strings the good and the ugly</title><link href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html" rel="alternate"></link><published>2025-05-07T00:00:00+01:00</published><updated>2025-05-07T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-05-07:/t-strings-the-good-and-the-ugly.html</id><summary type="html">&lt;p&gt;This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has just released. It's definitely a chunky release with a lot of new features. But pretty much all I can think about are these new template strings (officially &lt;code&gt;t-strings&lt;/code&gt;). &lt;/p&gt;
+&lt;p&gt;&lt;a href="https://peps.python.org/pep-0750/"&gt;PEP-750&lt;/a&gt; officially introduces the concept …&lt;/p&gt;</summary><content type="html">&lt;p&gt;This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has just released. It's definitely a chunky release with a lot of new features. But pretty much all I can think about are these new template strings (officially &lt;code&gt;t-strings&lt;/code&gt;). &lt;/p&gt;
+&lt;p&gt;&lt;a href="https://peps.python.org/pep-0750/"&gt;PEP-750&lt;/a&gt; officially introduces the concept. The idea is the syntax of &lt;code&gt;f-strings&lt;/code&gt; but allowing customised behaviours.&lt;/p&gt;
+&lt;h2&gt;Quick Recap of f-strings&lt;/h2&gt;
+&lt;p&gt;F-strings were introduced in Python 3.7. The allow strings to formatted for concisely:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;name&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;world&amp;quot;&lt;/span&gt;
+&lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;Hello &lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;&lt;/span&gt;
+
+&lt;span class="c1"&gt;# instead of &lt;/span&gt;
+&lt;span class="s1"&gt;&amp;#39;Hello &lt;/span&gt;&lt;span class="si"&gt;{name}&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;format&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;There are also some lesser known but very useful features.&lt;/p&gt;
+&lt;h3&gt;f-string with &lt;code&gt;=&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Very useful for debugging, you can render both the name of the variable and the value with an &lt;code&gt;=&lt;/code&gt; between. &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;name&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;Jamie&amp;quot;&lt;/span&gt;
+&lt;span class="k"&gt;assert&lt;/span&gt; &lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;User &lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="si"&gt;= }&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt;  &lt;span class="s1"&gt;&amp;#39;User name = Jamie&amp;#39;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3&gt;f-string with formatting spec&lt;/h3&gt;
+&lt;p&gt;We can also quickly format objects with f-strings, this is especially useful for formatting &lt;code&gt;datetime&lt;/code&gt;s:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;cost&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;15&lt;/span&gt;
+&lt;span class="k"&gt;assert&lt;/span&gt; &lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;&lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;cost&lt;/span&gt;&lt;span class="si"&gt;:&lt;/span&gt;&lt;span class="s1"&gt;.2f&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;15.00&amp;#39;&lt;/span&gt;
+&lt;span class="k"&gt;assert&lt;/span&gt; &lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;&lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;datetime&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;2025&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="si"&gt;:&lt;/span&gt;&lt;span class="s1"&gt;%Y/%m/%d&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;2025/01/01&amp;#39;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2&gt;Why t-strings?&lt;/h2&gt;
+&lt;p&gt;For me there are two big reasons for t-strings to exist.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;f-string&lt;/code&gt; syntax but with custom rendering logic.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;f-string&lt;/code&gt; but with deferred rendering.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In the PEP there are proposals to use this for &lt;code&gt;html&lt;/code&gt; rendering and escaping or &lt;code&gt;sql&lt;/code&gt; parameter substitution.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;evil&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;&amp;lt;script&amp;gt;alert(&amp;#39;evil&amp;#39;)&amp;lt;/script&amp;gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;template&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;t&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&amp;lt;p&amp;gt;&lt;/span&gt;&lt;span class="si"&gt;{evil}&lt;/span&gt;&lt;span class="s2"&gt;&amp;lt;/p&amp;gt;&amp;quot;&lt;/span&gt;
+&lt;span class="k"&gt;assert&lt;/span&gt; &lt;span class="n"&gt;html&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;template&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;&amp;lt;p&amp;gt;&amp;amp;lt;script&amp;amp;gt;alert(&amp;#39;evil&amp;#39;)&amp;amp;lt;/script&amp;amp;gt;&amp;lt;/p&amp;gt;&amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Where the t-string returns a &lt;code&gt;string.templatelib.Template&lt;/code&gt; object and the &lt;code&gt;html&lt;/code&gt; function contains the custom logic for rendering the template. In this case we delay rendering the string and then our custom logic escapes any potentially harmful variables in the string.&lt;/p&gt;
+&lt;h2&gt;How does it work?&lt;/h2&gt;
+&lt;p&gt;According to the PEP, the &lt;code&gt;Template&lt;/code&gt; object looks like: &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;Template&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;  &lt;span class="c1"&gt;# Omitted a bunch of other fields&lt;/span&gt;
+
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="fm"&gt;__iter__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Iterator&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nb"&gt;str&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="n"&gt;Interpolation&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+        &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We can iterate the template for all the parts of the template. For a template of &lt;code&gt;t'Hello {name}!'&lt;/code&gt; becomes:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;Hello&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Interpolation&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;jamie&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;name&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;!&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2&gt;My use cases&lt;/h2&gt;
+&lt;p&gt;I can see a lot of potential use cases many of them outlined in the PEP already.&lt;/p&gt;
+&lt;h3&gt;Logging - a decent use case&lt;/h3&gt;
+&lt;p&gt;My favourite use case so far is to solve a bit of a nit I have. The following code looks pretty innocent: &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;logging&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;debug&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;user&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt; - Something happened&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code&gt;f-strings&lt;/code&gt; are eager, so &lt;code&gt;user&lt;/code&gt; is stringified immediately. This is fine for simple variables but might be expensive for large nested objects. Then consider running this code in production where we turn off &lt;code&gt;debug&lt;/code&gt; logging, we would still need to pay the cost of calling &lt;code&gt;str(user)&lt;/code&gt; even if we don't log. This is the rationale behind &lt;a href="https://docs.astral.sh/ruff/rules/logging-f-string/#logging-f-string-g004"&gt;ruff's G004&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;t-strings&lt;/code&gt; by nature is 'deferred', so as long as we teach logging how to handle them they will work better than &lt;code&gt;f-string&lt;/code&gt; here. &lt;/p&gt;
+&lt;p&gt;The following snippet does exactly that:&lt;/p&gt;
+&lt;style type="text/css"&gt;
+  .gist-file
+  .gist-data {max-height: 500px;}
+&lt;/style&gt;
+
+&lt;script src="https://gist.github.com/Jamie-Chang/65466a5e95832f81b2ffbb0208cc11c2.js"&gt;&lt;/script&gt;
+
+&lt;p&gt;Now we can directly use &lt;code&gt;t-strings&lt;/code&gt; for logging as below:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;initialize&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+&lt;span class="n"&gt;name&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;Jamie&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;logging&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;info&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;t&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;{name = }&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3&gt;A little ugly: shorthand kwargs&lt;/h3&gt;
+&lt;p&gt;So this is where I think we can take this syntax a little too far. I had this idea a few weeks ago when &lt;a href="https://peps.python.org/pep-0736/"&gt;PEP-736&lt;/a&gt; was rejected. PEP-736 comes from the observation that there are often redundant writing when it comes to invocation by keyword arguments: &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;User&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;birthday&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;birthday&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This is actually something our &lt;code&gt;t-strings&lt;/code&gt; can help with. The name of the variable and the value are captured simultaneously, so we just need to then turn the &lt;code&gt;t-string&lt;/code&gt; into a dictionary:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;string.templatelib&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;Interpolation&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Template&lt;/span&gt;
+
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;kw&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;templates&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Template&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="nb"&gt;dict&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;object&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+        &lt;span class="n"&gt;inter&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;expression&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;inter&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;value&lt;/span&gt; 
+        &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;template&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;templates&lt;/span&gt; 
+        &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;inter&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;template&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;interpolations&lt;/span&gt;
+    &lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Then we can apply it to a function call:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="nd"&gt;@dataclass&lt;/span&gt;
+&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;User&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;
+    &lt;span class="n"&gt;birthday&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;date&lt;/span&gt;
+
+&lt;span class="n"&gt;User&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;kw&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;t&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="si"&gt;{birthday}&lt;/span&gt;&lt;span class="s2"&gt; &lt;/span&gt;&lt;span class="si"&gt;{name}&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;span class="n"&gt;User&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;kw&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+    &lt;span class="n"&gt;t&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;{birthday=}&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;t&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;{name=}&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Honestly, I'm a little proud of this, but equally repulsed. I think it demonstrates one of the problems with &lt;code&gt;t-strings&lt;/code&gt;. It's the fact that they are really not strings to begin with.&lt;/p&gt;
+&lt;p&gt;They are an intermediate representation that can turn into strings, but there's no guarantee of its intentions. Fringe use cases like this are usually my forte, but here it looks kind of ugly and awkward to me.&lt;/p&gt;
+&lt;p&gt;This coupled with the fact that we lose all typing information when we build our 't-string` make it hard to recommend here.&lt;/p&gt;
+&lt;h2&gt;Should we be using t-strings then?&lt;/h2&gt;
+&lt;p&gt;I think &lt;code&gt;t-strings&lt;/code&gt; are amazing and generally will be beneficial, I was definitely hyped about them. &lt;/p&gt;
+&lt;p&gt;I have recently shifted my opinions on new syntax in Python. I used to hate any weird syntax, going so far as to prefer &lt;code&gt;dict.update(new_dict)&lt;/code&gt; over &lt;code&gt;dict |= new_dict&lt;/code&gt;. But after experimenting with &lt;a href="https://blog.changs.co.uk/building-a-dsl-with-python-operators.html"&gt;DSLs&lt;/a&gt;, I see how they can shift your thinking and become extremely useful.&lt;/p&gt;
+&lt;p&gt;But I also see the other side of the argument. Before writing this post, I watched this excellent &lt;a href="https://www.youtube.com/watch?v=_QYAoNCK574&amp;amp;t=1640s"&gt;video&lt;/a&gt; on this by anthonywritescode. He make a good argument about the added mental overhead looking at new syntax like in my second example. &lt;/p&gt;
+&lt;p&gt;I can only say that we need to find our balance, for me, I'll prioritise on ways to use &lt;code&gt;t-string&lt;/code&gt; as a string. I'll be more cautious with appliations where we build complex objects with &lt;code&gt;t-strings&lt;/code&gt;. &lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>Why you should write your tools in Python Again</title><link href="https://blog.changs.co.uk/why-you-should-write-your-tools-in-python-again.html" rel="alternate"></link><published>2025-04-08T00:00:00+01:00</published><updated>2025-04-08T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-04-08:/why-you-should-write-your-tools-in-python-again.html</id><summary type="html">&lt;p&gt;You're probably thinking that there are already plenty of tools written in Python.&lt;/p&gt;
 &lt;p&gt;But I see that most of the popular tools like &lt;code&gt;mypy&lt;/code&gt; and &lt;code&gt;flake8&lt;/code&gt; are built for development environments. In contrast, general purpose cli tools tend to be built in other languages, for example most of the docker …&lt;/p&gt;</summary><content type="html">&lt;p&gt;You're probably thinking that there are already plenty of tools written in Python.&lt;/p&gt;
 &lt;p&gt;But I see that most of the popular tools like &lt;code&gt;mypy&lt;/code&gt; and &lt;code&gt;flake8&lt;/code&gt; are built for development environments. In contrast, general purpose cli tools tend to be built in other languages, for example most of the docker/kubernetes clis are built in &lt;code&gt;go&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;This wasn't always the case, let's set our mind to the era of Python 2. 2.7 enjoyed an almost 10 year lifespan whilst the Python community was working on Python 3. The stability of 2.7 meant that it was easy to distribute tools as Python scripts. &lt;/p&gt;

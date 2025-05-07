@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>t-strings the good and the ugly</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has just released. It's definitely a chunky release with a lot of new..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./t-strings-the-good-and-the-ugly.html" rel="bookmark"
+             title="Permalink to t-strings the good and the ugly">t-strings the good and the ugly</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-05-07T00:00:00+01:00">
+                Published: Wed 07 May 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has just released. It's definitely a chunky release with a lot of new features. But pretty much all I can think about are these new template strings (officially <code>t-strings</code>). </p>
+<p><a href="https://peps.python.org/pep-0750/">PEP-750</a> officially introduces the concept. The idea is the syntax of <code>f-strings</code> but allowing customised behaviours.</p>
+<h2>Quick Recap of f-strings</h2>
+<p>F-strings were introduced in Python 3.7. The allow strings to formatted for concisely:</p>
+<div class="highlight"><pre><span></span><code><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;world&quot;</span>
+<span class="sa">f</span><span class="s1">&#39;Hello </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span>
+
+<span class="c1"># instead of </span>
+<span class="s1">&#39;Hello </span><span class="si">{name}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+</code></pre></div>
+
+<p>There are also some lesser known but very useful features.</p>
+<h3>f-string with <code>=</code></h3>
+<p>Very useful for debugging, you can render both the name of the variable and the value with an <code>=</code> between. </p>
+<div class="highlight"><pre><span></span><code><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Jamie&quot;</span>
+<span class="k">assert</span> <span class="sa">f</span><span class="s1">&#39;User </span><span class="si">{</span><span class="n">name</span><span class="w"> </span><span class="si">= }</span><span class="s1">&#39;</span> <span class="o">==</span>  <span class="s1">&#39;User name = Jamie&#39;</span>
+</code></pre></div>
+
+<h3>f-string with formatting spec</h3>
+<p>We can also quickly format objects with f-strings, this is especially useful for formatting <code>datetime</code>s:</p>
+<div class="highlight"><pre><span></span><code><span class="n">cost</span> <span class="o">=</span> <span class="mi">15</span>
+<span class="k">assert</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">cost</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="o">==</span> <span class="s1">&#39;15.00&#39;</span>
+<span class="k">assert</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2025</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="si">:</span><span class="s1">%Y/%m/%d</span><span class="si">}</span><span class="s1">&#39;</span> <span class="o">==</span> <span class="s1">&#39;2025/01/01&#39;</span>
+</code></pre></div>
+
+<h2>Why t-strings?</h2>
+<p>For me there are two big reasons for t-strings to exist.</p>
+<ul>
+<li><code>f-string</code> syntax but with custom rendering logic.</li>
+<li><code>f-string</code> but with deferred rendering.</li>
+</ul>
+<p>In the PEP there are proposals to use this for <code>html</code> rendering and escaping or <code>sql</code> parameter substitution.</p>
+<div class="highlight"><pre><span></span><code><span class="n">evil</span> <span class="o">=</span> <span class="s2">&quot;&lt;script&gt;alert(&#39;evil&#39;)&lt;/script&gt;&quot;</span>
+<span class="n">template</span> <span class="o">=</span> <span class="n">t</span><span class="s2">&quot;&lt;p&gt;</span><span class="si">{evil}</span><span class="s2">&lt;/p&gt;&quot;</span>
+<span class="k">assert</span> <span class="n">html</span><span class="p">(</span><span class="n">template</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;&lt;p&gt;&amp;lt;script&amp;gt;alert(&#39;evil&#39;)&amp;lt;/script&amp;gt;&lt;/p&gt;&quot;</span>
+</code></pre></div>
+
+<p>Where the t-string returns a <code>string.templatelib.Template</code> object and the <code>html</code> function contains the custom logic for rendering the template. In this case we delay rendering the string and then our custom logic escapes any potentially harmful variables in the string.</p>
+<h2>How does it work?</h2>
+<p>According to the PEP, the <code>Template</code> object looks like: </p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Template</span><span class="p">:</span>
+    <span class="o">...</span>  <span class="c1"># Omitted a bunch of other fields</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="n">Interpolation</span><span class="p">]:</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>We can iterate the template for all the parts of the template. For a template of <code>t'Hello {name}!'</code> becomes:</p>
+<div class="highlight"><pre><span></span><code><span class="p">(</span><span class="s1">&#39;Hello&#39;</span><span class="p">,</span> <span class="n">Interpolation</span><span class="p">(</span><span class="s1">&#39;jamie&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">),</span> <span class="s1">&#39;!&#39;</span><span class="p">)</span>
+</code></pre></div>
+
+<h2>My use cases</h2>
+<p>I can see a lot of potential use cases many of them outlined in the PEP already.</p>
+<h3>Logging - a decent use case</h3>
+<p>My favourite use case so far is to solve a bit of a nit I have. The following code looks pretty innocent: </p>
+<div class="highlight"><pre><span></span><code><span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2"> - Something happened&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p><code>f-strings</code> are eager, so <code>user</code> is stringified immediately. This is fine for simple variables but might be expensive for large nested objects. Then consider running this code in production where we turn off <code>debug</code> logging, we would still need to pay the cost of calling <code>str(user)</code> even if we don't log. This is the rationale behind <a href="https://docs.astral.sh/ruff/rules/logging-f-string/#logging-f-string-g004">ruff's G004</a>.</p>
+<p><code>t-strings</code> by nature is 'deferred', so as long as we teach logging how to handle them they will work better than <code>f-string</code> here. </p>
+<p>The following snippet does exactly that:</p>
+<style type="text/css">
+  .gist-file
+  .gist-data {max-height: 500px;}
+</style>
+
+<script src="https://gist.github.com/Jamie-Chang/65466a5e95832f81b2ffbb0208cc11c2.js"></script>
+
+<p>Now we can directly use <code>t-strings</code> for logging as below:</p>
+<div class="highlight"><pre><span></span><code><span class="n">initialize</span><span class="p">()</span>
+
+<span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Jamie&quot;</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">t</span><span class="s1">&#39;{name = }&#39;</span><span class="p">)</span>
+</code></pre></div>
+
+<h3>A little ugly: shorthand kwargs</h3>
+<p>So this is where I think we can take this syntax a little too far. I had this idea a few weeks ago when <a href="https://peps.python.org/pep-0736/">PEP-736</a> was rejected. PEP-736 comes from the observation that there are often redundant writing when it comes to invocation by keyword arguments: </p>
+<div class="highlight"><pre><span></span><code><span class="n">User</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">birthday</span><span class="o">=</span><span class="n">birthday</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</code></pre></div>
+
+<p>This is actually something our <code>t-strings</code> can help with. The name of the variable and the value are captured simultaneously, so we just need to then turn the <code>t-string</code> into a dictionary:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">string.templatelib</span> <span class="kn">import</span> <span class="n">Interpolation</span><span class="p">,</span> <span class="n">Template</span>
+
+
+<span class="k">def</span> <span class="nf">kw</span><span class="p">(</span><span class="o">*</span><span class="n">templates</span><span class="p">:</span> <span class="n">Template</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="n">inter</span><span class="o">.</span><span class="n">expression</span><span class="p">:</span> <span class="n">inter</span><span class="o">.</span><span class="n">value</span> 
+        <span class="k">for</span> <span class="n">template</span> <span class="ow">in</span> <span class="n">templates</span> 
+        <span class="k">for</span> <span class="n">inter</span> <span class="ow">in</span> <span class="n">template</span><span class="o">.</span><span class="n">interpolations</span>
+    <span class="p">}</span>
+</code></pre></div>
+
+<p>Then we can apply it to a function call:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">User</span><span class="p">:</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">birthday</span><span class="p">:</span> <span class="n">date</span>
+
+<span class="n">User</span><span class="p">(</span><span class="o">**</span><span class="n">kw</span><span class="p">(</span><span class="n">t</span><span class="s2">&quot;</span><span class="si">{birthday}</span><span class="s2"> </span><span class="si">{name}</span><span class="s2">&quot;</span><span class="p">))</span>
+<span class="n">User</span><span class="p">(</span><span class="o">**</span><span class="n">kw</span><span class="p">(</span>
+    <span class="n">t</span><span class="s2">&quot;{birthday=}&quot;</span><span class="p">,</span>
+    <span class="n">t</span><span class="s2">&quot;{name=}&quot;</span><span class="p">,</span>
+<span class="p">))</span>
+</code></pre></div>
+
+<p>Honestly, I'm a little proud of this, but equally repulsed. I think it demonstrates one of the problems with <code>t-strings</code>. It's the fact that they are really not strings to begin with.</p>
+<p>They are an intermediate representation that can turn into strings, but there's no guarantee of its intentions. Fringe use cases like this are usually my forte, but here it looks kind of ugly and awkward to me.</p>
+<p>This coupled with the fact that we lose all typing information when we build our 't-string` make it hard to recommend here.</p>
+<h2>Should we be using t-strings then?</h2>
+<p>I think <code>t-strings</code> are amazing and generally will be beneficial, I was definitely hyped about them. </p>
+<p>I have recently shifted my opinions on new syntax in Python. I used to hate any weird syntax, going so far as to prefer <code>dict.update(new_dict)</code> over <code>dict |= new_dict</code>. But after experimenting with <a href="./building-a-dsl-with-python-operators.html">DSLs</a>, I see how they can shift your thinking and become extremely useful.</p>
+<p>But I also see the other side of the argument. Before writing this post, I watched this excellent <a href="https://www.youtube.com/watch?v=_QYAoNCK574&amp;t=1640s">video</a> on this by anthonywritescode. He make a good argument about the added mental overhead looking at new syntax like in my second example. </p>
+<p>I can only say that we need to find our balance, for me, I'll prioritise on ways to use <code>t-string</code> as a string. I'll be more cautious with appliations where we build complex objects with <code>t-strings</code>. </p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/jamie-chang.bsky.social/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
