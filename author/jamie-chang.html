@@ -20,7 +20,197 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../t-strings-the-good-and-the-ugly.html">t-strings: the good and the ugly</a></h1>
+                        <h1 class="entry-title"><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2025-05-26T00:00:00+01:00">
+                Published: Mon 26 May 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>In my posts earlier this year I talked about the parallelism performance on 3.13 free-threaded builds. In particular I looked at solving an advent of code <a href="https://adventofcode.com/2024/day/6">problem</a>. In <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> I discovered significant performance penalties for using free-threading and a lack of tooling available to debug these issues. In a later <a href="../how-good-are-sub-interpreters-in-python-now.html">post</a> I compared free-threading with the yet unreleased subinterpreters. </p>
+<p>The results are demonstrated in the following graph:
+<img alt="interpreters vs threads 3.13" src="../images/AoC-day-6.png"></p>
+<p>The conclusion being that subinterpreters are often overlooked but they provide far more predictable scaling characteristics. And with explicit memory management the performance is generally better than free-threading.</p>
+<h1>3.14 Updates</h1>
+<p>Python 3.14 is still in beta so everything should be taken with a grain of salt here. But there are good <a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-free-threaded-cpython">news</a>, in 3.14 many of the "TODO"s have been completed. This should mean better performance. </p>
+<p>So I reran my code <a href="https://github.com/Jamie-Chang/advent2024-python">here</a> with 3.14:</p>
+<p><img alt="interpreters vs threads 3.14" src="../images/threading-3-14.png"></p>
+<p>Or in table format:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Worker Count</th>
+<th style="text-align: left;">3.14t threads</th>
+<th style="text-align: left;">3.13t threads</th>
+<th style="text-align: left;">3.14t subinterpreters</th>
+<th style="text-align: left;">3.13t subinterpreters</th>
+<th style="text-align: left;">3.14 subinterpreters</th>
+<th style="text-align: left;">3.13 subinterpreters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">2.920236</td>
+<td style="text-align: left;">3.591980</td>
+<td style="text-align: left;">2.848517</td>
+<td style="text-align: left;">3.581693</td>
+<td style="text-align: left;">3.285170</td>
+<td style="text-align: left;">3.616936</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">1.694204</td>
+<td style="text-align: left;">2.322360</td>
+<td style="text-align: left;">1.673501</td>
+<td style="text-align: left;">1.801588</td>
+<td style="text-align: left;">1.696457</td>
+<td style="text-align: left;">1.837193</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">1.289783</td>
+<td style="text-align: left;">1.678028</td>
+<td style="text-align: left;">1.042733</td>
+<td style="text-align: left;">1.262571</td>
+<td style="text-align: left;">1.212331</td>
+<td style="text-align: left;">1.285815</td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: left;">1.157097</td>
+<td style="text-align: left;">1.387227</td>
+<td style="text-align: left;">0.828986</td>
+<td style="text-align: left;">0.976082</td>
+<td style="text-align: left;">0.897258</td>
+<td style="text-align: left;">0.972027</td>
+</tr>
+<tr>
+<td style="text-align: left;">5</td>
+<td style="text-align: left;">1.295146</td>
+<td style="text-align: left;">1.356140</td>
+<td style="text-align: left;">0.704804</td>
+<td style="text-align: left;">0.820581</td>
+<td style="text-align: left;">0.825292</td>
+<td style="text-align: left;">0.800690</td>
+</tr>
+<tr>
+<td style="text-align: left;">6</td>
+<td style="text-align: left;">2.109609</td>
+<td style="text-align: left;">2.562865</td>
+<td style="text-align: left;">0.719364</td>
+<td style="text-align: left;">0.783600</td>
+<td style="text-align: left;">0.724958</td>
+<td style="text-align: left;">0.741971</td>
+</tr>
+<tr>
+<td style="text-align: left;">7</td>
+<td style="text-align: left;">2.687946</td>
+<td style="text-align: left;">3.488201</td>
+<td style="text-align: left;">0.642275</td>
+<td style="text-align: left;">0.778133</td>
+<td style="text-align: left;">0.661795</td>
+<td style="text-align: left;">0.688237</td>
+</tr>
+<tr>
+<td style="text-align: left;">8</td>
+<td style="text-align: left;">3.101248</td>
+<td style="text-align: left;">4.438853</td>
+<td style="text-align: left;">0.645746</td>
+<td style="text-align: left;">0.735963</td>
+<td style="text-align: left;">0.634333</td>
+<td style="text-align: left;">0.648535</td>
+</tr>
+<tr>
+<td style="text-align: left;">9</td>
+<td style="text-align: left;">3.634345</td>
+<td style="text-align: left;">5.401229</td>
+<td style="text-align: left;">0.649026</td>
+<td style="text-align: left;">0.732540</td>
+<td style="text-align: left;">0.614862</td>
+<td style="text-align: left;">0.729464</td>
+</tr>
+<tr>
+<td style="text-align: left;">10</td>
+<td style="text-align: left;">4.235933</td>
+<td style="text-align: left;">6.152377</td>
+<td style="text-align: left;">0.712666</td>
+<td style="text-align: left;">0.789292</td>
+<td style="text-align: left;">0.612465</td>
+<td style="text-align: left;">0.593892</td>
+</tr>
+<tr>
+<td style="text-align: left;">11</td>
+<td style="text-align: left;">4.315591</td>
+<td style="text-align: left;">6.908039</td>
+<td style="text-align: left;">0.682817</td>
+<td style="text-align: left;">0.721079</td>
+<td style="text-align: left;">0.586761</td>
+<td style="text-align: left;">0.586010</td>
+</tr>
+<tr>
+<td style="text-align: left;">12</td>
+<td style="text-align: left;">4.361890</td>
+<td style="text-align: left;">6.873490</td>
+<td style="text-align: left;">0.653831</td>
+<td style="text-align: left;">0.772412</td>
+<td style="text-align: left;">0.590408</td>
+<td style="text-align: left;">0.588454</td>
+</tr>
+<tr>
+<td style="text-align: left;">13</td>
+<td style="text-align: left;">4.597265</td>
+<td style="text-align: left;">6.815938</td>
+<td style="text-align: left;">0.644710</td>
+<td style="text-align: left;">0.753303</td>
+<td style="text-align: left;">0.605583</td>
+<td style="text-align: left;">0.603435</td>
+</tr>
+<tr>
+<td style="text-align: left;">14</td>
+<td style="text-align: left;">4.582979</td>
+<td style="text-align: left;">7.090147</td>
+<td style="text-align: left;">0.751220</td>
+<td style="text-align: left;">0.775110</td>
+<td style="text-align: left;">0.612578</td>
+<td style="text-align: left;">0.588413</td>
+</tr>
+<tr>
+<td style="text-align: left;">15</td>
+<td style="text-align: left;">4.501879</td>
+<td style="text-align: left;">6.522076</td>
+<td style="text-align: left;">0.725688</td>
+<td style="text-align: left;">0.859769</td>
+<td style="text-align: left;">0.610816</td>
+<td style="text-align: left;">0.594174</td>
+</tr>
+</tbody>
+</table>
+<h1>Better but is it enough?</h1>
+<p>Performance numbers of free-threading in 3.14 are definitely better then 3.13, but the scaling is definitely still disappointing.</p>
+<p>I also ran different versions of subinterpreters, which were pretty much the same with small but consistent variations. Subinterpreters still generally beat free-threading.</p>
+<p>Additionally there is still no way to profile and debug free threading performance which is a bit disappointing. </p>
+<h1>But not bad</h1>
+<p>The update may not be a game changer yet, but the trend is still positive.</p>
+<p>There's also been talk of more radical changes to memory ownership and data structures see <a href="https://microsoft.github.io/verona/pyrona.html">Project Verona</a>.</p>
+<p>I have experienced cases where free-threading hits the mark of performance whilst being easier to use compared to subinterpreters. Though the community hasn't quite worked out the direction of free-threading. I intend to dig deeper into the topic to get a better picture of what free-threading will look like in the future. </p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../t-strings-the-good-and-the-ugly.html" rel="bookmark"
+                               title="Permalink to t-strings: the good and the ugly">t-strings: the good and the ugly</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-05-07T00:00:00+01:00">
                 Published: Wed 07 May 2025
@@ -31,124 +221,11 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially <code>t-strings</code>). </p>
-<p><a href="https://peps.python.org/pep-0750/">PEP-750</a> officially introduces the concept. The idea is the syntax of <code>f-strings</code> but allowing customised behaviours.</p>
-<h2>Quick Recap of f-strings</h2>
-<p>F-strings were introduced in Python 3.7. The allow strings to formatted for concisely:</p>
-<div class="highlight"><pre><span></span><code><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;world&quot;</span>
-<span class="sa">f</span><span class="s1">&#39;Hello </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span>
-
-<span class="c1"># instead of </span>
-<span class="s1">&#39;Hello </span><span class="si">{name}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
-</code></pre></div>
-
-<p>There are also some lesser known but very useful features.</p>
-<h3>f-string with <code>=</code></h3>
-<p>Very useful for debugging, you can render both the name of the variable and the value with an <code>=</code> between. </p>
-<div class="highlight"><pre><span></span><code><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Jamie&quot;</span>
-<span class="k">assert</span> <span class="sa">f</span><span class="s1">&#39;User </span><span class="si">{</span><span class="n">name</span><span class="w"> </span><span class="si">= }</span><span class="s1">&#39;</span> <span class="o">==</span>  <span class="s1">&#39;User name = Jamie&#39;</span>
-</code></pre></div>
-
-<h3>f-string with formatting spec</h3>
-<p>We can also quickly format objects with f-strings, this is especially useful for formatting <code>datetime</code>s:</p>
-<div class="highlight"><pre><span></span><code><span class="n">cost</span> <span class="o">=</span> <span class="mi">15</span>
-<span class="k">assert</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">cost</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="o">==</span> <span class="s1">&#39;15.00&#39;</span>
-<span class="k">assert</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2025</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="si">:</span><span class="s1">%Y/%m/%d</span><span class="si">}</span><span class="s1">&#39;</span> <span class="o">==</span> <span class="s1">&#39;2025/01/01&#39;</span>
-</code></pre></div>
-
-<h2>Why t-strings?</h2>
-<p>For me there are two big reasons for <code>t-strings</code> to exist.</p>
-<ul>
-<li><code>f-string</code> syntax but with custom rendering logic.</li>
-<li><code>f-string</code> but with deferred rendering.</li>
-</ul>
-<p>In the PEP there are proposals to use this for <code>html</code> rendering and escaping or <code>sql</code> parameter substitution.</p>
-<div class="highlight"><pre><span></span><code><span class="n">evil</span> <span class="o">=</span> <span class="s2">&quot;&lt;script&gt;alert(&#39;evil&#39;)&lt;/script&gt;&quot;</span>
-<span class="n">template</span> <span class="o">=</span> <span class="n">t</span><span class="s2">&quot;&lt;p&gt;</span><span class="si">{evil}</span><span class="s2">&lt;/p&gt;&quot;</span>
-<span class="k">assert</span> <span class="n">html</span><span class="p">(</span><span class="n">template</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;&lt;p&gt;&amp;lt;script&amp;gt;alert(&#39;evil&#39;)&amp;lt;/script&amp;gt;&lt;/p&gt;&quot;</span>
-</code></pre></div>
-
-<p>Where the t-string returns a <code>string.templatelib.Template</code> object and the <code>html</code> function contains the custom logic for rendering the template. In this case we delay rendering the string and then our custom logic escapes any potentially harmful variables in the string.</p>
-<h2>How does it work?</h2>
-<p>According to the PEP, the <code>Template</code> object looks like: </p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Template</span><span class="p">:</span>
-    <span class="o">...</span>  <span class="c1"># Omitted a bunch of other fields</span>
-
-    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="n">Interpolation</span><span class="p">]:</span>
-        <span class="o">...</span>
-</code></pre></div>
-
-<p>We can iterate the template for all the parts of the template. For a template of <code>t'Hello {name}!'</code> becomes:</p>
-<div class="highlight"><pre><span></span><code><span class="p">(</span><span class="s1">&#39;Hello&#39;</span><span class="p">,</span> <span class="n">Interpolation</span><span class="p">(</span><span class="s1">&#39;jamie&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">),</span> <span class="s1">&#39;!&#39;</span><span class="p">)</span>
-</code></pre></div>
-
-<h2>My use cases</h2>
-<p>I can see a lot of potential use cases many of them outlined in the PEP already.</p>
-<h3>Logging - a decent use case</h3>
-<p>My favourite use case so far is to solve a bit of a nit I have. The following code looks pretty innocent: </p>
-<div class="highlight"><pre><span></span><code><span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2"> - Something happened&quot;</span><span class="p">)</span>
-</code></pre></div>
-
-<p><code>f-strings</code> are eager, so <code>user</code> is stringified immediately. This is fine for simple variables but might be expensive for large nested objects. Then consider running this code in production where we turn off <code>debug</code> logging, we would still need to pay the cost of calling <code>str(user)</code> even if we don't log. This is the rationale behind <a href="https://docs.astral.sh/ruff/rules/logging-f-string/#logging-f-string-g004">ruff's G004</a>.</p>
-<p><code>t-strings</code> by nature is 'deferred', so as long as we teach logging how to handle them they will work better than <code>f-string</code> here. </p>
-<p>The following snippet does exactly that:</p>
-<style type="text/css">
-  .gist-file
-  .gist-data {max-height: 500px;}
-</style>
-
-<script src="https://gist.github.com/Jamie-Chang/65466a5e95832f81b2ffbb0208cc11c2.js"></script>
-
-<p>Now we can directly use <code>t-strings</code> for logging as below:</p>
-<div class="highlight"><pre><span></span><code><span class="n">initialize</span><span class="p">()</span>
-
-<span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Jamie&quot;</span>
-<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">t</span><span class="s1">&#39;{name = }&#39;</span><span class="p">)</span>
-</code></pre></div>
-
-<h3>A little ugly: shorthand kwargs</h3>
-<p>So this is where I think we can take this syntax a little too far. I had this idea a few weeks ago when <a href="https://peps.python.org/pep-0736/">PEP-736</a> was rejected. PEP-736 comes from the observation that there are often redundant writing when it comes to invocation by keyword arguments: </p>
-<div class="highlight"><pre><span></span><code><span class="n">User</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">birthday</span><span class="o">=</span><span class="n">birthday</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
-</code></pre></div>
-
-<p>This is actually something our <code>t-strings</code> can help with. The name of the variable and the value are captured simultaneously, so we just need to then turn the <code>t-string</code> into a dictionary:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">string.templatelib</span> <span class="kn">import</span> <span class="n">Interpolation</span><span class="p">,</span> <span class="n">Template</span>
-
-
-<span class="k">def</span> <span class="nf">kw</span><span class="p">(</span><span class="o">*</span><span class="n">templates</span><span class="p">:</span> <span class="n">Template</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
-    <span class="k">return</span> <span class="p">{</span>
-        <span class="n">inter</span><span class="o">.</span><span class="n">expression</span><span class="p">:</span> <span class="n">inter</span><span class="o">.</span><span class="n">value</span> 
-        <span class="k">for</span> <span class="n">template</span> <span class="ow">in</span> <span class="n">templates</span> 
-        <span class="k">for</span> <span class="n">inter</span> <span class="ow">in</span> <span class="n">template</span><span class="o">.</span><span class="n">interpolations</span>
-    <span class="p">}</span>
-</code></pre></div>
-
-<p>Then we can apply it to a function call:</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">User</span><span class="p">:</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">birthday</span><span class="p">:</span> <span class="n">date</span>
-
-<span class="n">User</span><span class="p">(</span><span class="o">**</span><span class="n">kw</span><span class="p">(</span><span class="n">t</span><span class="s2">&quot;</span><span class="si">{birthday}</span><span class="s2"> </span><span class="si">{name}</span><span class="s2">&quot;</span><span class="p">))</span>
-<span class="n">User</span><span class="p">(</span><span class="o">**</span><span class="n">kw</span><span class="p">(</span>
-    <span class="n">t</span><span class="s2">&quot;{birthday=}&quot;</span><span class="p">,</span>
-    <span class="n">t</span><span class="s2">&quot;{name=}&quot;</span><span class="p">,</span>
-<span class="p">))</span>
-</code></pre></div>
-
-<p>Honestly, I'm a little proud of this, but equally repulsed. I think it demonstrates one of the problems with <code>t-strings</code>. It's the fact that they are really not strings to begin with.</p>
-<p>They are an intermediate representation that can turn into strings, but there's no reason it has to be. </p>
-<p>Fringe use cases like this are usually my forte, but here it looks kind of ugly and awkward to me. This coupled with the fact that we lose all typing information when we build our 't-string` make it hard to recommend here.</p>
-<h2>Should we be using t-strings then?</h2>
-<p>I think <code>t-strings</code> are amazing and generally will be beneficial, I was definitely hyped about them. </p>
-<p>I have recently shifted my opinions on new syntax in Python. I used to hate any weird syntax, going so far as to prefer <code>dict.update(new_dict)</code> over the new <code>dict |= new_dict</code>. But my recent experiments with <a href="../building-a-dsl-with-python-operators.html">DSLs</a> showed me that done right, there is a place for new syntax to be very beneficial.</p>
-<p>I do also see the argument against new syntax. Before writing this post, I watched anthonywritescode's <a href="https://www.youtube.com/watch?v=_QYAoNCK574&amp;t=1640s">video</a>. He actually goes very in depth on <code>t-strings</code> made a good argument about the added mental overhead of this.</p>
-<p>Therefore I can only say that we need to find our balance here. For me, I'll pursue opportunities to use <code>t-string</code> to generate strings. But will tread more carefully when going off-piste to create complex objects.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially <code>t-strings</code>). </p>
+<p><a href="https://peps.python.org/pep-0750/">PEP-750</a> officially introduces the concept. The idea …</p>
+                        <a class="readmore" href="../t-strings-the-good-and-the-ugly.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -348,29 +425,6 @@ It enables true multi-threaded execution without the restriction of the <a href=
         
 </footer><!-- /.post-info -->                        <p>I've been doing <a href="https://adventofcode.com/">advent of code</a> again this year. There are two Python features I always rely on, iterators and pattern matching. Iterators allow for operations on each of its elements without allocating memory for a collection. Ever since pattern matching was introduced in Python 3.10, it's been particularly …</p>
                         <a class="readmore" href="../customising-pattern-matching-behaviour.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-in-python-sandboxing-llm-generated-code.html" rel="bookmark"
-                               title="Permalink to Python-in-Python Sandboxing LLM Generated Code">Python-in-Python Sandboxing LLM Generated Code</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-12-02T00:00:00+00:00">
-                Published: Mon 02 December 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I've been experimenting with <a href="https://www.langchain.com/">Langchain</a> for GPT based queries. One problem we often encounter with GPT is hallucinations. This makes certain classes of problems unsuited to GPT, one example is maths and statistics. Whilst there are improvements for recent models often the maths cannot be trusted.</p>
-<p>When I try to …</p>
-                        <a class="readmore" href="../python-in-python-sandboxing-llm-generated-code.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->

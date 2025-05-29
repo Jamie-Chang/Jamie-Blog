@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Python 3.14: State of free threading</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="In my posts earlier this year I talked about the parallelism performance on 3.13 free-threaded builds. In particular I looked at solving an advent..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./python-314-state-of-free-threading.html" rel="bookmark"
+             title="Permalink to Python 3.14: State of free threading">Python 3.14: State of free threading</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-05-26T00:00:00+01:00">
+                Published: Mon 26 May 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>In my posts earlier this year I talked about the parallelism performance on 3.13 free-threaded builds. In particular I looked at solving an advent of code <a href="https://adventofcode.com/2024/day/6">problem</a>. In <a href="./how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> I discovered significant performance penalties for using free-threading and a lack of tooling available to debug these issues. In a later <a href="./how-good-are-sub-interpreters-in-python-now.html">post</a> I compared free-threading with the yet unreleased subinterpreters. </p>
+<p>The results are demonstrated in the following graph:
+<img alt="interpreters vs threads 3.13" src="./images/AoC-day-6.png"></p>
+<p>The conclusion being that subinterpreters are often overlooked but they provide far more predictable scaling characteristics. And with explicit memory management the performance is generally better than free-threading.</p>
+<h1>3.14 Updates</h1>
+<p>Python 3.14 is still in beta so everything should be taken with a grain of salt here. But there are good <a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-free-threaded-cpython">news</a>, in 3.14 many of the "TODO"s have been completed. This should mean better performance. </p>
+<p>So I reran my code <a href="https://github.com/Jamie-Chang/advent2024-python">here</a> with 3.14:</p>
+<p><img alt="interpreters vs threads 3.14" src="./images/threading-3-14.png"></p>
+<p>Or in table format:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Worker Count</th>
+<th style="text-align: left;">3.14t threads</th>
+<th style="text-align: left;">3.13t threads</th>
+<th style="text-align: left;">3.14t subinterpreters</th>
+<th style="text-align: left;">3.13t subinterpreters</th>
+<th style="text-align: left;">3.14 subinterpreters</th>
+<th style="text-align: left;">3.13 subinterpreters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">2.920236</td>
+<td style="text-align: left;">3.591980</td>
+<td style="text-align: left;">2.848517</td>
+<td style="text-align: left;">3.581693</td>
+<td style="text-align: left;">3.285170</td>
+<td style="text-align: left;">3.616936</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">1.694204</td>
+<td style="text-align: left;">2.322360</td>
+<td style="text-align: left;">1.673501</td>
+<td style="text-align: left;">1.801588</td>
+<td style="text-align: left;">1.696457</td>
+<td style="text-align: left;">1.837193</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">1.289783</td>
+<td style="text-align: left;">1.678028</td>
+<td style="text-align: left;">1.042733</td>
+<td style="text-align: left;">1.262571</td>
+<td style="text-align: left;">1.212331</td>
+<td style="text-align: left;">1.285815</td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: left;">1.157097</td>
+<td style="text-align: left;">1.387227</td>
+<td style="text-align: left;">0.828986</td>
+<td style="text-align: left;">0.976082</td>
+<td style="text-align: left;">0.897258</td>
+<td style="text-align: left;">0.972027</td>
+</tr>
+<tr>
+<td style="text-align: left;">5</td>
+<td style="text-align: left;">1.295146</td>
+<td style="text-align: left;">1.356140</td>
+<td style="text-align: left;">0.704804</td>
+<td style="text-align: left;">0.820581</td>
+<td style="text-align: left;">0.825292</td>
+<td style="text-align: left;">0.800690</td>
+</tr>
+<tr>
+<td style="text-align: left;">6</td>
+<td style="text-align: left;">2.109609</td>
+<td style="text-align: left;">2.562865</td>
+<td style="text-align: left;">0.719364</td>
+<td style="text-align: left;">0.783600</td>
+<td style="text-align: left;">0.724958</td>
+<td style="text-align: left;">0.741971</td>
+</tr>
+<tr>
+<td style="text-align: left;">7</td>
+<td style="text-align: left;">2.687946</td>
+<td style="text-align: left;">3.488201</td>
+<td style="text-align: left;">0.642275</td>
+<td style="text-align: left;">0.778133</td>
+<td style="text-align: left;">0.661795</td>
+<td style="text-align: left;">0.688237</td>
+</tr>
+<tr>
+<td style="text-align: left;">8</td>
+<td style="text-align: left;">3.101248</td>
+<td style="text-align: left;">4.438853</td>
+<td style="text-align: left;">0.645746</td>
+<td style="text-align: left;">0.735963</td>
+<td style="text-align: left;">0.634333</td>
+<td style="text-align: left;">0.648535</td>
+</tr>
+<tr>
+<td style="text-align: left;">9</td>
+<td style="text-align: left;">3.634345</td>
+<td style="text-align: left;">5.401229</td>
+<td style="text-align: left;">0.649026</td>
+<td style="text-align: left;">0.732540</td>
+<td style="text-align: left;">0.614862</td>
+<td style="text-align: left;">0.729464</td>
+</tr>
+<tr>
+<td style="text-align: left;">10</td>
+<td style="text-align: left;">4.235933</td>
+<td style="text-align: left;">6.152377</td>
+<td style="text-align: left;">0.712666</td>
+<td style="text-align: left;">0.789292</td>
+<td style="text-align: left;">0.612465</td>
+<td style="text-align: left;">0.593892</td>
+</tr>
+<tr>
+<td style="text-align: left;">11</td>
+<td style="text-align: left;">4.315591</td>
+<td style="text-align: left;">6.908039</td>
+<td style="text-align: left;">0.682817</td>
+<td style="text-align: left;">0.721079</td>
+<td style="text-align: left;">0.586761</td>
+<td style="text-align: left;">0.586010</td>
+</tr>
+<tr>
+<td style="text-align: left;">12</td>
+<td style="text-align: left;">4.361890</td>
+<td style="text-align: left;">6.873490</td>
+<td style="text-align: left;">0.653831</td>
+<td style="text-align: left;">0.772412</td>
+<td style="text-align: left;">0.590408</td>
+<td style="text-align: left;">0.588454</td>
+</tr>
+<tr>
+<td style="text-align: left;">13</td>
+<td style="text-align: left;">4.597265</td>
+<td style="text-align: left;">6.815938</td>
+<td style="text-align: left;">0.644710</td>
+<td style="text-align: left;">0.753303</td>
+<td style="text-align: left;">0.605583</td>
+<td style="text-align: left;">0.603435</td>
+</tr>
+<tr>
+<td style="text-align: left;">14</td>
+<td style="text-align: left;">4.582979</td>
+<td style="text-align: left;">7.090147</td>
+<td style="text-align: left;">0.751220</td>
+<td style="text-align: left;">0.775110</td>
+<td style="text-align: left;">0.612578</td>
+<td style="text-align: left;">0.588413</td>
+</tr>
+<tr>
+<td style="text-align: left;">15</td>
+<td style="text-align: left;">4.501879</td>
+<td style="text-align: left;">6.522076</td>
+<td style="text-align: left;">0.725688</td>
+<td style="text-align: left;">0.859769</td>
+<td style="text-align: left;">0.610816</td>
+<td style="text-align: left;">0.594174</td>
+</tr>
+</tbody>
+</table>
+<h1>Better but is it enough?</h1>
+<p>Performance numbers of free-threading in 3.14 are definitely better then 3.13, but the scaling is definitely still disappointing.</p>
+<p>I also ran different versions of subinterpreters, which were pretty much the same with small but consistent variations. Subinterpreters still generally beat free-threading.</p>
+<p>Additionally there is still no way to profile and debug free threading performance which is a bit disappointing. </p>
+<h1>But not bad</h1>
+<p>The update may not be a game changer yet, but the trend is still positive.</p>
+<p>There's also been talk of more radical changes to memory ownership and data structures see <a href="https://microsoft.github.io/verona/pyrona.html">Project Verona</a>.</p>
+<p>I have experienced cases where free-threading hits the mark of performance whilst being easier to use compared to subinterpreters. Though the community hasn't quite worked out the direction of free-threading. I intend to dig deeper into the topic to get a better picture of what free-threading will look like in the future. </p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/jamie-chang.bsky.social/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
