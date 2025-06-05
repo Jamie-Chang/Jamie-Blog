@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>First Look at MCP</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="Previously I've played with tool calling in Langchain and Python sandboxes. But recently MCP (Model Context Protocol) is front and center. So I..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./first-look-at-mcp.html" rel="bookmark"
+             title="Permalink to First Look at MCP">First Look at MCP</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-06-03T00:00:00+01:00">
+                Published: Tue 03 June 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>Previously I've played with tool calling in <a href="./python-in-python-sandboxing-llm-generated-code.html">Langchain and Python sandboxes</a>. But recently MCP (Model Context Protocol) is front and center. So I tried to create my own github MCP in Python to integrate <a href="https://www.cursor.com/">cursor</a> with the github cli.</p>
+<h1>What is MCP?</h1>
+<p>Before we get started, its good to familiarise yourself with the definition of <a href="https://modelcontextprotocol.io/introduction">MCP</a>. The idea is that you define MCP servers that expose data (via resources) and actions (via tools). The tool definitions can be inspected via reflection by the MCP client and then it can call on the server when it needs to, the so called USB-C of LLMs.</p>
+<p>So in my case cursor will act as a MCP client, and I'll write a local MCP server to connect cursor to github via tool calls.</p>
+<h1>My local github MCP server</h1>
+<p>Here I've implemented a MCP server with git and github tools: </p>
+<style type="text/css">
+  .gist-file
+  .gist-data {max-height: 500px;}
+</style>
+
+<script src="https://gist.github.com/Jamie-Chang/0d60ff666b0822311650986e5630ea83.js"></script>
+
+<p>I'm using <a href="https://github.com/jlowin/fastmcp">FastMCP</a> which has the look and feel of FastAPI endpoints.</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@mcp</span><span class="o">.</span><span class="n">tool</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">multiply</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Multiplies two numbers.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span>
+</code></pre></div>
+
+<p>Then using <code>uv</code> with inline metadata (see my previous <a href="./why-you-should-write-your-tools-in-python-again.html">post</a>) allows us to hook it up to MCP clients without worrying about dependencies:</p>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env -S uv run --script</span>
+<span class="c1"># /// script</span>
+<span class="c1"># requires-python = &quot;&gt;=3.13&quot;</span>
+<span class="c1"># dependencies = [</span>
+<span class="c1">#     &quot;fastmcp&quot;,</span>
+<span class="c1"># ]</span>
+<span class="c1"># ///</span>
+<span class="o">...</span>
+</code></pre></div>
+
+<p>There was a bit of awkwardness since a lot of the commands depended on being run in the right directory. So we must set the <code>cwd</code> (current working directory) when invoking terminal commands. </p>
+<p>Likewise I had setup some error handling and result handling:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="o">*</span><span class="n">commands</span><span class="p">,</span> <span class="n">cwd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a terminal command and return the output.&quot;&quot;&quot;</span>
+    <span class="n">process</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_subprocess_exec</span><span class="p">(</span>
+        <span class="o">*</span><span class="n">commands</span><span class="p">,</span>
+        <span class="n">stdout</span><span class="o">=</span><span class="n">asyncio</span><span class="o">.</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+        <span class="n">stderr</span><span class="o">=</span><span class="n">asyncio</span><span class="o">.</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+        <span class="n">cwd</span><span class="o">=</span><span class="n">cwd</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">await</span> <span class="n">process</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">process</span><span class="o">.</span><span class="n">stdout</span>
+    <span class="k">assert</span> <span class="n">process</span><span class="o">.</span><span class="n">stderr</span>
+    <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="k">await</span> <span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+    <span class="k">return</span> <span class="p">(</span><span class="k">await</span> <span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">read</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+</code></pre></div>
+
+<p>Finally we can add the MCP server to cursor: </p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;pull_request&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/Users/jamie.chang/github.py&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>And now I have a way to interact with my github PRs right inside cursor
+<img alt="MCP server working" src="./images/mcp.png"></p>
+<p>This has now opened up the door to adding other MCP server such as slack and JIRA, allowing me improve my workflow.</p>
+<h1>Why not use the official MCP server?</h1>
+<p>You might have seen: <a href="https://github.com/github/github-mcp-server">official github MCP server</a> and wondered why I don't just use this. Well there are several reasons:</p>
+<ol>
+<li>The setup cost of the official MCP server is quite high, requiring docker and credentials.</li>
+<li>Writing my own tools allow a much greater degree of customisation. Allowing me to write my own templates and structure git commands the way I want.</li>
+<li>Creating my own MCP server allows me to understand MCP to a greater degree.</li>
+</ol>
+<p>As I was drafting this post, I also came across Simon Willison's <a href="https://simonwillison.net/2025/May/26/github-mcp-exploited/">post</a> on an exploitation of the official MCP server. Exploits like this are also possible with your own MCP servers but you can refine your tools to cater to your own needs and in the process this can limit the attack surface.</p>
+<h1>Things that bugged me.</h1>
+<p>As MCP is a new concept, it is still very rough. This applies to both the server and the client. As I was implementing the MCP server I discovered cursor had some <a href="https://forum.cursor.com/t/mcp-server-cant-handle-enums-from-my-python-fastmcp-server/99092/2">bugs</a> that prevented me from using enums in my tool definition.</p>
+<p>On the server side, I had trouble installing some MCP servers locally. This may be solved by remote MCP servers that would live in the cloud and allow you to simply connect to it. The trouble is I couldn't find any SaaS they were available. This is perhaps due to the lack of maturity of MCP especially when it comes authentication.</p>
+<p>Another problem is that cursor only supports MCP tools, it doesn't support other MCP features such as resource and prompts. The general support for the MCP protocol is not very consistent across the <a href="https://modelcontextprotocol.io/clients">board</a>.</p>
+<h1>Looking ahead: Sampling</h1>
+<p>The MCP protocol has recently defined a new concept called sampling. I think it's perhaps the most telling when it comes to the intention of MCP.</p>
+<p>The concept sampling allows the server to invoke a LLM during a tool invocation, seeding some of the control to the server. An example lifted from fastMCP's docs:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@mcp</span><span class="o">.</span><span class="n">tool</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">analyze_sentiment</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Context</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyze the sentiment of a text using the client&#39;s LLM.&quot;&quot;&quot;</span>
+    <span class="c1"># Create a sampling prompt asking for sentiment analysis</span>
+    <span class="n">prompt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Analyze the sentiment of the following text as positive, negative, or neutral. Just output a single word - &#39;positive&#39;, &#39;negative&#39;, or &#39;neutral&#39;. Text to analyze: </span><span class="si">{</span><span class="n">text</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="c1"># Send the sampling request to the client&#39;s LLM (provide a hint for the model you want to use)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model_preferences</span><span class="o">=</span><span class="s2">&quot;claude-3-sonnet&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Process the LLM&#39;s response</span>
+    <span class="n">sentiment</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+    <span class="c1"># Map to standard sentiment values</span>
+    <span class="k">if</span> <span class="s2">&quot;positive&quot;</span> <span class="ow">in</span> <span class="n">sentiment</span><span class="p">:</span>
+        <span class="n">sentiment</span> <span class="o">=</span> <span class="s2">&quot;positive&quot;</span>
+    <span class="k">elif</span> <span class="s2">&quot;negative&quot;</span> <span class="ow">in</span> <span class="n">sentiment</span><span class="p">:</span>
+        <span class="n">sentiment</span> <span class="o">=</span> <span class="s2">&quot;negative&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sentiment</span> <span class="o">=</span> <span class="s2">&quot;neutral&quot;</span>
+
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="n">text</span><span class="p">,</span> <span class="s2">&quot;sentiment&quot;</span><span class="p">:</span> <span class="n">sentiment</span><span class="p">}</span>
+</code></pre></div>
+
+<p>I was a little perplexed by this initially, in the above example we could probably have just split up the tool call. But the point of this is to allow server developers to have more control and involve LLM in the workflow.</p>
+<p>And the more I look at it, the more I think it looks like a <a href="https://en.wikipedia.org/wiki/System_call">system call</a>:</p>
+<p><img alt="MCP sampling flow" src="./images/mcp-sampling.png"></p>
+<p>Though it's seeding some of the control to the server, the sampling call is designed with security in mind and supports <a href="https://modelcontextprotocol.io/docs/concepts/sampling#human-in-the-loop-controls">human in the loop controls</a>. This is to me is analogous to how the user program can request operating system resources via system calls.</p>
+<p>This positions the LLM at the core, the CPU in our analogy. The servers are the programs running on the hypothetical operating system. Looking at the bigger picture this is exactly what the creators of MCP Anthropic envisions with their LLMs making it the star of the show.</p>
+<p>I'm not fully convinced on MCP by any means, but for the first time in a long while, it felt like I got some control in how I want the LLM to perform. </p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/jamie-chang.bsky.social/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
