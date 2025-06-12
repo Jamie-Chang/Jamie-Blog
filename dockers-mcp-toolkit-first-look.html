@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Docker's MCP toolkit First Look</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="Short update since First Look at MCP. Docker has released it's MCP toolkit which includes a catalog of MCP servers as well as helpers to connect..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./dockers-mcp-toolkit-first-look.html" rel="bookmark"
+             title="Permalink to Docker's MCP toolkit First Look">Docker's MCP toolkit First Look</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-06-12T00:00:00+01:00">
+                Published: Thu 12 June 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>Short update since <a href="./first-look-at-mcp.html">First Look at MCP</a>. Docker has released it's <a href="https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/">MCP toolkit</a> which includes a catalog of MCP servers as well as helpers to connect to the MCP clients.</p>
+<p>It is exceeding easy to use it, docker is registered as a single MCP server for your client. And tools from the MCP catalog can be added to it by click from the Docker UI. If credentials are needed you'll be prompted to fill it in.</p>
+<p><img alt="cursor" src="./images/cursor-docker.png"></p>
+<p><img alt="docker" src="./images/docker-mcp.png"></p>
+<h1>Under the hood</h1>
+<p>Docker boasts some <a href="https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/#security">security features</a> which claims to scan for malicious images and filter out sensitive information sent by the mcp client. It remains to be seen how these claims hold up. </p>
+<p>All the MCP servers are running inside of a container, which means the 3rd party MCP servers can't access your filesystem.</p>
+<h1>Not quite it</h1>
+<p>Whilst this is a step in the right direction, it's still not hitting the mark for me. There's a reason why we don't run all our desktop applications in docker. Docker is still a bit too expensive to run in the background and a little hard to use in the first place. </p>
+<p>Further to that docker MCP is still just a local MCP server. I firmly believe that remote MCP servers are where its potential lies. And though security and sandboxing is important it's a little odd that a local MCP server has no access to the local filesystem.</p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/jamie-chang.bsky.social/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
