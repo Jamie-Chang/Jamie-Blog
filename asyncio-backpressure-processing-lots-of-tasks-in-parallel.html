@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Asyncio backpressure - Processing lots of tasks in parallel</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="There's mixed feedback to Asyncio in the community. Some people passionately hate it whilst others believe "writing async make program go fast"...." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./asyncio-backpressure-processing-lots-of-tasks-in-parallel.html" rel="bookmark"
+             title="Permalink to Asyncio backpressure - Processing lots of tasks in parallel">Asyncio backpressure - Processing lots of tasks in parallel</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-06-20T00:00:00+01:00">
+                Published: Fri 20 June 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>There's mixed feedback to Asyncio in the community. Some people passionately hate it whilst others believe "writing async make program go fast". This debate is way too much for me to cover here right now. Though maybe I'll look at it in the future. </p>
+<p>For me I use asyncio a lot, and it's genuinely a useful tool but not without issues. I have had a problem for a while, it involves fetching a large amount of urls:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="n">fetch</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">await</span> <span class="n">upload</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+
+<span class="k">async</span> <span class="k">def</span> <span class="nf">process_all</span><span class="p">(</span><span class="n">urls</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
+        <span class="k">await</span> <span class="n">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</code></pre></div>
+
+<p>But since it's asyncio we're using then we want to parallelise the tasks:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">process_all</span><span class="p">(</span><span class="n">urls</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
+            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+</code></pre></div>
+
+<p>Now here's where the problem starts. It works well for 100s of urls but when we hit a big number like 10000s we have a problem.</p>
+<p>The program seemingly hangs. This is because all the tasks are being created first and only then to do allow the tasks to start executing. The program will also use much more memory than it needs and generally might slow down due to more context switching. Definitely not what we want!</p>
+<h3>sleep</h3>
+<p>At a first glance, we could instead add a bit of a <code>sleep</code> in the for loop allowing some tasks to start. And easing the pressure on the system.</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">process_all</span><span class="p">(</span><span class="n">urls</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+</code></pre></div>
+
+<p>Though we can adjust the sleep according to the speed of processing, in practice the number is quite hard to pick. Too much sleep and you slow down too much. </p>
+<h3>batch</h3>
+<p>So rethinking the problem, we can act more directly. What we really want is to simply reduce the amount of tasks that can be created in parallel. </p>
+<p>A simple way to do so is by batching. <a href="https://docs.python.org/3/library/itertools.html#itertools.batched"><code>itertools.batched</code></a>
+makes it easy to split the urls into manageable batches:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">process_all</span><span class="p">(</span><span class="n">urls</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batched</span><span class="p">(</span><span class="n">urls</span><span class="p">,</span> <span class="mi">200</span><span class="p">):</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">:</span>
+                <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+</code></pre></div>
+
+<p>We allow 200 tasks to run in parallel and wait until all tasks are complete before starting the next 200.</p>
+<p>This is simple and easy to understand, as a results it's been my go to method for problems like this. The problem is if we have a small amount of tasks with long wait times then it'll slow down the whole batch. </p>
+<h3>Semaphore</h3>
+<p>Finally that leads me to <code>asyncio.Semaphore</code>. <code>Semaphore</code> is a common tool to limit the number of concurrent accesses to a resource. Generally the usecase is to add it inside of the task:</p>
+<div class="highlight"><pre><span></span><code><span class="n">semaphore</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Semaphore</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+
+
+<span class="k">async</span> <span class="k">def</span> <span class="nf">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">semaphore</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="n">fetch</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="k">await</span> <span class="n">upload</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</code></pre></div>
+
+<p>This will limit the number of concurrent fetches and uploads. But this doesn't protect us from creating the tasks in the first place. So we need to use it during task creation:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">process_all</span><span class="p">(</span><span class="n">urls</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">semaphore</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Semaphore</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">semaphore</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">))</span><span class="o">.</span><span class="n">add_done_callback</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="n">semaphore</span><span class="o">.</span><span class="n">release</span><span class="p">())</span>
+</code></pre></div>
+
+<p>The <code>semaphore.acquire</code> call will block us from creating the tasks before the one of the tasks finishes and releases the semaphore. So we'll have a pretty constant 200 concurrent tasks until we start exhausting the urls.</p>
+<h2>Backpressure</h2>
+<p>The techniques mentioned above are all a form of <a href="https://en.wikipedia.org/wiki/Back_pressure">backpressure</a>. We're trying to ease the memory pressure of the system by either sleeping to slow down the rate of task creation or to place some physical limits on the number of tasks that can be created.</p>
+<p>The exact mechanism will differ by use case and runtime. For example, we don't need to explicitly create backpressure for threadpools as the concurrency is already limited by the pool size: </p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+    <span class="o">...</span>
+
+
+<span class="k">def</span> <span class="nf">process_all</span><span class="p">(</span><span class="n">urls</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">with</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">process_one</span><span class="p">,</span> <span class="n">urls</span><span class="p">)</span>
+</code></pre></div>
+
+<p><a href="https://docs.python.org/3/library/asyncio-queue.html#asyncio.Queue"><code>Queues</code></a> with <code>max_size</code> are another method that comes to mind. And generally your use case might differ and require other mechanisms. Backpressure is a topic that's not covered particularly well and it's definitely worth playing around with different methods for your own code. </p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/jamie-chang.bsky.social/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
