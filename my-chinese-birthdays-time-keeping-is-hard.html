@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>My Chinese birthdays, time keeping is hard!</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./my-chinese-birthdays-time-keeping-is-hard.html" rel="bookmark"
+             title="Permalink to My Chinese birthdays, time keeping is hard!">My Chinese birthdays, time keeping is hard!</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-06-25T00:00:00+01:00">
+                Published: Wed 25 June 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a normal one. </p>
+<p>I did find a small library called <a href="https://github.com/lidaobing/python-lunardate">lunardate</a>:</p>
+<p><link rel="stylesheet" href="https://pyscript.net/releases/2025.5.1/core.css"></p>
+<!-- This script tag bootstraps PyScript -->
+<script type="module" src="https://pyscript.net/releases/2025.5.1/core.js"></script>
+
+<script type="py-editor" config='{"packages":["lunardate"]}'>
+    from lunardate import LunarDate
+    print("I was born on:", LunarDate.fromSolarDate(1995, 6, 28))
+    print("My birthday this year is on:", LunarDate.fromSolarDate(2025, 6, 25))
+</script>
+<blockquote>
+<p>Don't go all out on presents though, there's another one in exactly a month. </p>
+</blockquote>
+<p>If you run <code>LunarDate.fromSolarDate(2025, 7, 25)</code> you get <code>LunarDate(2025, 6, 1, 1)</code> which is the same date as <code>LunarDate.fromSolarDate(2025, 6, 25)</code> barring the last parameter <code>1</code> which indicates a leap month. Unlike leap days a leap month is a 'repeated' month. Happy birthday to me again! </p>
+<blockquote>
+<p>A leap month is caused by the difference between a solar year (365 ish days) and a lunar year 354 ish days. 3 months are added every 19 years. The maths checks out but the exact mechanism depends on some astrological observations.</p>
+</blockquote>
+<p>Fun fact, I wondered how the library knows when to add a leap month and the answer is quite simple! It has simply stored <a href="https://github.com/lidaobing/python-lunardate/blob/master/lunardate.py#L351-L405">all leap months</a> between 1900 and 2099.</p>
+<h2>Back to the point</h2>
+<blockquote>
+<p>Apologies for the long winded story about my extra birthdays, now back to the regularly scheduled Python content</p>
+</blockquote>
+<p>I started thinking about how the chinese calendar is complicated syncing moon cycles to solar years. Trying to sync two cycles that don't directly relate to each other has necessitated the concept of leap months. </p>
+<p>But then it occurred to me that's exactly what almost all calendars are doing! Leap days itself are necessitated by the ~8hr error trying to synchronise days with years. And gregorian months are really all over the place. Timekeeping in Python and other languages also has its quirks.</p>
+<h3>Leap Seconds</h3>
+<p>Leap months are actually a very similar concept to <a href="https://en.wikipedia.org/wiki/Leap_second">leap seconds</a>. Where occasionally due to various drifts in our time keeping we add an extra second. Like leap months, the date is determined by measurements, which is to say it's not deterministic when the leap second will be added. Though there is usually half a year of warning before the introduction. </p>
+<p>In Python as in many programming languages and platforms, leap seconds are not explicitly tracked or represented due to its non-deterministic nature. Operating systems will either repeat the second deliberately slowdown the clock to accommodate for the extra second.</p>
+<p>Though it's just a single second, this does have the ability cause <a href="https://www.wired.com/2012/07/leap-second-glitch-explained/">issues</a>. In python to track a leap second you can use <a href="https://docs.astropy.org/en/stable/time/index.html">astropy</a> which accounts for leap seconds</p>
+<script type="py-editor" config='{"packages":["astropy"]}'>
+from astropy.time import Time, TimeDelta
+import astropy.units as u
+
+# Define two dates that span a leap second
+# A leap second was added on 2016-12-31 at 23:59:60 UTC
+t1 = Time("2016-12-31T23:59:59", scale='utc')
+t2 = Time("2017-01-01T00:00:01", scale='utc')
+
+# Calculate the duration
+print(f"{(t2 - t1).sec} seconds")
+</script>
+
+<p>Whilst it's unlikely that you'll need to regularly reach for this, it is good to know what to do when the issue of leap seconds becomes relevant.</p>
+<h3>Datetime and timezones</h3>
+<blockquote>
+<p>NOTE: the pyodide editors may not load timezones properly, apologies in advance</p>
+</blockquote>
+<p>I get reminded (almost) every year on new quirks about it. For the most part the only reasonable thing to do is to use UTC whenever possible:</p>
+<div class="highlight"><pre><span></span><code><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">UTC</span><span class="p">)</span>
+</code></pre></div>
+
+<p>if you use <code>datetime.now()</code> without timezones please don't, it's bad, you'll regret it sooner or later. <code>datetime.utcnow()</code> is really not much better and has in fact been deprecated.</p>
+<p>Now just because you use timezone aware datetime doesn't mean you're safe. If you use a timezone with daylight saving time, when the times go back 1hr we get an overlapping interval (a folded datetime):</p>
+<script type="py-editor" env="datetime" config='{"packages":["tzdata"]}' setup>
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
+LONDON = ZoneInfo("Europe/London")
+</script>
+
+<script type="py-editor" env="datetime">
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+LONDON = ZoneInfo("Europe/London")
+dt = datetime(2025, 10, 26, 1, tzinfo=UTC)
+dt.astimezone(LONDON)
+</script>
+<p>This returns <code>datetime.datetime(2025, 10, 26, 1, 0, fold=1, tzinfo=zoneinfo.ZoneInfo(key='Europe/London'))</code></p>
+<script type="py-editor" env="datetime">
+datetime(2025, 10, 26, 0, tzinfo=UTC).astimezone(LONDON)
+</script>
+<p>Returns the non-folded <code>datetime.datetime(2025, 10, 26, 1, 0, tzinfo=zoneinfo.ZoneInfo(key='Europe/London'))</code></p>
+<p>So far so good, but what if we compare them like this:</p>
+<script type="py-editor" env="datetime">
+(
+    datetime(2025, 10, 26, 0, tzinfo=UTC).astimezone(LONDON) 
+    == datetime(2025, 10, 26, 1, tzinfo=UTC).astimezone(LONDON)
+)
+</script>
+<p>We get <code>True</code> which is not at all what I expected. This is because for same zone comparison only the wall clock time is used to preserve backwards compatibility, you can read more about it in <a href="https://peps.python.org/pep-0495/#backward-compatibility">PEP-495</a></p>
+<p>But the weirdness doesn't end here: </p>
+<script type="py-editor" env="datetime">
+(dt := datetime(2025, 10, 26, 1, tzinfo=UTC)).astimezone(LONDON) == dt
+</script>
+
+<p>Normally the above script will return <code>True</code> for any datetime, DST or otherwise. But during folded time (whichever side of the fold you're on), this will <a href="https://peps.python.org/pep-0495/#aware-datetime-equality-comparison">always return False</a>. </p>
+<p>The reason is is explained in the footnote:</p>
+<blockquote>
+<p>This exception is designed to preserve the hash and equivalence invariants in the face of paradoxes of inter-zone arithmetic</p>
+</blockquote>
+<p>If <code>datetime(2025, 10, 26, 1, tzinfo=UTC)).astimezone(LONDON)</code> were to equal <code>datetime(2025, 10, 26, 1, tzinfo=UTC)</code> then the hash must be equal. But due to backwards compatibility the hash is not equal there. So we don't allow the value to be equal either. </p>
+<p>This is so baffling, it took me several tries to understand it.</p>
+<h2>Finally</h2>
+<p>Honestly I learned a lot more about time keeping than I expected when researching this topic. I believe no matter the language or tools, it will always be a difficult problem. And as such, we must treat it with the care it deserves when we're building a system that is sensitive to these timestamps.</p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/jamie-chang.bsky.social/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

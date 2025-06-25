@@ -1,5 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-06-20T00:00:00+01:00</updated><entry><title>Asyncio backpressure - Processing lots of tasks in parallel</title><link href="https://blog.changs.co.uk/asyncio-backpressure-processing-lots-of-tasks-in-parallel.html" rel="alternate"></link><published>2025-06-20T00:00:00+01:00</published><updated>2025-06-20T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-06-20:/asyncio-backpressure-processing-lots-of-tasks-in-parallel.html</id><summary type="html">&lt;p&gt;There's mixed feedback to Asyncio in the community. Some people passionately hate it whilst others believe "writing async make program go fast". This debate is way too much for me to cover here right now. Though maybe I'll look at it in the future. &lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-06-25T00:00:00+01:00</updated><entry><title>My Chinese birthdays, time keeping is hard!</title><link href="https://blog.changs.co.uk/my-chinese-birthdays-time-keeping-is-hard.html" rel="alternate"></link><published>2025-06-25T00:00:00+01:00</published><updated>2025-06-25T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-06-25:/my-chinese-birthdays-time-keeping-is-hard.html</id><summary type="html">&lt;p&gt;I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a normal one. &lt;/p&gt;
+&lt;p&gt;I did find a small library called &lt;a href="https://github.com/lidaobing/python-lunardate"&gt;lunardate&lt;/a&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;link rel="stylesheet" href="https://pyscript.net/releases/2025.5.1/core.css"&gt;&lt;/p&gt;
+&lt;!-- This script tag bootstraps PyScript --&gt;
+&lt;script type="module" src="https://pyscript.net/releases/2025.5.1/core.js"&gt;&lt;/script&gt;
+
+&lt;script type="py-editor" config='{"packages":["lunardate"]}'&gt;
+    from lunardate import LunarDate
+    print("I was born on:", LunarDate.fromSolarDate(1995, 6, 28))
+    print("My birthday this year is on:", LunarDate.fromSolarDate(2025, 6, 25))
+&lt;/script&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Don't go all out on presents though, there's another one in exactly a month. &lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;If you run &lt;code&gt;LunarDate.fromSolarDate(2025, 7, 25)&lt;/code&gt; you get &lt;code&gt;LunarDate(2025, 6, 1, 1)&lt;/code&gt; which is the same date as &lt;code&gt;LunarDate.fromSolarDate(2025, 6, 25)&lt;/code&gt; barring the last parameter &lt;code&gt;1&lt;/code&gt; which indicates a leap month. Unlike leap days a leap month is a 'repeated' month. Happy birthday to me again! &lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;A leap month is caused by the difference between a solar year (365 ish days) and a lunar year 354 ish days. 3 months are added every 19 years. The maths checks out but the exact mechanism depends on some astrological observations.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Fun fact, I wondered how the library knows when to add a leap month and the answer is quite simple! It has simply stored &lt;a href="https://github.com/lidaobing/python-lunardate/blob/master/lunardate.py#L351-L405"&gt;all leap months&lt;/a&gt; between 1900 and 2099.&lt;/p&gt;
+&lt;h2&gt;Back to the point&lt;/h2&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Apologies for the long winded story about my extra birthdays, now back to the regularly scheduled Python content&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I started thinking about how the chinese calendar is complicated syncing moon cycles to solar years. Trying to sync two cycles that don't directly relate to each other has necessitated the concept of leap months. &lt;/p&gt;
+&lt;p&gt;But then it occurred to me that's exactly what almost all calendars are doing! Leap days itself are necessitated by the ~8hr error trying to synchronise days with years. And gregorian months are really all over the place. Timekeeping in Python and other languages also has its quirks.&lt;/p&gt;
+&lt;h3&gt;Leap Seconds&lt;/h3&gt;
+&lt;p&gt;Leap months are actually a very similar concept to &lt;a href="https://en.wikipedia.org/wiki/Leap_second"&gt;leap seconds&lt;/a&gt;. Where occasionally due to various drifts in our time keeping we add an extra second. Like leap months, the date is determined by measurements, which is to say it's not deterministic when the leap second will be added. Though there is usually half a year of warning before the introduction. &lt;/p&gt;
+&lt;p&gt;In Python as in many programming languages and platforms, leap seconds are not explicitly tracked or represented due to its non-deterministic nature. Operating systems will either repeat the second deliberately slowdown the clock to accommodate for the extra second.&lt;/p&gt;
+&lt;p&gt;Though it's just a single second, this does have the ability cause &lt;a href="https://www.wired.com/2012/07/leap-second-glitch-explained/"&gt;issues&lt;/a&gt;. In python to track a leap second you can use &lt;a href="https://docs.astropy.org/en/stable/time/index.html"&gt;astropy&lt;/a&gt; which accounts for leap seconds&lt;/p&gt;
+&lt;script type="py-editor" config='{"packages":["astropy"]}'&gt;
+from astropy.time import Time, TimeDelta
+import astropy.units as u
+
+# Define two dates that span a leap second
+# A leap second was added on 2016-12-31 at 23:59:60 UTC
+t1 = Time("2016-12-31T23:59:59", scale='utc')
+t2 = Time("2017-01-01T00:00:01", scale='utc')
+
+# Calculate the duration
+print(f"{(t2 - t1).sec} seconds")
+&lt;/script&gt;
+
+&lt;p&gt;Whilst it's unlikely that you'll need to regularly reach for this, it is good to know what to do when the issue of leap seconds becomes relevant.&lt;/p&gt;
+&lt;h3&gt;Datetime and timezones&lt;/h3&gt;
+&lt;blockquote&gt;
+&lt;p&gt;NOTE: the pyodide editors may not load timezones properly, apologies in advance&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I get reminded (almost) every year on new quirks about it. For the most part the only reasonable thing to do is to use UTC whenever possible:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;datetime&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;now&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;UTC&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;if you use &lt;code&gt;datetime.now()&lt;/code&gt; without timezones please don't, it's bad, you'll regret it sooner or later. &lt;code&gt;datetime.utcnow()&lt;/code&gt; is really not much better and has in fact been deprecated.&lt;/p&gt;
+&lt;p&gt;Now just because you use timezone aware datetime doesn't mean you're safe. If you use a timezone with daylight saving time, when the times go back 1hr we get an overlapping interval (a folded datetime):&lt;/p&gt;
+&lt;script type="py-editor" env="datetime" config='{"packages":["tzdata"]}' setup&gt;
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
+LONDON = ZoneInfo("Europe/London")
+&lt;/script&gt;
+
+&lt;script type="py-editor" env="datetime"&gt;
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+LONDON = ZoneInfo("Europe/London")
+dt = datetime(2025, 10, 26, 1, tzinfo=UTC)
+dt.astimezone(LONDON)
+&lt;/script&gt;
+&lt;p&gt;This returns &lt;code&gt;datetime.datetime(2025, 10, 26, 1, 0, fold=1, tzinfo=zoneinfo.ZoneInfo(key='Europe/London'))&lt;/code&gt;&lt;/p&gt;
+&lt;script type="py-editor" env="datetime"&gt;
+datetime(2025, 10, 26, 0, tzinfo=UTC).astimezone(LONDON)
+&lt;/script&gt;
+&lt;p&gt;Returns the non-folded &lt;code&gt;datetime.datetime(2025, 10, 26, 1, 0, tzinfo=zoneinfo.ZoneInfo(key='Europe/London'))&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;So far so good, but what if we compare them like this:&lt;/p&gt;
+&lt;script type="py-editor" env="datetime"&gt;
+(
+    datetime(2025, 10, 26, 0, tzinfo=UTC).astimezone(LONDON) 
+    == datetime(2025, 10, 26, 1, tzinfo=UTC).astimezone(LONDON)
+)
+&lt;/script&gt;
+&lt;p&gt;We get &lt;code&gt;True&lt;/code&gt; which is not at all what I expected. This is because for same zone comparison only the wall clock time is used to preserve backwards compatibility, you can read more about it in &lt;a href="https://peps.python.org/pep-0495/#backward-compatibility"&gt;PEP-495&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;But the weirdness doesn't end here: &lt;/p&gt;
+&lt;script type="py-editor" env="datetime"&gt;
+(dt := datetime(2025, 10, 26, 1, tzinfo=UTC)).astimezone(LONDON) == dt
+&lt;/script&gt;
+
+&lt;p&gt;Normally the above script will return &lt;code&gt;True&lt;/code&gt; for any datetime, DST or otherwise. But during folded time (whichever side of the fold you're on), this will &lt;a href="https://peps.python.org/pep-0495/#aware-datetime-equality-comparison"&gt;always return False&lt;/a&gt;. &lt;/p&gt;
+&lt;p&gt;The reason is is explained in the footnote:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;This exception is designed to preserve the hash and equivalence invariants in the face of paradoxes of inter-zone arithmetic&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;If &lt;code&gt;datetime(2025, 10, 26, 1, tzinfo=UTC)).astimezone(LONDON)&lt;/code&gt; were to equal &lt;code&gt;datetime(2025, 10, 26, 1, tzinfo=UTC)&lt;/code&gt; then the hash must be equal. But due to backwards compatibility the hash is not equal there. So we don't allow the value to be equal either. &lt;/p&gt;
+&lt;p&gt;This is so baffling, it took me several tries to understand it.&lt;/p&gt;
+&lt;h2&gt;Finally&lt;/h2&gt;
+&lt;p&gt;Honestly I learned a lot more about time keeping than I expected when researching this topic. I believe no matter the language or tools, it will always be a difficult problem. And as such, we must treat it with the care it deserves when we're building a system that is sensitive to these timestamps.&lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>Asyncio backpressure - Processing lots of tasks in parallel</title><link href="https://blog.changs.co.uk/asyncio-backpressure-processing-lots-of-tasks-in-parallel.html" rel="alternate"></link><published>2025-06-20T00:00:00+01:00</published><updated>2025-06-20T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-06-20:/asyncio-backpressure-processing-lots-of-tasks-in-parallel.html</id><summary type="html">&lt;p&gt;There's mixed feedback to Asyncio in the community. Some people passionately hate it whilst others believe "writing async make program go fast". This debate is way too much for me to cover here right now. Though maybe I'll look at it in the future. &lt;/p&gt;
 &lt;p&gt;For me I use asyncio a …&lt;/p&gt;</summary><content type="html">&lt;p&gt;There's mixed feedback to Asyncio in the community. Some people passionately hate it whilst others believe "writing async make program go fast". This debate is way too much for me to cover here right now. Though maybe I'll look at it in the future. &lt;/p&gt;
 &lt;p&gt;For me I use asyncio a lot, and it's genuinely a useful tool but not without issues. I have had a problem for a while, it involves fetching a large amount of urls:&lt;/p&gt;
 &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;process_one&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;url&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
