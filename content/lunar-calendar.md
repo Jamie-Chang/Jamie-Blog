@@ -2,7 +2,7 @@ Title: My Chinese birthdays, time keeping is hard!
 Date: 2025-06-25
 Category: Blog
 
-I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a normal one. 
+I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a western one. 
 
 I did find a small library called [lunardate](https://github.com/lidaobing/python-lunardate):
 
