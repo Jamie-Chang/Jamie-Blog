@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Python 3.14: 3 smaller features</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="Python 3.14 is just around the corner and it's jampacked with huge updates: Free threading and multiple interpreters? Template strings But as with..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./python-314-3-smaller-features.html" rel="bookmark"
+             title="Permalink to Python 3.14: 3 smaller features">Python 3.14: 3 smaller features</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-07-11T00:00:00+01:00">
+                Published: Fri 11 July 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>Python 3.14 is just around the corner and it's jampacked with huge updates:</p>
+<ul>
+<li><a href="./python-314-state-of-free-threading.html">Free threading and multiple interpreters?</a></li>
+<li><a href="./t-strings-the-good-and-the-ugly.html">Template strings</a></li>
+</ul>
+<p>But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire <a href="https://docs.python.org/3.14/whatsnew/3.14.html">release notes</a>. Luckily I am boring enough to do just that. </p>
+<h3><code>contextvars.Token</code> is now a <code>contextmanager</code></h3>
+<p>As Python embraces different forms of concurrency, <a href="https://docs.python.org/3.14/library/contextvars.html"><code>contextvars</code></a> has become extremely important.</p>
+<p>A very common example is <a href="https://docs.python.org/3/howto/logging-cookbook.html#use-of-contextvars">logging</a>.</p>
+<p>That being said, I've always found resetting <code>ContextVar</code>s a bit of a pain, as the a token needs to be kept around.</p>
+<div class="highlight"><pre><span></span><code><span class="n">A</span> <span class="o">=</span> <span class="n">ContextVar</span><span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">)</span>
+
+
+<span class="n">token</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;val&quot;</span><span class="p">)</span>
+
+<span class="o">...</span>  <span class="c1"># other code</span>
+<span class="o">...</span>
+
+<span class="n">A</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+</code></pre></div>
+
+<p>So much so I've written the below function many times:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">auto_reset</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">context</span><span class="p">:</span> <span class="n">ContextVar</span><span class="p">[</span><span class="n">T</span><span class="p">],</span> <span class="n">token</span><span class="p">:</span> <span class="n">Token</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="o">...</span>
+
+
+<span class="k">def</span> <span class="nf">set_context</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">context</span><span class="p">:</span> <span class="n">ContextVar</span><span class="p">[</span><span class="n">T</span><span class="p">],</span> <span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ContextManager</span><span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
+    <span class="n">token</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="o">|</span> <span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">auto_reset</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">token</span><span class="p">)</span>
+
+
+<span class="k">with</span> <span class="n">set_context</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">):</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>The function sets a context and allows it to be reset by a context manager instead.</p>
+<p>Well now you won't have to, in 3.14 <a href="https://github.com/python/cpython/issues/129889"><code>Token</code> is now a <code>ContextManager</code></a>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">A</span> <span class="o">=</span> <span class="n">ContextVar</span><span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">)</span>
+
+
+<span class="k">with</span> <span class="n">A</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;val&#39;</span><span class="p">):</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>The new code speaks for itself, it's much more concise and just makes sense. </p>
+<h3><code>functools.Placeholder</code></h3>
+<p>Suppose you have a function like this: </p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">div</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>and want to create a partial function that always divides by a certain number:</p>
+<div class="highlight"><pre><span></span><code><span class="n">div_by_2</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</code></pre></div>
+
+<p>This actually can be typed checked as both mypy and pyright support partials as a special rule (<a href="https://pyright-play.net/?pythonVersion=3.14&amp;enableExperimentalFeatures=true&amp;code=GYJw9gtgBMCuB2BjALmMAbAzlAlhADmCMlPgIbE5noBQNAJgKbBT04BuAFGQFy7zIANFABGfHAICUUALQA%2Bfsh40oqqADpNdBhwD6IgJ66ATFAC8pCsirpObdsJFnjkne31HjnAESZ6wb0kgA">example</a>). </p>
+<p>There are situations where partial couldn't work though, suppose our function doesn't take in keyword arguments:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">div</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>This could be done with a <code>lambda a: div(a, 2)</code> but we lose typing information. Or we can create a named function but that can be quite verbose.</p>
+<p>I have a rather complicated solution in <a href="https://github.com/Jamie-Chang/better-functools/blob/main/better_functools/apply.py#L180-L194">better-functools</a> for this exact scenario. But it pushes the limits of the current capabilities of typing in Python and I ended up resorting to specifying the types explicitly.</p>
+<p>In Python 3.14 however this is completely possible with <a href="https://docs.python.org/3.14/library/functools.html#functools.Placeholder"><code>partial.Placeholder</code></a>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">div_by_2</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">Placeholder</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The placeholder simply marks any positional arguments we are not specifying yet.</p>
+<p>Caveat: as far as I can tell, none of the type checkers have updated their rules yet. Given that <code>partial</code> itself works I think it's only a matter of time.</p>
+<h3>UUID v6 v7 and v8 are added to Python 3.14.</h3>
+<p>More specifically I'm very excited about v7.</p>
+<p>As a rule, I use <code>uuid4</code> as my primary keys in my database. This is because compared to auto-incrementing integer ids, the key generation process is a lot simpler and can be done either by the database server or at the client side. The randomness of the UUID is also a good security measure as nothing can be inferred by just knowing its value. </p>
+<p>The problem? They cannot be used to sort.</p>
+<p>It turns out having some ordering built into the ids can be extremely helpful. For most if not all of my tables, I end up with an extra increment id or timestamp to provide the order.</p>
+<p>V4 ids when indexed by the database do not offer anything but lookup. But this is where <code>uuid7</code> comes in, <code>uuid7</code> has a time component builtin to it, and can be used to lexicographically sort in chronological order. This is all whilst still providing a good amount of randomness. The best of both worlds.</p>
+<p>V6 is similar in that it can be sorted chronologically, but it is less random than V7. In fact, in <a href="https://datatracker.ietf.org/doc/html/rfc9562.html#section-5.7">RFC 9562</a> it is explicitly stated that:</p>
+<blockquote>
+<p><a href="https://datatracker.ietf.org/doc/html/rfc9562.html#section-5.7-4">Implementations SHOULD utilize UUIDv7 instead of UUIDv1 and UUIDv6 if possible</a></p>
+</blockquote>
+<p>Finally, version 8 is a standard that puts very few limits on the data inside the UUID, allowing vendors to create their own UUIDs based on custom standards. It is not something I personally have a use case for.</p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/jamie-chang.bsky.social/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

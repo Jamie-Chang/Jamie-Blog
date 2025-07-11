@@ -1,5 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-06-25T00:00:00+01:00</updated><entry><title>My Chinese birthdays, time keeping is hard!</title><link href="https://blog.changs.co.uk/my-chinese-birthdays-time-keeping-is-hard.html" rel="alternate"></link><published>2025-06-25T00:00:00+01:00</published><updated>2025-06-25T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-06-25:/my-chinese-birthdays-time-keeping-is-hard.html</id><summary type="html">&lt;p&gt;I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a normal one. &lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-07-11T00:00:00+01:00</updated><entry><title>Python 3.14: 3 smaller features</title><link href="https://blog.changs.co.uk/python-314-3-smaller-features.html" rel="alternate"></link><published>2025-07-11T00:00:00+01:00</published><updated>2025-07-11T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-07-11:/python-314-3-smaller-features.html</id><summary type="html">&lt;p&gt;Python 3.14 is just around the corner and it's jampacked with huge updates:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/python-314-state-of-free-threading.html"&gt;Free threading and multiple interpreters?&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html"&gt;Template strings&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire &lt;a href="https://docs.python.org/3.14/whatsnew/3.14.html"&gt;release notes&lt;/a&gt;. Luckily I am …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Python 3.14 is just around the corner and it's jampacked with huge updates:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/python-314-state-of-free-threading.html"&gt;Free threading and multiple interpreters?&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html"&gt;Template strings&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire &lt;a href="https://docs.python.org/3.14/whatsnew/3.14.html"&gt;release notes&lt;/a&gt;. Luckily I am boring enough to do just that. &lt;/p&gt;
+&lt;h3&gt;&lt;code&gt;contextvars.Token&lt;/code&gt; is now a &lt;code&gt;contextmanager&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;As Python embraces different forms of concurrency, &lt;a href="https://docs.python.org/3.14/library/contextvars.html"&gt;&lt;code&gt;contextvars&lt;/code&gt;&lt;/a&gt; has become extremely important.&lt;/p&gt;
+&lt;p&gt;A very common example is &lt;a href="https://docs.python.org/3/howto/logging-cookbook.html#use-of-contextvars"&gt;logging&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;That being said, I've always found resetting &lt;code&gt;ContextVar&lt;/code&gt;s a bit of a pain, as the a token needs to be kept around.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;A&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;ContextVar&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;A&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+
+&lt;span class="n"&gt;token&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;set&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;val&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="o"&gt;...&lt;/span&gt;  &lt;span class="c1"&gt;# other code&lt;/span&gt;
+&lt;span class="o"&gt;...&lt;/span&gt;
+
+&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;reset&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;token&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;So much so I've written the below function many times:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="nd"&gt;@contextmanager&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;auto_reset&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;T&lt;/span&gt;&lt;span class="p"&gt;](&lt;/span&gt;&lt;span class="n"&gt;context&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;ContextVar&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;T&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;token&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Token&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;T&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Iterator&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+    &lt;span class="k"&gt;try&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;yield&lt;/span&gt;
+    &lt;span class="k"&gt;finally&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;try&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="n"&gt;context&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;reset&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;token&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="k"&gt;except&lt;/span&gt; &lt;span class="ne"&gt;Exception&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="o"&gt;...&lt;/span&gt;
+
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;set_context&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;T&lt;/span&gt;&lt;span class="p"&gt;](&lt;/span&gt;&lt;span class="n"&gt;context&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;ContextVar&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;T&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;value&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;T&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;ContextManager&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+    &lt;span class="n"&gt;token&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;context&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;set&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;context&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;auto_reset&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;context&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;token&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+
+&lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;set_context&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;val&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The function sets a context and allows it to be reset by a context manager instead.&lt;/p&gt;
+&lt;p&gt;Well now you won't have to, in 3.14 &lt;a href="https://github.com/python/cpython/issues/129889"&gt;&lt;code&gt;Token&lt;/code&gt; is now a &lt;code&gt;ContextManager&lt;/code&gt;&lt;/a&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;A&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;ContextVar&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;A&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+
+&lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;A&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;set&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;val&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The new code speaks for itself, it's much more concise and just makes sense. &lt;/p&gt;
+&lt;h3&gt;&lt;code&gt;functools.Placeholder&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Suppose you have a function like this: &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;div&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;a&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;b&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;and want to create a partial function that always divides by a certain number:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;div_by_2&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;partial&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;b&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This actually can be typed checked as both mypy and pyright support partials as a special rule (&lt;a href="https://pyright-play.net/?pythonVersion=3.14&amp;amp;enableExperimentalFeatures=true&amp;amp;code=GYJw9gtgBMCuB2BjALmMAbAzlAlhADmCMlPgIbE5noBQNAJgKbBT04BuAFGQFy7zIANFABGfHAICUUALQA%2Bfsh40oqqADpNdBhwD6IgJ66ATFAC8pCsirpObdsJFnjkne31HjnAESZ6wb0kgA"&gt;example&lt;/a&gt;). &lt;/p&gt;
+&lt;p&gt;There are situations where partial couldn't work though, suppose our function doesn't take in keyword arguments:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;div&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;a&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;b&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This could be done with a &lt;code&gt;lambda a: div(a, 2)&lt;/code&gt; but we lose typing information. Or we can create a named function but that can be quite verbose.&lt;/p&gt;
+&lt;p&gt;I have a rather complicated solution in &lt;a href="https://github.com/Jamie-Chang/better-functools/blob/main/better_functools/apply.py#L180-L194"&gt;better-functools&lt;/a&gt; for this exact scenario. But it pushes the limits of the current capabilities of typing in Python and I ended up resorting to specifying the types explicitly.&lt;/p&gt;
+&lt;p&gt;In Python 3.14 however this is completely possible with &lt;a href="https://docs.python.org/3.14/library/functools.html#functools.Placeholder"&gt;&lt;code&gt;partial.Placeholder&lt;/code&gt;&lt;/a&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;div_by_2&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;partial&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Placeholder&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The placeholder simply marks any positional arguments we are not specifying yet.&lt;/p&gt;
+&lt;p&gt;Caveat: as far as I can tell, none of the type checkers have updated their rules yet. Given that &lt;code&gt;partial&lt;/code&gt; itself works I think it's only a matter of time.&lt;/p&gt;
+&lt;h3&gt;UUID v6 v7 and v8 are added to Python 3.14.&lt;/h3&gt;
+&lt;p&gt;More specifically I'm very excited about v7.&lt;/p&gt;
+&lt;p&gt;As a rule, I use &lt;code&gt;uuid4&lt;/code&gt; as my primary keys in my database. This is because compared to auto-incrementing integer ids, the key generation process is a lot simpler and can be done either by the database server or at the client side. The randomness of the UUID is also a good security measure as nothing can be inferred by just knowing its value. &lt;/p&gt;
+&lt;p&gt;The problem? They cannot be used to sort.&lt;/p&gt;
+&lt;p&gt;It turns out having some ordering built into the ids can be extremely helpful. For most if not all of my tables, I end up with an extra increment id or timestamp to provide the order.&lt;/p&gt;
+&lt;p&gt;V4 ids when indexed by the database do not offer anything but lookup. But this is where &lt;code&gt;uuid7&lt;/code&gt; comes in, &lt;code&gt;uuid7&lt;/code&gt; has a time component builtin to it, and can be used to lexicographically sort in chronological order. This is all whilst still providing a good amount of randomness. The best of both worlds.&lt;/p&gt;
+&lt;p&gt;V6 is similar in that it can be sorted chronologically, but it is less random than V7. In fact, in &lt;a href="https://datatracker.ietf.org/doc/html/rfc9562.html#section-5.7"&gt;RFC 9562&lt;/a&gt; it is explicitly stated that:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a href="https://datatracker.ietf.org/doc/html/rfc9562.html#section-5.7-4"&gt;Implementations SHOULD utilize UUIDv7 instead of UUIDv1 and UUIDv6 if possible&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Finally, version 8 is a standard that puts very few limits on the data inside the UUID, allowing vendors to create their own UUIDs based on custom standards. It is not something I personally have a use case for.&lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>My Chinese birthdays, time keeping is hard!</title><link href="https://blog.changs.co.uk/my-chinese-birthdays-time-keeping-is-hard.html" rel="alternate"></link><published>2025-06-25T00:00:00+01:00</published><updated>2025-06-25T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-06-25:/my-chinese-birthdays-time-keeping-is-hard.html</id><summary type="html">&lt;p&gt;I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a western one. &lt;/p&gt;
 &lt;p&gt;I did find a small library called &lt;a href="https://github.com/lidaobing/python-lunardate"&gt;lunardate&lt;/a&gt;:&lt;/p&gt;
 &lt;p&gt;&lt;link rel="stylesheet" href="https://pyscript.net/releases/2025.5.1/core.css"&gt;&lt;/p&gt;
 &lt;!-- This script tag bootstraps PyScript --&gt;
