@@ -37,7 +37,8 @@
 <li><a href="../t-strings-the-good-and-the-ugly.html">Template strings</a></li>
 </ul>
 <p>But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire <a href="https://docs.python.org/3.14/whatsnew/3.14.html">release notes</a>. Luckily I am boring enough to do just that. </p>
-<h3><code>contextvars.Token</code> is now a <code>contextmanager</code></h3>
+<p><img alt="3.14 features" src="../images/3_14_features.png"></p>
+<h3>contextvars.Token is now a contextmanager</h3>
 <p>As Python embraces different forms of concurrency, <a href="https://docs.python.org/3.14/library/contextvars.html"><code>contextvars</code></a> has become extremely important.</p>
 <p>A very common example is <a href="https://docs.python.org/3/howto/logging-cookbook.html#use-of-contextvars">logging</a>.</p>
 <p>That being said, I've always found resetting <code>ContextVar</code>s a bit of a pain, as the a token needs to be kept around.</p>
@@ -113,6 +114,16 @@
 <p>The problem? They cannot be used to sort.</p>
 <p>It turns out having some ordering built into the ids can be extremely helpful. For most if not all of my tables, I end up with an extra increment id or timestamp to provide the order.</p>
 <p>V4 ids when indexed by the database do not offer anything but lookup. But this is where <code>uuid7</code> comes in, <code>uuid7</code> has a time component builtin to it, and can be used to lexicographically sort in chronological order. This is all whilst still providing a good amount of randomness. The best of both worlds.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">uuid7</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">UTC</span><span class="p">,</span> <span class="n">datetime</span>
+
+<span class="n">uuid7</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">uuid7</span><span class="p">()</span>  <span class="c1"># uuid7 is ordered chronologically</span>
+
+<span class="n">u</span> <span class="o">=</span> <span class="n">uuid7</span><span class="p">()</span>
+<span class="n">u</span><span class="o">.</span><span class="n">time</span>  <span class="c1"># time in ms since epoch</span>
+<span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">time</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">UTC</span><span class="p">)</span>
+</code></pre></div>
+
 <p>V6 is similar in that it can be sorted chronologically, but it is less random than V7. In fact, in <a href="https://datatracker.ietf.org/doc/html/rfc9562.html#section-5.7">RFC 9562</a> it is explicitly stated that:</p>
 <blockquote>
 <p><a href="https://datatracker.ietf.org/doc/html/rfc9562.html#section-5.7-4">Implementations SHOULD utilize UUIDv7 instead of UUIDv1 and UUIDv6 if possible</a></p>
