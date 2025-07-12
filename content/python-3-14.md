@@ -9,7 +9,9 @@ Python 3.14 is just around the corner and it's jampacked with huge updates:
 
 But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire [release notes](https://docs.python.org/3.14/whatsnew/3.14.html). Luckily I am boring enough to do just that. 
 
-### `contextvars.Token` is now a `contextmanager`
+![3.14 features]({static}/images/3_14_features.png)
+
+### contextvars.Token is now a contextmanager
 As Python embraces different forms of concurrency, [`contextvars`](https://docs.python.org/3.14/library/contextvars.html) has become extremely important.
 
 A very common example is [logging](https://docs.python.org/3/howto/logging-cookbook.html#use-of-contextvars).
@@ -112,7 +114,18 @@ The problem? They cannot be used to sort.
 
 It turns out having some ordering built into the ids can be extremely helpful. For most if not all of my tables, I end up with an extra increment id or timestamp to provide the order.
 
- V4 ids when indexed by the database do not offer anything but lookup. But this is where `uuid7` comes in, `uuid7` has a time component builtin to it, and can be used to lexicographically sort in chronological order. This is all whilst still providing a good amount of randomness. The best of both worlds.
+V4 ids when indexed by the database do not offer anything but lookup. But this is where `uuid7` comes in, `uuid7` has a time component builtin to it, and can be used to lexicographically sort in chronological order. This is all whilst still providing a good amount of randomness. The best of both worlds.
+
+```py
+from uuid import uuid7
+from datetime import UTC, datetime
+
+uuid7() < uuid7()  # uuid7 is ordered chronologically
+
+u = uuid7()
+u.time  # time in ms since epoch
+datetime.fromtimestamp(u.time / 1000, UTC)
+```
 
 V6 is similar in that it can be sorted chronologically, but it is less random than V7. In fact, in [RFC 9562](https://datatracker.ietf.org/doc/html/rfc9562.html#section-5.7) it is explicitly stated that:
 
