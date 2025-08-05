@@ -4,39 +4,45 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog - Blog</title>
-                        <link rel="stylesheet" href="../theme/css/main.css" />
+                        <title>Subinterpreters are official!</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="PEP-734 subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late addition. If you've been following my blog..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="../">Jamie's Blog</a></h1>
+                        <h1><a href="./">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li class="active"><a href="../category/blog.html">Blog</a></li>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./subinterpreters-are-official.html" rel="bookmark"
+             title="Permalink to Subinterpreters are official!">Subinterpreters are official!</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="../subinterpreters-are-official.html">Subinterpreters are official!</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-08-05T00:00:00+01:00">
                 Published: Tue 05 August 2025
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p><a href="https://peps.python.org/pep-0734">PEP-734</a> subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late <a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734">addition</a>. If you've been following my blog posts you'll know that I'm particularly excited about this feature. </p>
+</footer><!-- /.post-info -->        <p><a href="https://peps.python.org/pep-0734">PEP-734</a> subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late <a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734">addition</a>. If you've been following my blog posts you'll know that I'm particularly excited about this feature. </p>
 <h2>Quick Recap</h2>
 <p>I've compared it against free-threading numerous times:</p>
 <ul>
-<li><a href="../how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
-<li><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
+<li><a href="./how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
+<li><a href="./python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
 </ul>
 <p>My little advent of code example has been my goto benchmark of parallelism in Python. And multiple interpreters have consistently beaten free-threading in performance. </p>
 <p>My conclusion has been that whilst threads are familiar to most Python users, tools for memory management are limited and will come as quite a shock to Python users. On the other hand, multiple interpreters are hard to use but does offer memory management. In the end, depending on the issue subinterpreters can achieve speedups that is currently unachievable in free-threading.</p>
@@ -84,7 +90,7 @@
 </ul>
 <h3>Architecture</h3>
 <p>The architecture of the system can be represented by the following sequence diagram</p>
-<p><img alt="sequence diagram" src="../images/architecture.png"></p>
+<p><img alt="sequence diagram" src="./images/architecture.png"></p>
 <p>We spawn multiple worker(interpreter) threads and a single coordinator thread. The worker thread consume the task queue and put results on the result queue. </p>
 <p>The coordinator thread then picks up the results and sets the results in the future. Any awaiting tasks on the main thread will then resolve. Here's some simplified snippet of  to give you some idea of how this looks:</p>
 <div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Runner</span><span class="p">:</span>
@@ -245,233 +251,11 @@
 <h2>Why?</h2>
 <p>I've left out the biggest question of why?. </p>
 <p>I think subinterpreters are awesome, but I believe in its current form it's not very accessible. Bridging it to <code>asyncio</code> might seem strange at first but I think it's one of the easiest way to program concurrently. </p>
-<p>My hope is that through <code>aiointerpreters</code> more people can quickly try this and see how much speed up they can achieve.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>My hope is that through <code>aiointerpreters</code> more people can quickly try this and see how much speed up they can achieve.</p>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-314-3-smaller-features.html" rel="bookmark"
-                               title="Permalink to Python 3.14: 3 smaller features">Python 3.14: 3 smaller features</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-07-11T00:00:00+01:00">
-                Published: Fri 11 July 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Python 3.14 is just around the corner and it's jampacked with huge updates:</p>
-<ul>
-<li><a href="../python-314-state-of-free-threading.html">Free threading and multiple interpreters?</a></li>
-<li><a href="../t-strings-the-good-and-the-ugly.html">Template strings</a></li>
-</ul>
-<p>But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire <a href="https://docs.python.org/3.14/whatsnew/3.14.html">release notes</a>. Luckily I am …</p>
-                        <a class="readmore" href="../python-314-3-smaller-features.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../my-chinese-birthdays-time-keeping-is-hard.html" rel="bookmark"
-                               title="Permalink to My Chinese birthdays, time keeping is hard!">My Chinese birthdays, time keeping is hard!</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-06-25T00:00:00+01:00">
-                Published: Wed 25 June 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a …</p>
-                        <a class="readmore" href="../my-chinese-birthdays-time-keeping-is-hard.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../asyncio-backpressure-processing-lots-of-tasks-in-parallel.html" rel="bookmark"
-                               title="Permalink to Asyncio backpressure - Processing lots of tasks in parallel">Asyncio backpressure - Processing lots of tasks in parallel</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-06-20T00:00:00+01:00">
-                Published: Fri 20 June 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>There's mixed feedback to Asyncio in the community. Some people passionately hate it whilst others believe "writing async make program go fast". This debate is way too much for me to cover here right now. Though maybe I'll look at it in the future. </p>
-<p>For me I use asyncio a …</p>
-                        <a class="readmore" href="../asyncio-backpressure-processing-lots-of-tasks-in-parallel.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../dockers-mcp-toolkit-first-look.html" rel="bookmark"
-                               title="Permalink to Docker's MCP toolkit First Look">Docker's MCP toolkit First Look</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-06-12T00:00:00+01:00">
-                Published: Thu 12 June 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Short update since <a href="../first-look-at-mcp.html">First Look at MCP</a>. Docker has released it's <a href="https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/">MCP toolkit</a> which includes a catalog of MCP servers as well as helpers to connect to the MCP clients.</p>
-<p>It is exceeding easy to use it, docker is registered as a single MCP server for your client. And tools …</p>
-                        <a class="readmore" href="../dockers-mcp-toolkit-first-look.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../first-look-at-mcp.html" rel="bookmark"
-                               title="Permalink to First Look at MCP">First Look at MCP</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-06-03T00:00:00+01:00">
-                Published: Tue 03 June 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Previously I've played with tool calling in <a href="../python-in-python-sandboxing-llm-generated-code.html">Langchain and Python sandboxes</a>. But recently MCP (Model Context Protocol) is front and center. So I tried to create my own github MCP in Python to integrate <a href="https://www.cursor.com/">cursor</a> with the github cli.</p>
-<h1>What is MCP?</h1>
-<p>Before we get started, its good to familiarise …</p>
-                        <a class="readmore" href="../first-look-at-mcp.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-314-state-of-free-threading.html" rel="bookmark"
-                               title="Permalink to Python 3.14: State of free threading">Python 3.14: State of free threading</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-05-26T00:00:00+01:00">
-                Published: Mon 26 May 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>In my posts earlier this year I talked about the parallelism performance on 3.13 free-threaded builds. In particular I looked at solving an advent of code <a href="https://adventofcode.com/2024/day/6">problem</a>. In <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> I discovered significant performance penalties for using free-threading and a lack of tooling available …</p>
-                        <a class="readmore" href="../python-314-state-of-free-threading.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../t-strings-the-good-and-the-ugly.html" rel="bookmark"
-                               title="Permalink to t-strings: the good and the ugly">t-strings: the good and the ugly</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-05-07T00:00:00+01:00">
-                Published: Wed 07 May 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially <code>t-strings</code>). </p>
-<p><a href="https://peps.python.org/pep-0750/">PEP-750</a> officially introduces the concept. The idea …</p>
-                        <a class="readmore" href="../t-strings-the-good-and-the-ugly.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../why-you-should-write-your-tools-in-python-again.html" rel="bookmark"
-                               title="Permalink to Why you should write your tools in Python Again">Why you should write your tools in Python Again</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-04-08T00:00:00+01:00">
-                Published: Tue 08 April 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>You're probably thinking that there are already plenty of tools written in Python.</p>
-<p>But I see that most of the popular tools like <code>mypy</code> and <code>flake8</code> are built for development environments. In contrast, general purpose cli tools tend to be built in other languages, for example most of the docker …</p>
-                        <a class="readmore" href="../why-you-should-write-your-tools-in-python-again.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../building-a-dsl-with-python-operators.html" rel="bookmark"
-                               title="Permalink to Building a DSL with Python Operators">Building a DSL with Python Operators</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-03-12T00:00:00+00:00">
-                Published: Wed 12 March 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I've been a little obsessed with operator overloading lately. First using <code>|=</code> in <a href="../sqlalchemy-footgun-discarding-the-statement.html">sqlalchemy-builder</a> and then using <code>|</code> and <code>@</code> in <a href="../better-functools-python-functional-fun.html">better-functools</a>. </p>
-<p>I didn't actually know that these qualify as DSLs, specifically what's known as "internal DSLs". Funnily enough, I'm usually not a fan of DSLs. A few reasons come to mind:</p>
-<ul>
-<li>DSLs …</li></ul>
-                        <a class="readmore" href="../building-a-dsl-with-python-operators.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-  <nav>
-    <ul>
-      <li>Page 1 / 3</li>
-        <li><a href="../category/blog2.html">&rang;</a></li>
-        <li><a href="../category/blog3.html">&Rang;</a></li>
-    </ul>
-  </nav>
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>
