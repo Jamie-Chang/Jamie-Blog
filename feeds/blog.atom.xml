@@ -1,5 +1,151 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-08-05T00:00:00+01:00</updated><entry><title>Subinterpreters and Asyncio</title><link href="https://blog.changs.co.uk/subinterpreters-and-asyncio.html" rel="alternate"></link><published>2025-08-05T00:00:00+01:00</published><updated>2025-08-05T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-08-05:/subinterpreters-and-asyncio.html</id><summary type="html">&lt;p&gt;&lt;a href="https://peps.python.org/pep-0734"&gt;PEP-734&lt;/a&gt; subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late &lt;a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734"&gt;addition&lt;/a&gt;. subinterpreters now has a new home in the standard library module called &lt;a href="https://docs.python.org/3.14/library/concurrent.interpreters.html"&gt;concurrent.interpreters&lt;/a&gt;.&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-08-26T00:00:00+01:00</updated><entry><title>Dynamic config part 1: Pydantic and file watchers</title><link href="https://blog.changs.co.uk/dynamic-config-part-1-pydantic-and-file-watchers.html" rel="alternate"></link><published>2025-08-26T00:00:00+01:00</published><updated>2025-08-26T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-08-26:/dynamic-config-part-1-pydantic-and-file-watchers.html</id><summary type="html">&lt;p&gt;Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options &lt;a href="https://launchdarkly.com/"&gt;launchdarkly&lt;/a&gt;, &lt;a href="https://www.flagsmith.com/"&gt;flagsmith&lt;/a&gt; and &lt;a href="https://www.getunleash.io/"&gt;unleash&lt;/a&gt; to name a few. &lt;/p&gt;
+&lt;p&gt;SaaS options can be amazing with a full array of features, but I would …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options &lt;a href="https://launchdarkly.com/"&gt;launchdarkly&lt;/a&gt;, &lt;a href="https://www.flagsmith.com/"&gt;flagsmith&lt;/a&gt; and &lt;a href="https://www.getunleash.io/"&gt;unleash&lt;/a&gt; to name a few. &lt;/p&gt;
+&lt;p&gt;SaaS options can be amazing with a full array of features, but I would love a simple solution to start with that can be set up in your own cluster.&lt;/p&gt;
+&lt;p&gt;I don't have a full solution in my head, instead I'm going to try and explore the space and work towards a solution over the next few posts.&lt;/p&gt;
+&lt;h2&gt;pydantic-settings&lt;/h2&gt;
+&lt;p&gt;&lt;a href="https://docs.pydantic.dev/latest/concepts/pydantic_settings/"&gt;pydantic-settings&lt;/a&gt; would probably be the go to solution in Python for config management. Example configuration will look something like this:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;Settings&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;BaseSettings&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;setting1&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;
+    &lt;span class="n"&gt;setting2&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;
+
+    &lt;span class="n"&gt;model_config&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;toml_file&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Path&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;config.toml&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)}&lt;/span&gt;
+
+    &lt;span class="nd"&gt;@classmethod&lt;/span&gt;
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;settings_customise_sources&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+        &lt;span class="bp"&gt;cls&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="n"&gt;settings_cls&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;type&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;BaseSettings&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;
+        &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;object&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;object&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="nb"&gt;tuple&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;PydanticBaseSettingsSource&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;TomlConfigSettingsSource&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;settings_cls&lt;/span&gt;&lt;span class="p"&gt;),)&lt;/span&gt;
+
+
+&lt;span class="n"&gt;settings&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Settings&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We have a pydantic model with the fields &lt;code&gt;"setting1"&lt;/code&gt; and &lt;code&gt;"setting2"&lt;/code&gt;. There's a &lt;code&gt;model_config&lt;/code&gt; that contains metadata which acts as the "settings of settings". The &lt;code&gt;settings_customise_sources&lt;/code&gt; method defines the sources used to populate the and in what order. &lt;/p&gt;
+&lt;p&gt;I do have my misgivings how this works, mainly around the way the sources and tied to the object model. Something more functional would be clearer:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;settings&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;load&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+    &lt;span class="n"&gt;Settings&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;toml_loader&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;config.toml&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt;
+    &lt;span class="n"&gt;env_loader&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;.env&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;But that's a topic for another day. &lt;/p&gt;
+&lt;h2&gt;Config from file&lt;/h2&gt;
+&lt;p&gt;Environment variables are undoubtedly the easiest way to configure an application. However there is no good method to update the envvar during a process' execution and have process reload it. &lt;/p&gt;
+&lt;p&gt;Another approach is to load configuration from network resources such as another service or databases. This is likely how existing SaaS solutions work. This is a viable choice that offers a ton of flexibility, the potential operational overhead is worrying, for example, what happens if we fail to load the config from the remote? We likely need to handle many different failure nodes in our application.&lt;/p&gt;
+&lt;p&gt;That's why I've chosen to configure the app a file as in the above example. Which is simple and more reliable than the network method. The file content can easily be changed by another process or manually. Likewise it can easily be viewed for debugging purposes.&lt;/p&gt;
+&lt;p&gt;Note that I've chosen to use toml in the above example, but pydantic-settings includes loaders for almost all &lt;a href="https://docs.pydantic.dev/latest/concepts/pydantic_settings/#other-settings-source"&gt;formats&lt;/a&gt;. My personal preference is toml for small amount of config and yaml for potentially large config files. &lt;/p&gt;
+&lt;h2&gt;Reloading the file dynamically&lt;/h2&gt;
+&lt;p&gt;That leaves us with the biggest question, how will we reload the file dynamically? &lt;/p&gt;
+&lt;p&gt;Luckily this is a question that already has well established answers: file watchers. File watchers are often used for local development to allow for dynamic reloading of servers. &lt;a href="https://man7.org/linux/man-pages/man7/inotify.7.html"&gt;inotify&lt;/a&gt; is one such exapmle on linux where a lot of server code is being run.&lt;/p&gt;
+&lt;p&gt;There are already many packages that make use of inotify, I've chosen &lt;a href="https://watchfiles.helpmanual.io/"&gt;watchfiles&lt;/a&gt; for its broad compatibility across multiple platforms and generally great performance.&lt;/p&gt;
+&lt;p&gt;The api is incredibly straightforward:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;_&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;awatch&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;CONFIG_PATH&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;  &lt;span class="c1"&gt;# handle the file change&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We enter a new iteration every time there's file change, during this iteration we can reload the settings. There are sync apis available as well but I'll stick to async for now. &lt;/p&gt;
+&lt;h2&gt;Putting things together&lt;/h2&gt;
+&lt;p&gt;I've added everything together in a FastAPI service. The service has a single endpoint to fetch the current settings values. Django and flask services can also use something similar to this, which I may cover in the near future.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# /// script&lt;/span&gt;
+&lt;span class="c1"&gt;# requires-python = &amp;quot;&amp;gt;=3.13&amp;quot;&lt;/span&gt;
+&lt;span class="c1"&gt;# dependencies = [&lt;/span&gt;
+&lt;span class="c1"&gt;#     &amp;quot;fastapi&amp;quot;,&lt;/span&gt;
+&lt;span class="c1"&gt;#     &amp;quot;pydantic-settings&amp;quot;,&lt;/span&gt;
+&lt;span class="c1"&gt;#     &amp;quot;uvicorn&amp;quot;,&lt;/span&gt;
+&lt;span class="c1"&gt;#     &amp;quot;watchfiles&amp;quot;,&lt;/span&gt;
+&lt;span class="c1"&gt;# ]&lt;/span&gt;
+&lt;span class="c1"&gt;# ///&lt;/span&gt;
+&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;asyncio&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;contextlib&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;asynccontextmanager&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;pathlib&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;Path&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;typing&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;AsyncIterator&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Self&lt;/span&gt;
+
+&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;uvicorn&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;fastapi&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;FastAPI&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;pydantic_settings&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;
+    &lt;span class="n"&gt;BaseSettings&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;PydanticBaseSettingsSource&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;TomlConfigSettingsSource&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;watchfiles&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;awatch&lt;/span&gt;
+
+
+&lt;span class="n"&gt;CONFIG_PATH&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Path&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;config.toml&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+
+&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;Settings&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;BaseSettings&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;setting1&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;
+    &lt;span class="n"&gt;setting2&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;
+
+    &lt;span class="n"&gt;model_config&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;toml_file&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;CONFIG_PATH&lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+
+    &lt;span class="nd"&gt;@classmethod&lt;/span&gt;
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;load&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;cls&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Self&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="bp"&gt;cls&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;  &lt;span class="c1"&gt;# type: ignore&lt;/span&gt;
+
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;reload&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="fm"&gt;__init__&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;  &lt;span class="c1"&gt;# type: ignore&lt;/span&gt;
+
+    &lt;span class="nd"&gt;@classmethod&lt;/span&gt;
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;settings_customise_sources&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+        &lt;span class="bp"&gt;cls&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="n"&gt;settings_cls&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;type&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;BaseSettings&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;
+        &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="nb"&gt;tuple&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;PydanticBaseSettingsSource&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;...&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;TomlConfigSettingsSource&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;settings_cls&lt;/span&gt;&lt;span class="p"&gt;),)&lt;/span&gt;
+
+
+&lt;span class="n"&gt;settings&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Settings&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;load&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+
+&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;auto_reload_settings&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+    &lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;_&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;awatch&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;CONFIG_PATH&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+        &lt;span class="n"&gt;settings&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;reload&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+
+&lt;span class="nd"&gt;@asynccontextmanager&lt;/span&gt;
+&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;lifespan&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;_&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;FastAPI&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;AsyncIterator&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+    &lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;asyncio&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;TaskGroup&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="n"&gt;tg&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;task&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;tg&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create_task&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;auto_reload_settings&lt;/span&gt;&lt;span class="p"&gt;())&lt;/span&gt;
+        &lt;span class="k"&gt;try&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="k"&gt;yield&lt;/span&gt;
+        &lt;span class="k"&gt;finally&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="n"&gt;task&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;cancel&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+
+
+&lt;span class="n"&gt;app&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;FastAPI&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;lifespan&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;lifespan&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+
+&lt;span class="nd"&gt;@app&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;/settings&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;get_settings&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Settings&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;settings&lt;/span&gt;
+
+
+&lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="vm"&gt;__name__&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;__main__&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="n"&gt;uvicorn&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;run&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;app&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3&gt;A few notes&lt;/h3&gt;
+&lt;h4&gt;Reloading and loading the settings&lt;/h4&gt;
+&lt;p&gt;The documentation for inplace reloading can be found &lt;a href="https://docs.pydantic.dev/latest/concepts/pydantic_settings/#in-place-reloading"&gt;here&lt;/a&gt;. The direct invocation of &lt;code&gt;__init__&lt;/code&gt; is a little odd so I've decided to encapsulate it as &lt;code&gt;reload&lt;/code&gt; but otherwise this is just following the official documentation.&lt;/p&gt;
+&lt;h4&gt;Running a background asyncio task&lt;/h4&gt;
+&lt;p&gt;&lt;a href="https://fastapi.tiangolo.com/advanced/events/#use-case"&gt;lifespan&lt;/a&gt; is the best way to add startup and teardown logic to a fastapi app. &lt;/p&gt;
+&lt;p&gt;&lt;a href="https://docs.python.org/3/library/asyncio-task.html#task-groups"&gt;asyncio.TaskGroup&lt;/a&gt; is used here to handle the task future and avoid not await warnings. &lt;/p&gt;
+&lt;h2&gt;Next steps&lt;/h2&gt;
+&lt;p&gt;I think what I've put together here is a very simple solution, but simple solutions can work more reliably. &lt;/p&gt;
+&lt;p&gt;This is of course only the first step in hopefully a series of posts.In the near future I'll explore:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Connecting the code with the infrastructure (e.g. kubernetes) we're running the code on. &lt;/li&gt;
+&lt;li&gt;Solving the observability challenge that comes with dynamically changing configuration.&lt;/li&gt;
+&lt;/ul&gt;</content><category term="Blog"></category></entry><entry><title>Subinterpreters and Asyncio</title><link href="https://blog.changs.co.uk/subinterpreters-and-asyncio.html" rel="alternate"></link><published>2025-08-05T00:00:00+01:00</published><updated>2025-08-05T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-08-05:/subinterpreters-and-asyncio.html</id><summary type="html">&lt;p&gt;&lt;a href="https://peps.python.org/pep-0734"&gt;PEP-734&lt;/a&gt; subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late &lt;a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734"&gt;addition&lt;/a&gt;. subinterpreters now has a new home in the standard library module called &lt;a href="https://docs.python.org/3.14/library/concurrent.interpreters.html"&gt;concurrent.interpreters&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;If you've been following my blog posts you'll know that I'm particularly excited about this feature. &lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/how-good-are-sub-interpreters-in-python-now.html"&gt;How …&lt;/a&gt;&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;&lt;a href="https://peps.python.org/pep-0734"&gt;PEP-734&lt;/a&gt; subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late &lt;a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734"&gt;addition&lt;/a&gt;. subinterpreters now has a new home in the standard library module called &lt;a href="https://docs.python.org/3.14/library/concurrent.interpreters.html"&gt;concurrent.interpreters&lt;/a&gt;.&lt;/p&gt;
