@@ -7,7 +7,7 @@ Short update since [First Look at MCP]({filename}/mcp-first-look.md). Docker has
 
 It is exceeding easy to use it, docker is registered as a single MCP server for your client. And tools from the MCP catalog can be added to it by click from the Docker UI. If credentials are needed you'll be prompted to fill it in.
 
-![cursor]({filename}/images/cursor-docker.png)
+![cursor]({static}/images/cursor-docker.png)
 
 
 # Under the hood

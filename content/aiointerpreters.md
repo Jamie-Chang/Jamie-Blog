@@ -55,7 +55,7 @@ The bigger issue for some of my use cases are that we're not reusing interpreter
 
 ## Using Asyncio
 
-My solution for concurrency is almost always async, I've even made a similar case in [Free Threaded Python With Asyncio]({filename}/python-free-threading-asyncio). 
+My solution for concurrency is almost always async, I've even made a similar case in [Free Threaded Python With Asyncio]({filename}/python-free-threading-asyncio.md). 
 
 > I am fully aware of how many people in the community dislike async. Unfortunately this is an opinion that could divide the community and is definitely a topic for another day. 
 
