@@ -77,7 +77,7 @@
 <p>First issue is that the function does not abstract the thread creation nor does it provide any mechanism to retrieve the results.</p>
 <p>The bigger issue for some of my use cases are that we're not reusing interpreters. Suppose we want to call something 1000s of times over the program's life cycle, creating 1000s of interpreters will not be feasible. This issue alone may turn people away from using the faster shared memory mechanism.</p>
 <h2>Using Asyncio</h2>
-<p>My solution for concurrency is almost always async, I've even made a similar case in <a href="{filename}/python-free-threading-asyncio">Free Threaded Python With Asyncio</a>. </p>
+<p>My solution for concurrency is almost always async, I've even made a similar case in <a href="./free-threaded-python-with-asyncio.html">Free Threaded Python With Asyncio</a>. </p>
 <blockquote>
 <p>I am fully aware of how many people in the community dislike async. Unfortunately this is an opinion that could divide the community and is definitely a topic for another day. </p>
 </blockquote>

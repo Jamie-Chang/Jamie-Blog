@@ -343,7 +343,7 @@ simple-lambda&lt;span class="w"&gt; &lt;/span&gt;deploy&lt;span class="w"&gt; &l
 &lt;p&gt;First issue is that the function does not abstract the thread creation nor does it provide any mechanism to retrieve the results.&lt;/p&gt;
 &lt;p&gt;The bigger issue for some of my use cases are that we're not reusing interpreters. Suppose we want to call something 1000s of times over the program's life cycle, creating 1000s of interpreters will not be feasible. This issue alone may turn people away from using the faster shared memory mechanism.&lt;/p&gt;
 &lt;h2&gt;Using Asyncio&lt;/h2&gt;
-&lt;p&gt;My solution for concurrency is almost always async, I've even made a similar case in &lt;a href="{filename}/python-free-threading-asyncio"&gt;Free Threaded Python With Asyncio&lt;/a&gt;. &lt;/p&gt;
+&lt;p&gt;My solution for concurrency is almost always async, I've even made a similar case in &lt;a href="https://blog.changs.co.uk/free-threaded-python-with-asyncio.html"&gt;Free Threaded Python With Asyncio&lt;/a&gt;. &lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;I am fully aware of how many people in the community dislike async. Unfortunately this is an opinion that could divide the community and is definitely a topic for another day. &lt;/p&gt;
 &lt;/blockquote&gt;
