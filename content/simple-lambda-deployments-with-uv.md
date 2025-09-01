@@ -1,4 +1,4 @@
-Title: Simplify lambda deployments with UV.
+Title: Simplify lambda deployments with UV
 Date: 2025-09-01
 Category: Blog
 
