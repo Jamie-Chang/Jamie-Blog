@@ -20,7 +20,185 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./dynamic-config-part-1-pydantic-and-file-watchers.html">Dynamic config part 1: Pydantic and file watchers</a></h1>
+                        <h1 class="entry-title"><a href="./simplify-lambda-deployments-with-uv.html">Simplify lambda deployments with UV.</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2025-09-01T00:00:00+01:00">
+                Published: Mon 01 September 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>The python packaging landscape and developer experience has shifted dramatically in the past year or so with <a href="https://docs.astral.sh/uv/">uv</a>'s launch marked a pivotal moment. But behind the scenes many PEPs have worked to get us to this point. </p>
+<p>One such PEP was <a href="https://peps.python.org/pep-0723/">PEP 723 – Inline script metadata</a> which we discussed in <a href="./why-you-should-write-your-tools-in-python-again.html">why you should write your tools in Python Again</a>. This PEP combined with support from uv allow us to write single file scripts whilst also handling dependencies in the same script. </p>
+<p>I've been thinking about other places this might be useful outside of command line apps. Having recently used a lot of lambdas, I believe lambdas are the perfect place to use inline metadata and UV.</p>
+<h2>Building a single file lambda with UV</h2>
+<p>Lambdas most often run a small amount of simple code meaning the code is usually a single file. This fits particularly well with inline-metadata as we can keep everything compact and simple. </p>
+<p>So let's give it a go, using the commands in uv's <a href="https://docs.astral.sh/uv/guides/scripts/#creating-a-python-script">docs</a>.</p>
+<h4><code>uv init</code></h4>
+<p>Start by creating a file to write our code, we can define which python version we want here:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>init<span class="w"> </span>--script<span class="w"> </span>main.py<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.13
+</code></pre></div>
+
+<p>This creates a file: </p>
+<div class="highlight"><pre><span></span><code><span class="c1"># /// script</span>
+<span class="c1"># requires-python = &quot;&gt;=3.13&quot;</span>
+<span class="c1"># dependencies = []</span>
+<span class="c1"># ///</span>
+
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello from main.py!&quot;</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div>
+
+<p>We can now add our code to it:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># /// script</span>
+<span class="c1"># requires-python = &quot;&gt;=3.13&quot;</span>
+<span class="c1"># dependencies = []</span>
+<span class="c1"># ///</span>
+
+<span class="kn">from</span> <span class="nn">pydantic</span> <span class="kn">import</span> <span class="n">BaseModel</span>
+
+
+<span class="k">class</span> <span class="nc">Body</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span>
+
+
+<span class="k">def</span> <span class="nf">lambda_handler</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">Body</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s2">&quot;Hello, World!&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">model_dump_json</span><span class="p">()}</span>
+</code></pre></div>
+
+<h4><code>uv add</code></h4>
+<p>Then we add any dependencies we need: </p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>add<span class="w"> </span>--script<span class="w"> </span>main.py<span class="w"> </span>pydantic
+</code></pre></div>
+
+<p>This adds the dependency to the metadata of the file:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># /// script</span>
+<span class="c1"># requires-python = &quot;&gt;=3.13&quot;</span>
+<span class="c1"># dependencies = [</span>
+<span class="c1">#     &quot;pydantic&quot;,</span>
+<span class="c1"># ]</span>
+<span class="c1"># ///</span>
+<span class="o">...</span>
+</code></pre></div>
+
+<h4>Optional: <code>uv lock</code></h4>
+<p><code>uv lock</code> is a relatively new feature for scripts, for those who want reproducible builds using lock files.</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>lock<span class="w"> </span>--script<span class="w"> </span>main.py
+</code></pre></div>
+
+<p>Produces a lock file at <code>main.py.lock</code>. When the lock file is present uv will then respect the lockfile's dependency. </p>
+<h4>Develop code and <code>uv run</code> locally</h4>
+<p>After you develop your code, you can run the script without any virtual environment setup using: </p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--script<span class="w"> </span>main.py
+</code></pre></div>
+
+<h4>Packaging the app</h4>
+<p>So far we've used relatively well known workflows within uv. Now comes the tricky part, we need to download the dependencies and package it alongside the code. </p>
+<p>The simplest way I found is to first export the deps as a requirements file.</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--script<span class="w"> </span>main.py<span class="w"> </span>--output-file<span class="w"> </span>requirements.txt
+</code></pre></div>
+
+<p>And then install using <code>uv pip install</code></p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-r<span class="w"> </span>requirements.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--target<span class="w"> </span>package/<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--python-platform<span class="w"> </span>x86_64-manylinux2014<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--python-version<span class="w"> </span><span class="m">3</span>.13<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--link-mode<span class="w"> </span>copy<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--only-binary<span class="o">=</span>:all:<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--upgrade
+</code></pre></div>
+
+<p>Now this is a complex command! Let's break it down:</p>
+<ul>
+<li><code>--target</code> to install the package to a directory instead of a virtualenv</li>
+<li><code>--python-platform</code> is needed as we need to install packages for the lambdas specific. The options are essentially just arm or x86.
+-- <code>--link-code</code> copy to produce a hard copy of the package if it comes from the uv cache
+-- <code>--only-binary</code> to prevent uv from building a wheel from sdist, the resulting wheel may not work on the target platform.</li>
+</ul>
+<p>We need this complexity because pydantic contains platform specific native code. This is also a problem for pip.</p>
+<h4>Creating the zip file and uploading it</h4>
+<p>Creating the zip file now is simple:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>package
+zip<span class="w"> </span>-r<span class="w"> </span>../deployment.zip<span class="w"> </span>.
+<span class="nb">cd</span><span class="w"> </span>..
+zip<span class="w"> </span>-g<span class="w"> </span>deployment.zip<span class="w"> </span>main.py
+</code></pre></div>
+
+<p>Finally we can use aws cli to upload the zip file:</p>
+<div class="highlight"><pre><span></span><code>aws<span class="w"> </span>lambda<span class="w"> </span>update-function-code<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--function-name<span class="w"> </span>&lt;YOUR_FUNCTION_NAME&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--zip-file<span class="w"> </span>fileb://deployment.zip<span class="w"> </span><span class="se">\</span>
+</code></pre></div>
+
+<p>We now have a workflow that uses a single file for both code and dependencies, which is convenient and then leverages uv for its dependency management and faster workflow.</p>
+<h2>Making things easier</h2>
+<p>But we can do a bit better, in our current workflow we still need to know which platform we need to install the dependencies for. To avoid this, we can simply just look up the platform and python versoin from AWS using <code>boto3</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">get_lambda_info</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">LambdaClient</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_function_configuration</span><span class="p">(</span><span class="n">FunctionName</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">match</span> <span class="n">response</span><span class="p">:</span>
+        <span class="k">case</span> <span class="p">{</span><span class="s2">&quot;Runtime&quot;</span><span class="p">:</span> <span class="n">runtime</span><span class="p">,</span> <span class="s2">&quot;Architectures&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;x86_64&quot;</span><span class="p">]}:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;python-version&quot;</span><span class="p">:</span> <span class="n">runtime</span><span class="o">.</span><span class="n">remove_prefix</span><span class="p">(</span><span class="s2">&quot;python&quot;</span><span class="p">),</span>
+                <span class="s2">&quot;architecture&quot;</span><span class="p">:</span> <span class="s2">&quot;x86_64-manylinux2014&quot;</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="k">case</span> <span class="p">{</span><span class="s2">&quot;Runtime&quot;</span><span class="p">:</span> <span class="n">runtime</span><span class="p">,</span> <span class="s2">&quot;Architectures&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;arm64&quot;</span><span class="p">]}:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;python-version&quot;</span><span class="p">:</span> <span class="n">runtime</span><span class="o">.</span><span class="n">remove_prefix</span><span class="p">(</span><span class="s2">&quot;python&quot;</span><span class="p">),</span>
+                <span class="s2">&quot;architecture&quot;</span><span class="p">:</span> <span class="s2">&quot;aarch64-manylinux2014&quot;</span><span class="p">,</span>
+            <span class="p">}</span>
+
+        <span class="k">case</span> <span class="n">other</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected response: </span><span class="si">{</span><span class="n">other</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<h2>Putting things together</h2>
+<p>Since <code>get_lambda_info</code> is a python function, and if I'm honest I am terrible at bash scripting. I've added everything in a Python script and published it as <a href="https://pypi.org/project/simple-lambda/">simple-lambda</a>. </p>
+<p>I won't include the full source here, you can check it out on <a href="https://github.com/Jamie-Chang/simple-lambda">github</a>. </p>
+<p>In my script I ended up using the following builtin libraries:</p>
+<ul>
+<li><a href="https://docs.python.org/3/library/pathlib.html">pathlib</a> to handle file and directory paths.</li>
+<li><a href="https://docs.python.org/3/library/tempfile.html">tempfile</a> to create a temporary directory that gets deleted afterwards</li>
+<li><a href="https://docs.python.org/3/library/zipfile.html">zipfile</a> to bundle everything in a <code>.zip</code> file at the end</li>
+</ul>
+<p>Using builtin python modules doesn't only save you from installing extra dependencies but also ensures that you code is platform-agnostic. This is a very desirable feature of a cli. </p>
+<h2>How to use the script</h2>
+<p>It's simple, just write your single file lambda function as before. and run:</p>
+<div class="highlight"><pre><span></span><code>uvx<span class="w"> </span>simple-lambda<span class="w"> </span>deploy<span class="w"> </span>&lt;your_function_name&gt;<span class="w"> </span>main.py
+</code></pre></div>
+
+<p>We're using <code>uvx</code> here which will dynamically install <code>simple-lambda</code> and run the script of the same name (by default). It also caches the package to avoid reinstalling it in the future.</p>
+<p>If you want to explicitly keep a version of <code>simple-lambda</code> on your machine then you can install it as a tool: </p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>simple-lambda
+simple-lambda<span class="w"> </span>deploy<span class="w"> </span>&lt;your_function_name&gt;<span class="w"> </span>main.py
+</code></pre></div>
+
+<p>You do have the option to install with <code>pip</code> of course but <code>uv</code> is really just more convenient.</p>
+<h2>Finally</h2>
+<p>My hope is that either you find the script itself useful, or you've learned a bit more about tooling in Python. </p>
+<p>I wrote this script to solve a real problem for myself, but I'm constantly amazed at the progress being made to improve Python packaging and tooling. </p>
+<p>p.s. If you want to see another great use case of inline metadata, check out <a href="https://pydantic.run/store/d49fe8ddf8c9813f">pydantic.run</a>.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./dynamic-config-part-1-pydantic-and-file-watchers.html" rel="bookmark"
+                               title="Permalink to Dynamic config part 1: Pydantic and file watchers">Dynamic config part 1: Pydantic and file watchers</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-08-26T00:00:00+01:00">
                 Published: Tue 26 August 2025
@@ -31,157 +209,11 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options <a href="https://launchdarkly.com/">launchdarkly</a>, <a href="https://www.flagsmith.com/">flagsmith</a> and <a href="https://www.getunleash.io/">unleash</a> to name a few. </p>
-<p>SaaS options can be amazing with a full array of features, but I would love a simple solution to start with that can be set up in your own cluster.</p>
-<p>I don't have a full solution in my head, instead I'm going to try and explore the space and work towards a solution over the next few posts.</p>
-<h2>pydantic-settings</h2>
-<p><a href="https://docs.pydantic.dev/latest/concepts/pydantic_settings/">pydantic-settings</a> would probably be the go to solution in Python for config management. Example configuration will look something like this:</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Settings</span><span class="p">(</span><span class="n">BaseSettings</span><span class="p">):</span>
-    <span class="n">setting1</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">setting2</span><span class="p">:</span> <span class="nb">str</span>
-
-    <span class="n">model_config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;toml_file&quot;</span><span class="p">:</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;config.toml&quot;</span><span class="p">)}</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">settings_customise_sources</span><span class="p">(</span>
-        <span class="bp">cls</span><span class="p">,</span>
-        <span class="n">settings_cls</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">BaseSettings</span><span class="p">],</span>
-        <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
-        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">PydanticBaseSettingsSource</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">TomlConfigSettingsSource</span><span class="p">(</span><span class="n">settings_cls</span><span class="p">),)</span>
-
-
-<span class="n">settings</span> <span class="o">=</span> <span class="n">Settings</span><span class="p">()</span>
-</code></pre></div>
-
-<p>We have a pydantic model with the fields <code>"setting1"</code> and <code>"setting2"</code>. There's a <code>model_config</code> that contains metadata which acts as the "settings of settings". The <code>settings_customise_sources</code> method defines the sources used to populate the and in what order. </p>
-<p>I do have my misgivings how this works, mainly around the way the sources and tied to the object model. Something more functional would be clearer:</p>
-<div class="highlight"><pre><span></span><code><span class="n">settings</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span>
-    <span class="n">Settings</span><span class="p">,</span>
-    <span class="n">toml_loader</span><span class="p">(</span><span class="s2">&quot;config.toml&quot;</span><span class="p">),</span>
-    <span class="n">env_loader</span><span class="p">(</span><span class="s2">&quot;.env&quot;</span><span class="p">),</span>
-    <span class="o">...</span><span class="p">,</span>
-<span class="p">)</span>
-</code></pre></div>
-
-<p>But that's a topic for another day. </p>
-<h2>Config from file</h2>
-<p>Environment variables are undoubtedly the easiest way to configure an application. However there is no good method to update the envvar during a process' execution and have process reload it. </p>
-<p>Another approach is to load configuration from network resources such as another service or databases. This is likely how existing SaaS solutions work. This is a viable choice that offers a ton of flexibility, the potential operational overhead is worrying, for example, what happens if we fail to load the config from the remote? We likely need to handle many different failure nodes in our application.</p>
-<p>That's why I've chosen to configure the app a file as in the above example. Which is simple and more reliable than the network method. The file content can easily be changed by another process or manually. Likewise it can easily be viewed for debugging purposes.</p>
-<p>Note that I've chosen to use toml in the above example, but pydantic-settings includes loaders for almost all <a href="https://docs.pydantic.dev/latest/concepts/pydantic_settings/#other-settings-source">formats</a>. My personal preference is toml for small amount of config and yaml for potentially large config files. </p>
-<h2>Reloading the file dynamically</h2>
-<p>That leaves us with the biggest question, how will we reload the file dynamically? </p>
-<p>Luckily this is a question that already has well established answers: file watchers. File watchers are often used for local development to allow for dynamic reloading of servers. <a href="https://man7.org/linux/man-pages/man7/inotify.7.html">inotify</a> is one such exapmle on linux where a lot of server code is being run.</p>
-<p>There are already many packages that make use of inotify, I've chosen <a href="https://watchfiles.helpmanual.io/">watchfiles</a> for its broad compatibility across multiple platforms and generally great performance.</p>
-<p>The api is incredibly straightforward:</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">awatch</span><span class="p">(</span><span class="n">CONFIG_PATH</span><span class="p">):</span>
-    <span class="o">...</span>  <span class="c1"># handle the file change</span>
-</code></pre></div>
-
-<p>We enter a new iteration every time there's file change, during this iteration we can reload the settings. There are sync apis available as well but I'll stick to async for now. </p>
-<h2>Putting things together</h2>
-<p>I've added everything together in a FastAPI service. The service has a single endpoint to fetch the current settings values. Django and flask services can also use something similar to this, which I may cover in the near future.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># /// script</span>
-<span class="c1"># requires-python = &quot;&gt;=3.13&quot;</span>
-<span class="c1"># dependencies = [</span>
-<span class="c1">#     &quot;fastapi&quot;,</span>
-<span class="c1">#     &quot;pydantic-settings&quot;,</span>
-<span class="c1">#     &quot;uvicorn&quot;,</span>
-<span class="c1">#     &quot;watchfiles&quot;,</span>
-<span class="c1"># ]</span>
-<span class="c1"># ///</span>
-<span class="kn">import</span> <span class="nn">asyncio</span>
-<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">asynccontextmanager</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">AsyncIterator</span><span class="p">,</span> <span class="n">Self</span>
-
-<span class="kn">import</span> <span class="nn">uvicorn</span>
-<span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">FastAPI</span>
-<span class="kn">from</span> <span class="nn">pydantic_settings</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">BaseSettings</span><span class="p">,</span>
-    <span class="n">PydanticBaseSettingsSource</span><span class="p">,</span>
-    <span class="n">TomlConfigSettingsSource</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="kn">from</span> <span class="nn">watchfiles</span> <span class="kn">import</span> <span class="n">awatch</span>
-
-
-<span class="n">CONFIG_PATH</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;config.toml&quot;</span><span class="p">)</span>
-
-
-<span class="k">class</span> <span class="nc">Settings</span><span class="p">(</span><span class="n">BaseSettings</span><span class="p">):</span>
-    <span class="n">setting1</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">setting2</span><span class="p">:</span> <span class="nb">str</span>
-
-    <span class="n">model_config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;toml_file&quot;</span><span class="p">:</span> <span class="n">CONFIG_PATH</span><span class="p">}</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span>  <span class="c1"># type: ignore</span>
-
-    <span class="k">def</span> <span class="nf">reload</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>  <span class="c1"># type: ignore</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">settings_customise_sources</span><span class="p">(</span>
-        <span class="bp">cls</span><span class="p">,</span>
-        <span class="n">settings_cls</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">BaseSettings</span><span class="p">],</span>
-        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
-        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">PydanticBaseSettingsSource</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">TomlConfigSettingsSource</span><span class="p">(</span><span class="n">settings_cls</span><span class="p">),)</span>
-
-
-<span class="n">settings</span> <span class="o">=</span> <span class="n">Settings</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
-
-
-<span class="k">async</span> <span class="k">def</span> <span class="nf">auto_reload_settings</span><span class="p">():</span>
-    <span class="k">async</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">awatch</span><span class="p">(</span><span class="n">CONFIG_PATH</span><span class="p">):</span>
-        <span class="n">settings</span><span class="o">.</span><span class="n">reload</span><span class="p">()</span>
-
-
-<span class="nd">@asynccontextmanager</span>
-<span class="k">async</span> <span class="k">def</span> <span class="nf">lifespan</span><span class="p">(</span><span class="n">_</span><span class="p">:</span> <span class="n">FastAPI</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
-    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-        <span class="n">task</span> <span class="o">=</span> <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">auto_reload_settings</span><span class="p">())</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="k">yield</span>
-        <span class="k">finally</span><span class="p">:</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
-
-
-
-<span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">(</span><span class="n">lifespan</span><span class="o">=</span><span class="n">lifespan</span><span class="p">)</span>
-
-
-<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/settings&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">get_settings</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Settings</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">settings</span>
-
-
-<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
-    <span class="n">uvicorn</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
-</code></pre></div>
-
-<h3>A few notes</h3>
-<h4>Reloading and loading the settings</h4>
-<p>The documentation for inplace reloading can be found <a href="https://docs.pydantic.dev/latest/concepts/pydantic_settings/#in-place-reloading">here</a>. The direct invocation of <code>__init__</code> is a little odd so I've decided to encapsulate it as <code>reload</code> but otherwise this is just following the official documentation.</p>
-<h4>Running a background asyncio task</h4>
-<p><a href="https://fastapi.tiangolo.com/advanced/events/#use-case">lifespan</a> is the best way to add startup and teardown logic to a fastapi app. </p>
-<p><a href="https://docs.python.org/3/library/asyncio-task.html#task-groups">asyncio.TaskGroup</a> is used here to handle the task future and avoid not await warnings. </p>
-<h2>Next steps</h2>
-<p>I think what I've put together here is a very simple solution, but simple solutions can work more reliably. </p>
-<p>This is of course only the first step in hopefully a series of posts.In the near future I'll explore:</p>
-<ul>
-<li>Connecting the code with the infrastructure (e.g. kubernetes) we're running the code on. </li>
-<li>Solving the observability challenge that comes with dynamically changing configuration.</li>
-</ul>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options <a href="https://launchdarkly.com/">launchdarkly</a>, <a href="https://www.flagsmith.com/">flagsmith</a> and <a href="https://www.getunleash.io/">unleash</a> to name a few. </p>
+<p>SaaS options can be amazing with a full array of features, but I would …</p>
+                        <a class="readmore" href="./dynamic-config-part-1-pydantic-and-file-watchers.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -369,29 +401,6 @@
 </footer><!-- /.post-info -->                        <p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially <code>t-strings</code>). </p>
 <p><a href="https://peps.python.org/pep-0750/">PEP-750</a> officially introduces the concept. The idea …</p>
                         <a class="readmore" href="./t-strings-the-good-and-the-ugly.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./why-you-should-write-your-tools-in-python-again.html" rel="bookmark"
-                               title="Permalink to Why you should write your tools in Python Again">Why you should write your tools in Python Again</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-04-08T00:00:00+01:00">
-                Published: Tue 08 April 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>You're probably thinking that there are already plenty of tools written in Python.</p>
-<p>But I see that most of the popular tools like <code>mypy</code> and <code>flake8</code> are built for development environments. In contrast, general purpose cli tools tend to be built in other languages, for example most of the docker …</p>
-                        <a class="readmore" href="./why-you-should-write-your-tools-in-python-again.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->

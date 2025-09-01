@@ -1,5 +1,160 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-08-26T00:00:00+01:00</updated><entry><title>Dynamic config part 1: Pydantic and file watchers</title><link href="https://blog.changs.co.uk/dynamic-config-part-1-pydantic-and-file-watchers.html" rel="alternate"></link><published>2025-08-26T00:00:00+01:00</published><updated>2025-08-26T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-08-26:/dynamic-config-part-1-pydantic-and-file-watchers.html</id><summary type="html">&lt;p&gt;Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options &lt;a href="https://launchdarkly.com/"&gt;launchdarkly&lt;/a&gt;, &lt;a href="https://www.flagsmith.com/"&gt;flagsmith&lt;/a&gt; and &lt;a href="https://www.getunleash.io/"&gt;unleash&lt;/a&gt; to name a few. &lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-09-01T00:00:00+01:00</updated><entry><title>Simplify lambda deployments with UV.</title><link href="https://blog.changs.co.uk/simplify-lambda-deployments-with-uv.html" rel="alternate"></link><published>2025-09-01T00:00:00+01:00</published><updated>2025-09-01T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-09-01:/simplify-lambda-deployments-with-uv.html</id><summary type="html">&lt;p&gt;The python packaging landscape and developer experience has shifted dramatically in the past year or so with &lt;a href="https://docs.astral.sh/uv/"&gt;uv&lt;/a&gt;'s launch marked a pivotal moment. But behind the scenes many PEPs have worked to get us to this point. &lt;/p&gt;
+&lt;p&gt;One such PEP was &lt;a href="https://peps.python.org/pep-0723/"&gt;PEP 723 – Inline script metadata&lt;/a&gt; which we discussed …&lt;/p&gt;</summary><content type="html">&lt;p&gt;The python packaging landscape and developer experience has shifted dramatically in the past year or so with &lt;a href="https://docs.astral.sh/uv/"&gt;uv&lt;/a&gt;'s launch marked a pivotal moment. But behind the scenes many PEPs have worked to get us to this point. &lt;/p&gt;
+&lt;p&gt;One such PEP was &lt;a href="https://peps.python.org/pep-0723/"&gt;PEP 723 – Inline script metadata&lt;/a&gt; which we discussed in &lt;a href="https://blog.changs.co.uk/why-you-should-write-your-tools-in-python-again.html"&gt;why you should write your tools in Python Again&lt;/a&gt;. This PEP combined with support from uv allow us to write single file scripts whilst also handling dependencies in the same script. &lt;/p&gt;
+&lt;p&gt;I've been thinking about other places this might be useful outside of command line apps. Having recently used a lot of lambdas, I believe lambdas are the perfect place to use inline metadata and UV.&lt;/p&gt;
+&lt;h2&gt;Building a single file lambda with UV&lt;/h2&gt;
+&lt;p&gt;Lambdas most often run a small amount of simple code meaning the code is usually a single file. This fits particularly well with inline-metadata as we can keep everything compact and simple. &lt;/p&gt;
+&lt;p&gt;So let's give it a go, using the commands in uv's &lt;a href="https://docs.astral.sh/uv/guides/scripts/#creating-a-python-script"&gt;docs&lt;/a&gt;.&lt;/p&gt;
+&lt;h4&gt;&lt;code&gt;uv init&lt;/code&gt;&lt;/h4&gt;
+&lt;p&gt;Start by creating a file to write our code, we can define which python version we want here:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;init&lt;span class="w"&gt; &lt;/span&gt;--script&lt;span class="w"&gt; &lt;/span&gt;main.py&lt;span class="w"&gt; &lt;/span&gt;--python&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;.13
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This creates a file: &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# /// script&lt;/span&gt;
+&lt;span class="c1"&gt;# requires-python = &amp;quot;&amp;gt;=3.13&amp;quot;&lt;/span&gt;
+&lt;span class="c1"&gt;# dependencies = []&lt;/span&gt;
+&lt;span class="c1"&gt;# ///&lt;/span&gt;
+
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;main&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="nb"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Hello from main.py!&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+
+&lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="vm"&gt;__name__&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;__main__&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="n"&gt;main&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We can now add our code to it:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# /// script&lt;/span&gt;
+&lt;span class="c1"&gt;# requires-python = &amp;quot;&amp;gt;=3.13&amp;quot;&lt;/span&gt;
+&lt;span class="c1"&gt;# dependencies = []&lt;/span&gt;
+&lt;span class="c1"&gt;# ///&lt;/span&gt;
+
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;pydantic&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;BaseModel&lt;/span&gt;
+
+
+&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;Body&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;BaseModel&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;message&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;
+
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;lambda_handler&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;event&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;context&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;statusCode&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;200&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;body&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Body&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;message&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Hello, World!&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;model_dump_json&lt;/span&gt;&lt;span class="p"&gt;()}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h4&gt;&lt;code&gt;uv add&lt;/code&gt;&lt;/h4&gt;
+&lt;p&gt;Then we add any dependencies we need: &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;add&lt;span class="w"&gt; &lt;/span&gt;--script&lt;span class="w"&gt; &lt;/span&gt;main.py&lt;span class="w"&gt; &lt;/span&gt;pydantic
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This adds the dependency to the metadata of the file:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="c1"&gt;# /// script&lt;/span&gt;
+&lt;span class="c1"&gt;# requires-python = &amp;quot;&amp;gt;=3.13&amp;quot;&lt;/span&gt;
+&lt;span class="c1"&gt;# dependencies = [&lt;/span&gt;
+&lt;span class="c1"&gt;#     &amp;quot;pydantic&amp;quot;,&lt;/span&gt;
+&lt;span class="c1"&gt;# ]&lt;/span&gt;
+&lt;span class="c1"&gt;# ///&lt;/span&gt;
+&lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h4&gt;Optional: &lt;code&gt;uv lock&lt;/code&gt;&lt;/h4&gt;
+&lt;p&gt;&lt;code&gt;uv lock&lt;/code&gt; is a relatively new feature for scripts, for those who want reproducible builds using lock files.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;lock&lt;span class="w"&gt; &lt;/span&gt;--script&lt;span class="w"&gt; &lt;/span&gt;main.py
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Produces a lock file at &lt;code&gt;main.py.lock&lt;/code&gt;. When the lock file is present uv will then respect the lockfile's dependency. &lt;/p&gt;
+&lt;h4&gt;Develop code and &lt;code&gt;uv run&lt;/code&gt; locally&lt;/h4&gt;
+&lt;p&gt;After you develop your code, you can run the script without any virtual environment setup using: &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;--script&lt;span class="w"&gt; &lt;/span&gt;main.py
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h4&gt;Packaging the app&lt;/h4&gt;
+&lt;p&gt;So far we've used relatively well known workflows within uv. Now comes the tricky part, we need to download the dependencies and package it alongside the code. &lt;/p&gt;
+&lt;p&gt;The simplest way I found is to first export the deps as a requirements file.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nb"&gt;export&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;--script&lt;span class="w"&gt; &lt;/span&gt;main.py&lt;span class="w"&gt; &lt;/span&gt;--output-file&lt;span class="w"&gt; &lt;/span&gt;requirements.txt
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;And then install using &lt;code&gt;uv pip install&lt;/code&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;pip&lt;span class="w"&gt; &lt;/span&gt;install&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="se"&gt;\&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;-r&lt;span class="w"&gt; &lt;/span&gt;requirements.txt&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="se"&gt;\&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;--target&lt;span class="w"&gt; &lt;/span&gt;package/&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="se"&gt;\&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;--python-platform&lt;span class="w"&gt; &lt;/span&gt;x86_64-manylinux2014&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="se"&gt;\&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;--python-version&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;.13&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="se"&gt;\&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;--link-mode&lt;span class="w"&gt; &lt;/span&gt;copy&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="se"&gt;\&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;--only-binary&lt;span class="o"&gt;=&lt;/span&gt;:all:&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="se"&gt;\&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;--upgrade
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Now this is a complex command! Let's break it down:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;--target&lt;/code&gt; to install the package to a directory instead of a virtualenv&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;--python-platform&lt;/code&gt; is needed as we need to install packages for the lambdas specific. The options are essentially just arm or x86.
+-- &lt;code&gt;--link-code&lt;/code&gt; copy to produce a hard copy of the package if it comes from the uv cache
+-- &lt;code&gt;--only-binary&lt;/code&gt; to prevent uv from building a wheel from sdist, the resulting wheel may not work on the target platform.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;We need this complexity because pydantic contains platform specific native code. This is also a problem for pip.&lt;/p&gt;
+&lt;h4&gt;Creating the zip file and uploading it&lt;/h4&gt;
+&lt;p&gt;Creating the zip file now is simple:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="nb"&gt;cd&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;package
+zip&lt;span class="w"&gt; &lt;/span&gt;-r&lt;span class="w"&gt; &lt;/span&gt;../deployment.zip&lt;span class="w"&gt; &lt;/span&gt;.
+&lt;span class="nb"&gt;cd&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;..
+zip&lt;span class="w"&gt; &lt;/span&gt;-g&lt;span class="w"&gt; &lt;/span&gt;deployment.zip&lt;span class="w"&gt; &lt;/span&gt;main.py
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Finally we can use aws cli to upload the zip file:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;aws&lt;span class="w"&gt; &lt;/span&gt;lambda&lt;span class="w"&gt; &lt;/span&gt;update-function-code&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="se"&gt;\&lt;/span&gt;
+&lt;span class="w"&gt;  &lt;/span&gt;--function-name&lt;span class="w"&gt; &lt;/span&gt;&amp;lt;YOUR_FUNCTION_NAME&amp;gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="se"&gt;\&lt;/span&gt;
+&lt;span class="w"&gt;  &lt;/span&gt;--zip-file&lt;span class="w"&gt; &lt;/span&gt;fileb://deployment.zip&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="se"&gt;\&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We now have a workflow that uses a single file for both code and dependencies, which is convenient and then leverages uv for its dependency management and faster workflow.&lt;/p&gt;
+&lt;h2&gt;Making things easier&lt;/h2&gt;
+&lt;p&gt;But we can do a bit better, in our current workflow we still need to know which platform we need to install the dependencies for. To avoid this, we can simply just look up the platform and python versoin from AWS using &lt;code&gt;boto3&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;get_lambda_info&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;LambdaClient&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="nb"&gt;dict&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="n"&gt;response&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get_function_configuration&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;FunctionName&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;match&lt;/span&gt; &lt;span class="n"&gt;response&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;case&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Runtime&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;runtime&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;Architectures&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;x86_64&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;]}:&lt;/span&gt;
+            &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+                &lt;span class="s2"&gt;&amp;quot;python-version&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;runtime&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;remove_prefix&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;python&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt;
+                &lt;span class="s2"&gt;&amp;quot;architecture&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;x86_64-manylinux2014&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+            &lt;span class="p"&gt;}&lt;/span&gt;
+        &lt;span class="k"&gt;case&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Runtime&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;runtime&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;Architectures&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;arm64&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;]}:&lt;/span&gt;
+            &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+                &lt;span class="s2"&gt;&amp;quot;python-version&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;runtime&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;remove_prefix&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;python&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt;
+                &lt;span class="s2"&gt;&amp;quot;architecture&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;aarch64-manylinux2014&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+            &lt;span class="p"&gt;}&lt;/span&gt;
+
+        &lt;span class="k"&gt;case&lt;/span&gt; &lt;span class="n"&gt;other&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="k"&gt;raise&lt;/span&gt; &lt;span class="ne"&gt;Exception&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Unexpected response: &lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;other&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2&gt;Putting things together&lt;/h2&gt;
+&lt;p&gt;Since &lt;code&gt;get_lambda_info&lt;/code&gt; is a python function, and if I'm honest I am terrible at bash scripting. I've added everything in a Python script and published it as &lt;a href="https://pypi.org/project/simple-lambda/"&gt;simple-lambda&lt;/a&gt;. &lt;/p&gt;
+&lt;p&gt;I won't include the full source here, you can check it out on &lt;a href="https://github.com/Jamie-Chang/simple-lambda"&gt;github&lt;/a&gt;. &lt;/p&gt;
+&lt;p&gt;In my script I ended up using the following builtin libraries:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://docs.python.org/3/library/pathlib.html"&gt;pathlib&lt;/a&gt; to handle file and directory paths.&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://docs.python.org/3/library/tempfile.html"&gt;tempfile&lt;/a&gt; to create a temporary directory that gets deleted afterwards&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://docs.python.org/3/library/zipfile.html"&gt;zipfile&lt;/a&gt; to bundle everything in a &lt;code&gt;.zip&lt;/code&gt; file at the end&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Using builtin python modules doesn't only save you from installing extra dependencies but also ensures that you code is platform-agnostic. This is a very desirable feature of a cli. &lt;/p&gt;
+&lt;h2&gt;How to use the script&lt;/h2&gt;
+&lt;p&gt;It's simple, just write your single file lambda function as before. and run:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uvx&lt;span class="w"&gt; &lt;/span&gt;simple-lambda&lt;span class="w"&gt; &lt;/span&gt;deploy&lt;span class="w"&gt; &lt;/span&gt;&amp;lt;your_function_name&amp;gt;&lt;span class="w"&gt; &lt;/span&gt;main.py
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We're using &lt;code&gt;uvx&lt;/code&gt; here which will dynamically install &lt;code&gt;simple-lambda&lt;/code&gt; and run the script of the same name (by default). It also caches the package to avoid reinstalling it in the future.&lt;/p&gt;
+&lt;p&gt;If you want to explicitly keep a version of &lt;code&gt;simple-lambda&lt;/code&gt; on your machine then you can install it as a tool: &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;tool&lt;span class="w"&gt; &lt;/span&gt;install&lt;span class="w"&gt; &lt;/span&gt;simple-lambda
+simple-lambda&lt;span class="w"&gt; &lt;/span&gt;deploy&lt;span class="w"&gt; &lt;/span&gt;&amp;lt;your_function_name&amp;gt;&lt;span class="w"&gt; &lt;/span&gt;main.py
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;You do have the option to install with &lt;code&gt;pip&lt;/code&gt; of course but &lt;code&gt;uv&lt;/code&gt; is really just more convenient.&lt;/p&gt;
+&lt;h2&gt;Finally&lt;/h2&gt;
+&lt;p&gt;My hope is that either you find the script itself useful, or you've learned a bit more about tooling in Python. &lt;/p&gt;
+&lt;p&gt;I wrote this script to solve a real problem for myself, but I'm constantly amazed at the progress being made to improve Python packaging and tooling. &lt;/p&gt;
+&lt;p&gt;p.s. If you want to see another great use case of inline metadata, check out &lt;a href="https://pydantic.run/store/d49fe8ddf8c9813f"&gt;pydantic.run&lt;/a&gt;.&lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>Dynamic config part 1: Pydantic and file watchers</title><link href="https://blog.changs.co.uk/dynamic-config-part-1-pydantic-and-file-watchers.html" rel="alternate"></link><published>2025-08-26T00:00:00+01:00</published><updated>2025-08-26T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-08-26:/dynamic-config-part-1-pydantic-and-file-watchers.html</id><summary type="html">&lt;p&gt;Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options &lt;a href="https://launchdarkly.com/"&gt;launchdarkly&lt;/a&gt;, &lt;a href="https://www.flagsmith.com/"&gt;flagsmith&lt;/a&gt; and &lt;a href="https://www.getunleash.io/"&gt;unleash&lt;/a&gt; to name a few. &lt;/p&gt;
 &lt;p&gt;SaaS options can be amazing with a full array of features, but I would …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options &lt;a href="https://launchdarkly.com/"&gt;launchdarkly&lt;/a&gt;, &lt;a href="https://www.flagsmith.com/"&gt;flagsmith&lt;/a&gt; and &lt;a href="https://www.getunleash.io/"&gt;unleash&lt;/a&gt; to name a few. &lt;/p&gt;
 &lt;p&gt;SaaS options can be amazing with a full array of features, but I would love a simple solution to start with that can be set up in your own cluster.&lt;/p&gt;
 &lt;p&gt;I don't have a full solution in my head, instead I'm going to try and explore the space and work towards a solution over the next few posts.&lt;/p&gt;

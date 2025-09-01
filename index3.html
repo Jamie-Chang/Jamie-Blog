@@ -22,6 +22,37 @@
                         <ol id="posts-list" class="hfeed" start="9">
                 <li><article class="hentry">
                     <header>
+                        <h1><a href="./typeddicts-are-better-than-you-think.html" rel="bookmark"
+                               title="Permalink to TypedDicts are better than you think">TypedDicts are better than you think</a></h1>
+                    </header>
+
+                    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2024-10-01T00:00:00+01:00">
+                Published: Tue 01 October 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->                        <p><code>TypedDict</code> was introduced in <a href="https://peps.python.org/pep-0589/">PEP-589</a> which landed in Python 3.8.</p>
+<p>The primary use case was to create type annotations for dictionaries. For example,</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Movie</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span>
+
+
+<span class="n">movie</span><span class="p">:</span> <span class="n">Movie</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Avatar&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p>I remember thinking at the time that this was pretty neat, but I tend to use <code>dataclass …</code></p>
+                        <a class="readmore" href="./typeddicts-are-better-than-you-think.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
+
+                <li><article class="hentry">
+                    <header>
                         <h1><a href="./closing-python-iterators.html" rel="bookmark"
                                title="Permalink to Closing Python Iterators">Closing Python Iterators</a></h1>
                     </header>
