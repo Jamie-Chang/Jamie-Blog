@@ -56,8 +56,17 @@
             <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
 </code></pre></div>
 
+<p>Now here's where the problem starts. It works well for 100s of urls but it doesn't work well when we are using a very large number of urls.</p>
+<p>The issue is that we must create all the tasks before any tasks starts running in our current approach. In my testing, this starts to become a problem when we have 10M urls as the program will hang too long whilst creating tasks.</p>
+<p>The even bigger issue is that the memory usage will be a lot higher, as all 10M tasks will need to be stored somewhere in memory. </p>
+<h4>Edit Notes:</h4>
+<p>Previously I quoted the following behaviour and numbers that were not correct:</p>
+<blockquote>
 <p>Now here's where the problem starts. It works well for 100s of urls but when we hit a big number like 10000s we have a problem.</p>
 <p>The program seemingly hangs. This is because all the tasks are being created first and only then to do allow the tasks to start executing. The program will also use much more memory than it needs and generally might slow down due to more context switching. Definitely not what we want!</p>
+</blockquote>
+<p>Thanks to <a href="https://github.com/bmwant">@bmwant</a> for <a href="https://github.com/Jamie-Chang/aiointerpreters/issues/3#issuecomment-3265200226">pointing this out</a>.</p>
+<p>See my <a href="./asyncio-backpressure-follow-up.html">update post</a> for details. In short the memory implications are far greater than the speed impact. </p>
 <h3>sleep</h3>
 <p>At a first glance, we could instead add a bit of a <code>sleep</code> in the for loop allowing some tasks to start. And easing the pressure on the system.</p>
 <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">process_all</span><span class="p">(</span><span class="n">urls</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>

@@ -20,7 +20,202 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../simplify-lambda-deployments-with-uv.html">Simplify lambda deployments with UV</a></h1>
+                        <h1 class="entry-title"><a href="../asyncio-backpressure-follow-up.html">Asyncio backpressure - follow up</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2025-09-14T00:00:00+01:00">
+                Published: Sun 14 September 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>Previously when discussing <a href="../asyncio-backpressure-processing-lots-of-tasks-in-parallel.html">asyncio backpressure</a> I've made some claims that were not necessarily complete.</p>
+<p>I said:</p>
+<blockquote>
+<p>It works well for 100s of urls but when we hit a big number like 10000s we have a problem.</p>
+<p>The program seemingly hangs. This is because all the tasks are being created first and only then to do allow the tasks to start executing. The program will also use much more memory than it needs and generally might slow down due to more context switching. Definitely not what we want</p>
+</blockquote>
+<p>There are 2 issues here:</p>
+<ul>
+<li>First about the program hanging, it's actually quite hard to observe that behaviour. </li>
+<li>Second about the numbers, 10000s of tasks is actually not a big number for asyncio.</li>
+</ul>
+<p>This was pointed out in a <a href="https://github.com/Jamie-Chang/aiointerpreters/issues/3">Github issue</a> by <a href="https://github.com/bmwant">Misha Behersky</a>. Additionally I had not made it very clear why I proposed using semaphore like:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">process_all</span><span class="p">(</span><span class="n">urls</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">semaphore</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Semaphore</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">semaphore</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">))</span><span class="o">.</span><span class="n">add_done_callback</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="n">semaphore</span><span class="o">.</span><span class="n">release</span><span class="p">())</span>
+</code></pre></div>
+
+<p>As opposed to using it in a more standard way:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">process_one</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">semaphore</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">semaphore</span><span class="p">:</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>In order to properly explain the behaviour, I needed to construct a much better example so that I can benchmark both memory and speed.</p>
+<h2>Simulation</h2>
+<p>First and foremost, I've been testing back pressure by making concurrent calls to fetch wikipedia articles. </p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">request</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">AsyncClient</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>This is a good real world test, but when we are experimenting with thousands of concurrent calls, it adds load to unsuspecting servers. </p>
+<p>I could set up my own servers, but we have a simpler choice.</p>
+<p>One of the benefits of asyncio is that it provides primitives for concurrent operations. We can in that case easily simulate the network latency using <code>asyncio.sleep</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">request</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">))</span>  <span class="c1"># simulate the time delay for getting requests</span>
+</code></pre></div>
+
+<p>Here we assume the latency is between 100 and 200 ms. But we can also extend this to match a distribution observe in the real world. Similarly we can use this to simulate load with databases and message queues.</p>
+<h2>Measuring the speed and memory</h2>
+<p>Testing the speed or duration is simple, the best way is using <a href="https://docs.python.org/3/library/time.html#time.perf_counter">time.perf_counter</a>. We can compose this into a context manager like this:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">timer</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span><span class="p">,</span> <span class="s2">&quot;s&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Similarly we can track the peak memory used by using <a href="https://docs.python.org/3/library/tracemalloc.html">tracemalloc</a>:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">memory_profiler</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
+    <span class="n">tracemalloc</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">peak_memory</span> <span class="o">=</span> <span class="n">tracemalloc</span><span class="o">.</span><span class="n">get_traced_memory</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Peak memory usage: </span><span class="si">{</span><span class="n">peak_memory</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> bytes&quot;</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">tracemalloc</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</code></pre></div>
+
+<h2>Testing different implementations</h2>
+<p>In the original article, I proposed both batching and semaphore as methods of back pressure. So our test scenarios are as follows </p>
+<ol>
+<li>batched execution.</li>
+<li>acquiring semaphore inside the task as Python intended.</li>
+<li>acquiring semaphore before task creation and releasing with callback as I proposed.</li>
+</ol>
+<p>Finally a bonus implementation suggested in the issue thread to release the semaphore at the end of the function call:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">semaphore</span> <span class="o">=</span> <span class="n">Semaphore</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">with</span> <span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">semaphore</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">semaphore</span><span class="p">))</span>
+
+
+<span class="k">async</span> <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">semaphore</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="o">...</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">semaphore</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</code></pre></div>
+
+<p>The code can be found <a href="https://github.com/Jamie-Chang/concurreny-bench">here</a>. We run 100,000 inputs for each implementation limiting concurrency to 500 at a time.</p>
+<h2>Results</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+<th>Memory usage in bytes</th>
+<th>Duration in seconds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>batching.py</td>
+<td>Using batched to process things in batches as opposed to using semaphores</td>
+<td>821,692</td>
+<td>41.7</td>
+</tr>
+<tr>
+<td>semaphore1.py</td>
+<td>Traditional pythonic way of using semaphore, does not limit task creation</td>
+<td>152,154,848</td>
+<td>30.9</td>
+</tr>
+<tr>
+<td>semaphore2.py</td>
+<td>Semaphore limiting task creation with callback</td>
+<td>1,018,796</td>
+<td>30.2</td>
+</tr>
+<tr>
+<td>semaphore3.py</td>
+<td>Semaphore limiting task creation with release called in the task function</td>
+<td>839,176</td>
+<td>30.2</td>
+</tr>
+</tbody>
+</table>
+<h2>Analysis</h2>
+<p>Traditional use of semaphore does not limit the number of tasks being created, we must first create all 100,000 tasks and then start processing the tasks. As a result, the amount of memory requires is many times higher. Though the difference in speed is fairly small, it is consistently observable as we are not able to start processing during the creation phase.</p>
+<p>Another interesting result is that the semaphore2 with the callback uses more memory than just passing the semaphore to release in semaphore3. This is a quirk of constructing an extra lambda as a callback. Additionally, it may be more obvious than using the callback, so this method is definitely worth considering.</p>
+<p>Finally I want to talk about batching. Batching is very memory efficient as it doesn't need any extra objects however it does take a lot longer.
+This is explained in my original post:</p>
+<blockquote>
+<p>The problem is if we have a small amount of tasks with long wait times then it'll slow down the whole batch.</p>
+</blockquote>
+<p>Notice that our distributions has a lot of variance:</p>
+<div class="highlight"><pre><span></span><code><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">)</span>
+</code></pre></div>
+
+<p>if we reduce this to <code>random.uniform(0.1, 0.11)</code> we have closer results</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Duration in seconds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>batching.py</td>
+<td>24.65</td>
+</tr>
+<tr>
+<td>semaphore1.py</td>
+<td>22.0</td>
+</tr>
+<tr>
+<td>semaphore2.py</td>
+<td>21.1</td>
+</tr>
+<tr>
+<td>semaphore3.py</td>
+<td>21.1</td>
+</tr>
+</tbody>
+</table>
+<p>My view is batching and the 2 semaphore solutions are all very good solutions. Batching is simple, but you can get more performance out of using semaphores just not in the obvious way.</p>
+<p>On the other hand using semaphore normally is good but you should be aware of the memory implication.</p>
+<h2>Finally</h2>
+<p>I've spent a lot of time investigating asyncio back pressure here. The point is to provide the full context of the different options to use. </p>
+<p>I also hope that I've provided some ideas around how you might investigate different design patterns yourself.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../simplify-lambda-deployments-with-uv.html" rel="bookmark"
+                               title="Permalink to Simplify lambda deployments with UV">Simplify lambda deployments with UV</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-09-01T00:00:00+01:00">
                 Published: Mon 01 September 2025
@@ -31,166 +226,11 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>The python packaging landscape and developer experience has shifted dramatically in the past year or so with <a href="https://docs.astral.sh/uv/">uv</a>'s launch marked a pivotal moment. But behind the scenes many PEPs have worked to get us to this point. </p>
-<p>One such PEP was <a href="https://peps.python.org/pep-0723/">PEP 723 – Inline script metadata</a> which we discussed in <a href="../why-you-should-write-your-tools-in-python-again.html">why you should write your tools in Python Again</a>. This PEP combined with support from uv allow us to write single file scripts whilst also handling dependencies in the same script. </p>
-<p>I've been thinking about other places this might be useful outside of command line apps. Having recently used a lot of lambdas, I believe lambdas are the perfect place to use inline metadata and UV.</p>
-<h2>Building a single file lambda with UV</h2>
-<p>Lambdas most often run a small amount of simple code meaning the code is usually a single file. This fits particularly well with inline-metadata as we can keep everything compact and simple. </p>
-<p>So let's give it a go, using the commands in uv's <a href="https://docs.astral.sh/uv/guides/scripts/#creating-a-python-script">docs</a>.</p>
-<h4><code>uv init</code></h4>
-<p>Start by creating a file to write our code, we can define which python version we want here:</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>init<span class="w"> </span>--script<span class="w"> </span>main.py<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.13
-</code></pre></div>
-
-<p>This creates a file: </p>
-<div class="highlight"><pre><span></span><code><span class="c1"># /// script</span>
-<span class="c1"># requires-python = &quot;&gt;=3.13&quot;</span>
-<span class="c1"># dependencies = []</span>
-<span class="c1"># ///</span>
-
-
-<span class="k">def</span> <span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello from main.py!&quot;</span><span class="p">)</span>
-
-
-<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
-    <span class="n">main</span><span class="p">()</span>
-</code></pre></div>
-
-<p>We can now add our code to it:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># /// script</span>
-<span class="c1"># requires-python = &quot;&gt;=3.13&quot;</span>
-<span class="c1"># dependencies = []</span>
-<span class="c1"># ///</span>
-
-<span class="kn">from</span> <span class="nn">pydantic</span> <span class="kn">import</span> <span class="n">BaseModel</span>
-
-
-<span class="k">class</span> <span class="nc">Body</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span>
-
-
-<span class="k">def</span> <span class="nf">lambda_handler</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
-    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">Body</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s2">&quot;Hello, World!&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">model_dump_json</span><span class="p">()}</span>
-</code></pre></div>
-
-<h4><code>uv add</code></h4>
-<p>Then we add any dependencies we need: </p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>add<span class="w"> </span>--script<span class="w"> </span>main.py<span class="w"> </span>pydantic
-</code></pre></div>
-
-<p>This adds the dependency to the metadata of the file:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># /// script</span>
-<span class="c1"># requires-python = &quot;&gt;=3.13&quot;</span>
-<span class="c1"># dependencies = [</span>
-<span class="c1">#     &quot;pydantic&quot;,</span>
-<span class="c1"># ]</span>
-<span class="c1"># ///</span>
-<span class="o">...</span>
-</code></pre></div>
-
-<h4>Optional: <code>uv lock</code></h4>
-<p><code>uv lock</code> is a relatively new feature for scripts, for those who want reproducible builds using lock files.</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>lock<span class="w"> </span>--script<span class="w"> </span>main.py
-</code></pre></div>
-
-<p>Produces a lock file at <code>main.py.lock</code>. When the lock file is present uv will then respect the lockfile's dependency. </p>
-<h4>Develop code and <code>uv run</code> locally</h4>
-<p>After you develop your code, you can run the script without any virtual environment setup using: </p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--script<span class="w"> </span>main.py
-</code></pre></div>
-
-<h4>Packaging the app</h4>
-<p>So far we've used relatively well known workflows within uv. Now comes the tricky part, we need to download the dependencies and package it alongside the code. </p>
-<p>The simplest way I found is to first export the deps as a requirements file.</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--script<span class="w"> </span>main.py<span class="w"> </span>--output-file<span class="w"> </span>requirements.txt
-</code></pre></div>
-
-<p>And then install using <code>uv pip install</code></p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-r<span class="w"> </span>requirements.txt<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--target<span class="w"> </span>package/<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--python-platform<span class="w"> </span>x86_64-manylinux2014<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--python-version<span class="w"> </span><span class="m">3</span>.13<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--link-mode<span class="w"> </span>copy<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--only-binary<span class="o">=</span>:all:<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--upgrade
-</code></pre></div>
-
-<p>Now this is a complex command! Let's break it down:</p>
-<ul>
-<li><code>--target</code> to install the package to a directory instead of a virtualenv</li>
-<li><code>--python-platform</code> is needed as we need to install packages for the lambdas specific. The options are essentially just arm or x86.
--- <code>--link-code</code> copy to produce a hard copy of the package if it comes from the uv cache
--- <code>--only-binary</code> to prevent uv from building a wheel from sdist, the resulting wheel may not work on the target platform.</li>
-</ul>
-<p>We need this complexity because pydantic contains platform specific native code. This is also a problem for pip.</p>
-<h4>Creating the zip file and uploading it</h4>
-<p>Creating the zip file now is simple:</p>
-<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>package
-zip<span class="w"> </span>-r<span class="w"> </span>../deployment.zip<span class="w"> </span>.
-<span class="nb">cd</span><span class="w"> </span>..
-zip<span class="w"> </span>-g<span class="w"> </span>deployment.zip<span class="w"> </span>main.py
-</code></pre></div>
-
-<p>Finally we can use aws cli to upload the zip file:</p>
-<div class="highlight"><pre><span></span><code>aws<span class="w"> </span>lambda<span class="w"> </span>update-function-code<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--function-name<span class="w"> </span>&lt;YOUR_FUNCTION_NAME&gt;<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--zip-file<span class="w"> </span>fileb://deployment.zip<span class="w"> </span><span class="se">\</span>
-</code></pre></div>
-
-<p>We now have a workflow that uses a single file for both code and dependencies, which is convenient and then leverages uv for its dependency management and faster workflow.</p>
-<h2>Making things easier</h2>
-<p>But we can do a bit better, in our current workflow we still need to know which platform we need to install the dependencies for. To avoid this, we can simply just look up the platform and python versoin from AWS using <code>boto3</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">get_lambda_info</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">LambdaClient</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-    <span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_function_configuration</span><span class="p">(</span><span class="n">FunctionName</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
-    <span class="k">match</span> <span class="n">response</span><span class="p">:</span>
-        <span class="k">case</span> <span class="p">{</span><span class="s2">&quot;Runtime&quot;</span><span class="p">:</span> <span class="n">runtime</span><span class="p">,</span> <span class="s2">&quot;Architectures&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;x86_64&quot;</span><span class="p">]}:</span>
-            <span class="k">return</span> <span class="p">{</span>
-                <span class="s2">&quot;python-version&quot;</span><span class="p">:</span> <span class="n">runtime</span><span class="o">.</span><span class="n">remove_prefix</span><span class="p">(</span><span class="s2">&quot;python&quot;</span><span class="p">),</span>
-                <span class="s2">&quot;architecture&quot;</span><span class="p">:</span> <span class="s2">&quot;x86_64-manylinux2014&quot;</span><span class="p">,</span>
-            <span class="p">}</span>
-        <span class="k">case</span> <span class="p">{</span><span class="s2">&quot;Runtime&quot;</span><span class="p">:</span> <span class="n">runtime</span><span class="p">,</span> <span class="s2">&quot;Architectures&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;arm64&quot;</span><span class="p">]}:</span>
-            <span class="k">return</span> <span class="p">{</span>
-                <span class="s2">&quot;python-version&quot;</span><span class="p">:</span> <span class="n">runtime</span><span class="o">.</span><span class="n">remove_prefix</span><span class="p">(</span><span class="s2">&quot;python&quot;</span><span class="p">),</span>
-                <span class="s2">&quot;architecture&quot;</span><span class="p">:</span> <span class="s2">&quot;aarch64-manylinux2014&quot;</span><span class="p">,</span>
-            <span class="p">}</span>
-
-        <span class="k">case</span> <span class="n">other</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected response: </span><span class="si">{</span><span class="n">other</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</code></pre></div>
-
-<h2>Putting things together</h2>
-<p>Since <code>get_lambda_info</code> is a python function, and if I'm honest I am terrible at bash scripting. I've added everything in a Python script and published it as <a href="https://pypi.org/project/simple-lambda/">simple-lambda</a>. </p>
-<p>I won't include the full source here, you can check it out on <a href="https://github.com/Jamie-Chang/simple-lambda">github</a>. </p>
-<p>In my script I ended up using the following builtin libraries:</p>
-<ul>
-<li><a href="https://docs.python.org/3/library/pathlib.html">pathlib</a> to handle file and directory paths.</li>
-<li><a href="https://docs.python.org/3/library/tempfile.html">tempfile</a> to create a temporary directory that gets deleted afterwards</li>
-<li><a href="https://docs.python.org/3/library/zipfile.html">zipfile</a> to bundle everything in a <code>.zip</code> file at the end</li>
-</ul>
-<p>Using builtin python modules doesn't only save you from installing extra dependencies but also ensures that you code is platform-agnostic. This is a very desirable feature of a cli. </p>
-<h2>How to use the script</h2>
-<p>It's simple, just write your single file lambda function as before. and run:</p>
-<div class="highlight"><pre><span></span><code>uvx<span class="w"> </span>simple-lambda<span class="w"> </span>deploy<span class="w"> </span>&lt;your_function_name&gt;<span class="w"> </span>main.py
-</code></pre></div>
-
-<p>We're using <code>uvx</code> here which will dynamically install <code>simple-lambda</code> and run the script of the same name (by default). It also caches the package to avoid reinstalling it in the future.</p>
-<p>If you want to explicitly keep a version of <code>simple-lambda</code> on your machine then you can install it as a tool: </p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>simple-lambda
-simple-lambda<span class="w"> </span>deploy<span class="w"> </span>&lt;your_function_name&gt;<span class="w"> </span>main.py
-</code></pre></div>
-
-<p>You do have the option to install with <code>pip</code> of course but <code>uv</code> is really just more convenient.</p>
-<h2>Finally</h2>
-<p>My hope is that either you find the script itself useful, or you've learned a bit more about tooling in Python. </p>
-<p>I wrote this script to solve a real problem for myself, but I'm constantly amazed at the progress being made to improve Python packaging and tooling. </p>
-<p>p.s. If you want to see another great use case of inline metadata, check out <a href="https://pydantic.run/store/d49fe8ddf8c9813f">pydantic.run</a>.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>The python packaging landscape and developer experience has shifted dramatically in the past year or so with <a href="https://docs.astral.sh/uv/">uv</a>'s launch marked a pivotal moment. But behind the scenes many PEPs have worked to get us to this point. </p>
+<p>One such PEP was <a href="https://peps.python.org/pep-0723/">PEP 723 – Inline script metadata</a> which we discussed …</p>
+                        <a class="readmore" href="../simplify-lambda-deployments-with-uv.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -378,29 +418,6 @@ simple-lambda<span class="w"> </span>deploy<span class="w"> </span>&lt;your_func
         
 </footer><!-- /.post-info -->                        <p>In my posts earlier this year I talked about the parallelism performance on 3.13 free-threaded builds. In particular I looked at solving an advent of code <a href="https://adventofcode.com/2024/day/6">problem</a>. In <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> I discovered significant performance penalties for using free-threading and a lack of tooling available …</p>
                         <a class="readmore" href="../python-314-state-of-free-threading.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../t-strings-the-good-and-the-ugly.html" rel="bookmark"
-                               title="Permalink to t-strings: the good and the ugly">t-strings: the good and the ugly</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-05-07T00:00:00+01:00">
-                Published: Wed 07 May 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially <code>t-strings</code>). </p>
-<p><a href="https://peps.python.org/pep-0750/">PEP-750</a> officially introduces the concept. The idea …</p>
-                        <a class="readmore" href="../t-strings-the-good-and-the-ugly.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->
