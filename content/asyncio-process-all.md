@@ -26,9 +26,24 @@ async def process_all(urls: Iterable[str]) -> None:
             tg.create_task(process_one(url))
 ```
 
-Now here's where the problem starts. It works well for 100s of urls but when we hit a big number like 10000s we have a problem.
+Now here's where the problem starts. It works well for 100s of urls but it doesn't work well when we are using a very large number of urls.
 
-The program seemingly hangs. This is because all the tasks are being created first and only then to do allow the tasks to start executing. The program will also use much more memory than it needs and generally might slow down due to more context switching. Definitely not what we want!
+The issue is that we must create all the tasks before any tasks starts running in our current approach. In my testing, this starts to become a problem when we have 10M urls as the program will hang too long whilst creating tasks.
+
+The even bigger issue is that the memory usage will be a lot higher, as all 10M tasks will need to be stored somewhere in memory. 
+
+
+#### Edit Notes:
+Previously I quoted the following behaviour and numbers that were not correct:
+
+> Now here's where the problem starts. It works well for 100s of urls but when we hit a big number like 10000s we have a problem.
+
+>The program seemingly hangs. This is because all the tasks are being created first and only then to do allow the tasks to start executing. The program will also use much more memory than it needs and generally might slow down due to more context switching. Definitely not what we want!
+
+Thanks to [@bmwant](https://github.com/bmwant) for [pointing this out](https://github.com/Jamie-Chang/aiointerpreters/issues/3#issuecomment-3265200226).
+
+See my [update post]({filename}/asyncio-backpressure-followup.md) for details. In short the memory implications are far greater than the speed impact. 
+
 
 ### sleep
 At a first glance, we could instead add a bit of a `sleep` in the for loop allowing some tasks to start. And easing the pressure on the system.
