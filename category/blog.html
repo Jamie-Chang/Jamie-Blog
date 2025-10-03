@@ -20,7 +20,227 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../blog-1-year-in.html">Blog 1 year in</a></h1>
+                        <h1 class="entry-title"><a href="../finally-trying-out-mojo.html">Finally trying out Mojo 🔥</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2025-10-02T00:00:00+01:00">
+                Published: Thu 02 October 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+<p>tags: <a href="../tag/mojo.html">Mojo</a> <a href="../tag/python.html">Python</a> <a href="../tag/advent-of-code.html">Advent of Code</a> </p>        
+</footer><!-- /.post-info --><p><a href="https://www.modular.com/mojo">Mojo</a> has been on my radar for a while. In fact, I heard about it on launch back in May 2023. It was touted as a super set of Python with 10000s of times the performance. It's main focus is on AI related workloads with strong built in support of GPU programming.</p>
+<p>I've used <a href="https://adventofcode.com/2024/day/6">Advent of code 2024 day 6</a> as a benchmark for in Python before in <a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a>. So I figured why not solve the same puzzle one more time.</p>
+<h2>Implementation</h2>
+<p>Implementation can be found here:</p>
+<style type="text/css">
+  .gist-file
+  .gist-data {max-height: 500px;}
+</style>
+
+<script src="https://gist.github.com/Jamie-Chang/bcc693baebd6bb5ce471791cc57f0f6e.js"></script>
+
+<p>I won't go into all the details instead I'll choose to highlight parts of the code that are interesting.</p>
+<h3>Python like syntax</h3>
+<p>Python's syntax can be divisive, I happened to really like it (I'm biased). Mojo's syntax definitely carries over the spirit of Python's. </p>
+<div class="highlight"><pre><span></span><code><span class="nd">@fieldwise_init</span>
+<span class="k">struct</span><span class="w"> </span><span class="n n-Struct">Grid</span><span class="p">[</span><span class="n">T</span><span class="p">:</span><span class="w"> </span><span class="nb">Movable</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">ImplicitlyCopyable</span><span class="p">](</span><span class="nb">Copyable</span><span class="p">,</span><span class="w"> </span><span class="nb">Movable</span><span class="p">):</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nv">data</span><span class="p">:</span><span class="w"> </span><span class="nb">List</span><span class="p">[</span><span class="nb">List</span><span class="p">[</span><span class="n">T</span><span class="p">]]</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">pos</span><span class="p">:</span><span class="w"> </span><span class="n">Pair</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Bool</span><span class="p">:</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">pos</span><span class="o">.</span><span class="n">first</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">pos</span><span class="o">.</span><span class="n">second</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span>
+<span class="w">            </span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="o">.</span><span class="n">first</span><span class="p">]</span>
+<span class="w">        </span><span class="p">)</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">pos</span><span class="p">:</span><span class="w"> </span><span class="n">Pair</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">T</span><span class="p">:</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="o">.</span><span class="n">first</span><span class="p">][</span><span class="n">pos</span><span class="o">.</span><span class="n">second</span><span class="p">]</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="fm">__setitem__</span><span class="p">(</span><span class="n">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">pos</span><span class="p">:</span><span class="w"> </span><span class="n">Pair</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="n">T</span><span class="p">):</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="o">.</span><span class="n">first</span><span class="p">][</span><span class="n">pos</span><span class="o">.</span><span class="n">second</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span>
+</code></pre></div>
+
+<p>The above code is very similar to a dataclass I would create in Python:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Grid</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+    <span class="n">data</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">T</span><span class="p">]]</span>
+
+    <span class="k">def</span> <span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">:</span> <span class="n">Pair</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">pos</span><span class="o">.</span><span class="n">first</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">pos</span><span class="o">.</span><span class="n">second</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="o">.</span><span class="n">first</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">:</span> <span class="n">Pair</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="o">.</span><span class="n">first</span><span class="p">][</span><span class="n">pos</span><span class="o">.</span><span class="n">second</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">:</span> <span class="n">Pair</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="o">.</span><span class="n">first</span><span class="p">][</span><span class="n">pos</span><span class="o">.</span><span class="n">second</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+</code></pre></div>
+
+<p>So far so good, <code>@fieldwise_init</code> on a struct in mojo is pretty much equivalent to <code>@dataclass</code> in Python. The function syntax is pretty much the same. We need to declare <a href="https://docs.modular.com/mojo/manual/traits/">traits</a> similar to rust but otherwise this all makes sense. </p>
+<h3>Ergonomics</h3>
+<p>Whilst the syntax has the look and feel of Python. It's a little sad that a lot of python's conveniences haven't arrived in mojo yet. </p>
+<p>The biggest being the lack of generators. As a Python programmer I'm yielding whenever I can. It's a quick and easy way to define iteration behaviour. Mojo let's you define iterators as structs but it's pretty tough, see how I defined an iterator for how a guard should move:</p>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="n n-Struct">Guard</span><span class="p">(</span><span class="nb">Copyable</span><span class="p">,</span><span class="w"> </span><span class="n">Iterable</span><span class="p">,</span><span class="w"> </span><span class="n">Iterator</span><span class="p">,</span><span class="w"> </span><span class="nb">Movable</span><span class="p">):</span>
+<span class="w">    </span><span class="k">alias</span><span class="w"> </span><span class="nv">Element</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Pair</span>
+<span class="w">    </span><span class="k">alias</span><span class="w"> </span><span class="nv">IteratorType</span><span class="p">[</span>
+<span class="w">        </span><span class="n">iterable_mut</span><span class="p">:</span><span class="w"> </span><span class="n">Bool</span><span class="p">,</span><span class="w"> </span><span class="o">//</span><span class="p">,</span><span class="w"> </span><span class="n">iterable_origin</span><span class="p">:</span><span class="w"> </span><span class="n">Origin</span><span class="p">[</span><span class="n">iterable_mut</span><span class="p">]</span>
+<span class="w">    </span><span class="p">]:</span><span class="w"> </span><span class="n">Iterator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Self</span>
+
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nv">grid</span><span class="p">:</span><span class="w"> </span><span class="n">ArcPointer</span><span class="p">[</span><span class="n">Grid</span><span class="p">[</span><span class="n">Bool</span><span class="p">]]</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nv">position</span><span class="p">:</span><span class="w"> </span><span class="n">Pair</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nv">direction</span><span class="p">:</span><span class="w"> </span><span class="n">Pair</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nv">obstacle</span><span class="p">:</span><span class="w"> </span><span class="n">Optional</span><span class="p">[</span><span class="n">Pair</span><span class="p">]</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="w">        </span><span class="n">out</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span>
+<span class="w">        </span><span class="n">position</span><span class="p">:</span><span class="w"> </span><span class="n">Pair</span><span class="p">,</span>
+<span class="w">        </span><span class="n">read</span><span class="w"> </span><span class="n">grid</span><span class="p">:</span><span class="w"> </span><span class="n">ArcPointer</span><span class="p">[</span><span class="n">Grid</span><span class="p">[</span><span class="n">Bool</span><span class="p">]],</span>
+<span class="w">        </span><span class="n">obstacle</span><span class="p">:</span><span class="w"> </span><span class="n">Optional</span><span class="p">[</span><span class="n">Pair</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">None</span><span class="p">,</span>
+<span class="w">    </span><span class="p">):</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">position</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">grid</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">direction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Pair</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">obstacle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">obstacle</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">__has_next__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Bool</span><span class="p">:</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[]</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="fm">__iter__</span><span class="p">(</span><span class="n">ref</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Self</span><span class="o">.</span><span class="n">IteratorType</span><span class="p">[</span><span class="n">__origin_of</span><span class="p">(</span><span class="bp">self</span><span class="p">)]:</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="fm">__next__</span><span class="p">(</span><span class="n">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Pair</span><span class="p">:</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="nv">old</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">position</span>
+<span class="w">        </span><span class="n">candidate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">direction</span>
+<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span>
+<span class="w">            </span><span class="n">candidate</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[]</span>
+<span class="w">            </span><span class="ow">and</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[][</span><span class="n">candidate</span><span class="p">]</span>
+<span class="w">            </span><span class="ow">or</span><span class="w"> </span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obstacle</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">candidate</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">obstacle</span><span class="o">.</span><span class="n">value</span><span class="p">())</span>
+<span class="w">        </span><span class="p">):</span>
+<span class="w">            </span><span class="bp">self</span><span class="o">.</span><span class="n">direction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">direction</span><span class="o">.</span><span class="n">rotate</span><span class="p">()</span>
+<span class="w">            </span><span class="n">candidate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">direction</span>
+
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">candidate</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">old</span>
+</code></pre></div>
+
+<p>There is a lot of boiler plate needed for this, though it's not totally unreasonable. Using <code>yield</code> in Python would of course be a lot easier. But if we were forced to make a class based iterator then it'll look similar. </p>
+<p>Another feature I missed is pattern matching, but it's hopefully coming soon.</p>
+<h3>Traits</h3>
+<p><a href="https://docs.modular.com/mojo/manual/traits/">Traits</a> are used to define some behaviour an object should have in mojo. Traits were made popular in <a href="https://doc.rust-lang.org/book/ch10-02-traits.html">rust</a>. But is basically like an interface in Java but can have default method implementations. In Python this is closest to an abstract base class. </p>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="n n-Struct">Guard</span><span class="p">(</span><span class="nb">Copyable</span><span class="p">,</span><span class="w"> </span><span class="n">Iterable</span><span class="p">,</span><span class="w"> </span><span class="n">Iterator</span><span class="p">,</span><span class="w"> </span><span class="nb">Movable</span><span class="p">):</span>
+<span class="w">    </span><span class="o">...</span>
+</code></pre></div>
+
+<p>Here <code>Copyable, Iterable, Iterator, Movable</code> are all built in traits, for example <code>Iterable</code> trait is needed so we can use <code>Guard</code> in a for loop:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="n">positions</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">guard</span><span class="p">:</span>
+<span class="w">    </span><span class="o">...</span>
+</code></pre></div>
+
+<p>And traits can be more powerful than Python types because they can be composed using <code>&amp;</code>. Where as Python currently doesn't have type intersections. </p>
+<p>As someone who does a lot of type annotations in Python, I like the power traits can give you here. But there are some sharp corners:</p>
+<ul>
+<li>Some things are still not representable: <code>Tuple</code> in mojo is not <code>Hashable</code> this is because whether it's hashable or not depends on the child types, and there is no way in mojo to represent that.</li>
+<li>There are a lot of traits to remember, it can get old writing <code>Copyable</code> and <code>Movable</code> over and over again. That's not to mention we have <code>Implicit</code> versions of some traits too.</li>
+</ul>
+<h3>Memory Ownership</h3>
+<p>Mojo is a statically typed compiled language, it has an memory ownership model similar to rust and zig. </p>
+<p>Essentially a value is associated with the scope it's defined in, you can transfer this ownership by using ^ either when you're passing arguments to a function and therefore new scope, or when you are returning from a scope.</p>
+<div class="highlight"><pre><span></span><code><span class="k">fn</span><span class="w"> </span><span class="nf">parse</span><span class="p">(</span><span class="n">path</span><span class="p">:</span><span class="w"> </span><span class="n">Path</span><span class="p">)</span><span class="w"> </span><span class="n">raises</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nb">Tuple</span><span class="p">[</span><span class="n">Grid</span><span class="p">[</span><span class="n">Bool</span><span class="p">],</span><span class="w"> </span><span class="n">Pair</span><span class="p">]:</span>
+<span class="w">    </span><span class="n">matrix</span><span class="p">:</span><span class="w"> </span><span class="nb">List</span><span class="p">[</span><span class="nb">List</span><span class="p">[</span><span class="n">Bool</span><span class="p">]]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[]</span><span class="w">  </span><span class="c1"># list defined here owned by the current scope</span>
+<span class="w">    </span><span class="o">...</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">Grid</span><span class="p">(</span><span class="n">matrix</span><span class="o">^</span><span class="p">),</span><span class="w"> </span><span class="n">start</span><span class="o">.</span><span class="n">value</span><span class="p">()</span><span class="w">  </span><span class="c1"># passing the ownership to Grid struct</span>
+</code></pre></div>
+
+<p>This takes some getting used to, but it does often boil down adding <code>^</code> when the compiler yells at you. </p>
+<h3>Lifetimes</h3>
+<p>The ownership model necessitates the parametrisation of lifetimes, when a value is passed to a struct the compiler needs to know how long the variable is alive for and adjust the struct's lifetime accordingly. </p>
+<p>This is done in mojo via <a href="https://docs.modular.com/mojo/manual/values/lifetimes/">origin</a></p>
+<p>An example when defining an iterator:</p>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="n n-Struct">ResultSetIter</span><span class="p">[</span><span class="n">mut</span><span class="p">:</span><span class="w"> </span><span class="n">Bool</span><span class="p">,</span><span class="w"> </span><span class="o">//</span><span class="p">,</span><span class="w"> </span><span class="n">origin</span><span class="p">:</span><span class="w"> </span><span class="n">Origin</span><span class="p">[</span><span class="n">mut</span><span class="p">]](</span>
+<span class="w">    </span><span class="nb">Copyable</span><span class="p">,</span><span class="w"> </span><span class="n">Iterator</span><span class="p">,</span><span class="w"> </span><span class="nb">Movable</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="k">alias</span><span class="w"> </span><span class="nv">Element</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Bool</span>
+
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nv">result_set</span><span class="p">:</span><span class="w"> </span><span class="n">Pointer</span><span class="p">[</span><span class="n">ResultSet</span><span class="p">,</span><span class="w"> </span><span class="n">origin</span><span class="p">]</span>
+</code></pre></div>
+
+<p>Here we parameterise the origin to match the origin for the pointer. </p>
+<p>In my little example, the lifetimes have been the most challenging. I'm aware that lifetimes are also one of the nastiest parts of rust as well. In my case, having very few examples of lifetimes being used with structs available to me really made it more difficult. </p>
+<p>In one case, I gave up and just used an ARC (Atomic Reference Counting) Pointer. Which allows me to manage the value without lifetime, at the cost of unnecessary memory indirection. </p>
+<h3>Concurrency</h3>
+<p>Mojo doesn't currently have a lot of utilities for concurrency, it doesn't let you create <code>threads</code> directly.</p>
+<p>I've found <a href="https://docs.modular.com/mojo/stdlib/algorithm/functional/parallelize/">parallelize</a> which is similar to a thread pool. </p>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nv">inputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">elem</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">elem</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">positions</span><span class="p">]</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nv">result_set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResultSet</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">))</span>
+
+<span class="w">    </span><span class="nd">@parameter</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">worker</span><span class="p">(</span><span class="n">row</span><span class="p">:</span><span class="w"> </span><span class="nb">Int</span><span class="p">):</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="nv">guard</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Guard</span><span class="p">(</span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">grid</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">[</span><span class="n">row</span><span class="p">])</span>
+<span class="w">        </span><span class="n">loop</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">has_loop</span><span class="p">(</span><span class="n">guard</span><span class="p">)</span>
+<span class="w">        </span><span class="n">result_set</span><span class="p">[</span><span class="n">row</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">loop</span>
+
+<span class="w">    </span><span class="n">parallelize</span><span class="p">[</span><span class="n">worker</span><span class="p">](</span><span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">))</span>
+</code></pre></div>
+
+<p>To collect the results I've implemented a wrapper around some memory. This allows each item to be stored in a separate piece of memory. Avoiding the need for thread safe data structures that mojo currently doesn't have.</p>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="n n-Struct">ResultSet</span><span class="p">(</span><span class="nb">Copyable</span><span class="p">,</span><span class="w"> </span><span class="nb">Movable</span><span class="p">):</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nv">data</span><span class="p">:</span><span class="w"> </span><span class="n">UnsafePointer</span><span class="p">[</span><span class="n">Bool</span><span class="p">]</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nv">size</span><span class="p">:</span><span class="w"> </span><span class="nb">Int</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="n">out</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="p">:</span><span class="w"> </span><span class="nb">Int</span><span class="p">):</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UnsafePointer</span><span class="p">[</span><span class="n">Bool</span><span class="p">]</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">size</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">__copyinit__</span><span class="p">(</span><span class="n">out</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">existing</span><span class="p">:</span><span class="w"> </span><span class="n">Self</span><span class="p">):</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UnsafePointer</span><span class="p">[</span><span class="n">Bool</span><span class="p">]</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">existing</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">existing</span><span class="o">.</span><span class="n">size</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">dest</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">src</span><span class="o">=</span><span class="n">existing</span><span class="o">.</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="o">=</span><span class="n">existing</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="fm">__del__</span><span class="p">(</span><span class="n">deinit</span><span class="w"> </span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">free</span><span class="p">()</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">index</span><span class="p">:</span><span class="w"> </span><span class="nb">Int</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="n">Bool</span><span class="p">):</span>
+<span class="w">        </span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">index</span><span class="p">)[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">index</span><span class="p">:</span><span class="w"> </span><span class="nb">Int</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Bool</span><span class="p">:</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">index</span><span class="p">)[]</span>
+</code></pre></div>
+
+<p>This has been a lot more effort due to the lack of general support for threading. Ideally there's a way to collect the result in shorter batches, and an API that's similar to Python's <a href="https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor"><code>ThreadPoolExecutor</code></a>. It looks like there might be async support coming soon, so there is something to look forward to!</p>
+<h2>Performance</h2>
+<p>I've measured the following performance:</p>
+<p>Single core: 1.037 s
+Multi core: 0.273 s</p>
+<p>This is around 3x the performance of my best python implementations. It'll be interesting to see how this would compare with other system programming languages like rust. </p>
+<p>One of mojo's big features is its <a href="https://docs.modular.com/mojo/manual/python/">interoperability</a> with Python. So there's a lot of opportunity to speed up your slow python code with mojo and this is before we even look at SIMD and GPUs.</p>
+<h2>My feeling around Mojo</h2>
+<p>Some people have voiced concerns over the fact that mojo is backed by VCs and is mostly closed sourced. </p>
+<p>Personally, I don't have any problems with this, we can't be too idealistic here. Software like <a href="https://docs.astral.sh/uv/"><code>uv</code></a> might not exist without companies or investors funding it. And there is <a href="https://docs.modular.com/mojo/faq/#will-mojo-be-open-sourced">commitment</a> to open source it eventually.</p>
+<p>I think what mojo is trying to achieve is certainly interesting. Whilst it started out as a "Python Superset" it's not turned into a mix of Zig, Rust + Python syntax + inbuilt GPU/SIMD support. </p>
+<p>If you think that's a lot, you'd be right! You may have noticed as we walk through mojo's features, I find myself comparing to rust most of the time and not Python. People who don't know an existing systems programming language may find it too hard. People with experience in these languages may decide to stay in those languages.</p>
+<p>But on the flip side, if they can achieve this then we may have a really powerful language. </p>
+<p>Lastly I want to comment on the documentation around mojo. Though the tutorial is fairly good, if you veer just off the beaten track, then you get very very basic <a href="https://docs.modular.com/mojo/stdlib/pathlib/path/Path">docs</a> with no examples. For this I had to reference the source code for the <a href="https://github.com/modular/modular/blob/main/mojo/stdlib/README.md">standard library</a>, which is luckily the part of mojo that is open source. </p>
+<h2>Next steps</h2>
+<p>There are 2 aspects of mojo I've yet to try:</p>
+<ul>
+<li>GPU programming: I just don't have the hardware to take advantage of it</li>
+<li>Python interop: As I mentioned earlier, this could be a big win for mojo. Certainly something I will put some time to in the future.</li>
+</ul>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../blog-1-year-in.html" rel="bookmark"
+                               title="Permalink to Blog 1 year in">Blog 1 year in</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-09-24T00:00:00+01:00">
                 Published: Wed 24 September 2025
@@ -31,50 +251,12 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>It's been just over a year since I started my blog. In fact, this is my 27th blog post. I thought it'd be a good time for me to share some insights on blogging.</p>
+</footer><!-- /.post-info -->                        <p>It's been just over a year since I started my blog. In fact, this is my 27th blog post. I thought it'd be a good time for me to share some insights on blogging.</p>
 <h3>Motivation</h3>
-<p>Recently I've been asked by some people on why I do this. I think for people here there are a lot of reasons for writing blog posts. For example, it may increase your public profile and help you land a job.</p>
-<p>Though I believe the blog has helped me in my job hunting process, I don't think it's what motivates me. For me there are two aspects that gives me a big dopamine hit. One is to come up with ideas and concepts that are somewhat unique and interesting. And the second is knowing that people can learn a little from the content I produce.</p>
-<p>My personal favourites include:</p>
-<ul>
-<li><a href="../customising-pattern-matching-behaviour.html">Customising Pattern Matching Behaviour</a></li>
-<li><a href="../typeddicts-are-better-than-you-think.html">TypedDicts are better than you think</a></li>
-</ul>
-<p>I love that both of these articles had aspects that weren't well explored in Python before. For the <code>TypedDict</code> one I had an idea to use it for dependency injection. And the pattern matching article explores the structure of iterators in Python and uses it in conjunction with pattern matching. </p>
-<p>Honestly the process of experimenting and researching these topics were rewarding on their own. However normally I wouldn't spend this much effort when I don't have an immediate use of it professionally.</p>
-<p>Whilst I'm sure there are individuals that write for the sake of writing, I don't I can keep up writing without knowing people are reading it. Knowing that an article is being read by people gives me a lot of satisfaction and keeps me going.</p>
-<p>I've tracked the traffic through <a href="https://search.google.com/search-console/about">google search console</a> and <a href="https://www.cloudflare.com/en-gb/web-analytics/">cloudflare web analytics</a>.</p>
-<p><img alt="google-metrics" src="../images/google-metrics.png"></p>
-<p>The numbers are not particularly impressive but I can see it's growing over time. I'm also able to use this information to put more time into topics people are genuinely interested in. </p>
-<p>For example, I noticed a few months ago that searches for sub-interpreters were quietly increasing. In all likelihood, this is a combination of  its inclusion in Python 3.14, and people generally being unfamiliar with it. This inspired me to research and write a blog post about <a href="https://blog.changs.co.uk/subinterpreters-and-asyncio.html">subinterpreters and asyncio</a>.</p>
-<h3>Where I share my posts</h3>
-<p>I started off first sharing my posts on LinkedIn. LinkedIn provided basic metrics already and I probably had the most connections there.</p>
-<p>Blusky on the other hand has not been very successful for me, being a relatively new site it has been hard to build up engagement from scratch. However I love using it to follow other people in the Python space. </p>
-<p>Finally <a href="https://pycoders.com/">pycoder's weekly</a> has been simply fantastic. It's a very good source of dedicated Python article and news and my posts fit well with the newsletter. Posts featured there include:</p>
-<ul>
-<li><a href="https://blog.changs.co.uk/python-314-3-smaller-features.html">Python 3.14: 3 smaller features</a></li>
-<li><a href="https://blog.changs.co.uk/subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
-<li><a href="https://blog.changs.co.uk/typeddicts-are-better-than-you-think.html">TypedDicts Are Better Than You Think</a></li>
-<li><a href="https://blog.changs.co.uk/free-threaded-python-with-asyncio.html">Free Threaded Python With Asyncio</a> which has a benefit of always being referenced by Simon Willison in his <a href="https://simonwillison.net/2024/Oct/9/free-threaded-python-with-asyncio/">blog post</a></li>
-</ul>
-<p>It's then no surprise that these are also my top performing posts over the past year.</p>
-<h3>What else should I be doing?</h3>
-<p>I know some of my posts have been linked on hackernews and have had some engagement there. It sounds a little silly but I've consciously avoided posting myself because I know I'd get hung up over the comments.</p>
-<p>That being said, platforms such as reddit and hackernews are just great platforms to have engage in discussions. Since one of my goals is to explore new or obscure features in Python, it is a great place to host these discussions. </p>
-<p>Another suggestion I received is to add comments. There are a few good free options available: </p>
-<ul>
-<li>https://utteranc.es/ </li>
-<li>https://giscus.app/</li>
-</ul>
-<p>They all use github issues or discussion to power the comment section. </p>
-<p>Recently I've had some fruitful discussions in github issues from readers, so I'll look to add this in the near future.</p>
-<h3>Finally</h3>
-<p>I've personally found the process of writing blogs immensely rewarding, I hope to keep this up for as long as possible. Communication is not everybody's strong suit, and it can be daunting. But I think sharing ideas is really important to keep the ecosystem of Python and engineering fresh and exciting, and I hope more people start writing.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>Recently I've been asked by some people on why I do this. I think for …</p>
+                        <a class="readmore" href="../blog-1-year-in.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -265,30 +447,6 @@
 </footer><!-- /.post-info -->                        <p>Short update since <a href="../first-look-at-mcp.html">First Look at MCP</a>. Docker has released it's <a href="https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/">MCP toolkit</a> which includes a catalog of MCP servers as well as helpers to connect to the MCP clients.</p>
 <p>It is exceeding easy to use it, docker is registered as a single MCP server for your client. And tools …</p>
                         <a class="readmore" href="../dockers-mcp-toolkit-first-look.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../first-look-at-mcp.html" rel="bookmark"
-                               title="Permalink to First Look at MCP">First Look at MCP</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-06-03T00:00:00+01:00">
-                Published: Tue 03 June 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Previously I've played with tool calling in <a href="../python-in-python-sandboxing-llm-generated-code.html">Langchain and Python sandboxes</a>. But recently MCP (Model Context Protocol) is front and center. So I tried to create my own github MCP in Python to integrate <a href="https://www.cursor.com/">cursor</a> with the github cli.</p>
-<h1>What is MCP?</h1>
-<p>Before we get started, its good to familiarise …</p>
-                        <a class="readmore" href="../first-look-at-mcp.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->

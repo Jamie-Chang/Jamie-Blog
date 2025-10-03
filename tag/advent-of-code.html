@@ -4,35 +4,35 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog</title>
-                        <link rel="stylesheet" href="./theme/css/main.css" />
+                        <title>Jamie's Blog - Advent of Code</title>
+                        <link rel="stylesheet" href="../theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <h1><a href="../">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li><a href="./category/blog.html">Blog</a></li>
+                                                <li><a href="../category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./finally-trying-out-mojo.html">Finally trying out Mojo 🔥</a></h1>
+                        <h1 class="entry-title"><a href="../finally-trying-out-mojo.html">Finally trying out Mojo 🔥</a></h1>
 <footer class="post-info">
         <abbr class="published" title="2025-10-02T00:00:00+01:00">
                 Published: Thu 02 October 2025
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-<p>tags: <a href="./tag/mojo.html">Mojo</a> <a href="./tag/python.html">Python</a> <a href="./tag/advent-of-code.html">Advent of Code</a> </p>        
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+<p>tags: <a href="../tag/mojo.html">Mojo</a> <a href="../tag/python.html">Python</a> <a href="../tag/advent-of-code.html">Advent of Code</a> </p>        
 </footer><!-- /.post-info --><p><a href="https://www.modular.com/mojo">Mojo</a> has been on my radar for a while. In fact, I heard about it on launch back in May 2023. It was touted as a super set of Python with 10000s of times the performance. It's main focus is on AI related workloads with strong built in support of GPU programming.</p>
-<p>I've used <a href="https://adventofcode.com/2024/day/6">Advent of code 2024 day 6</a> as a benchmark for in Python before in <a href="./python-314-state-of-free-threading.html">Python 3.14: State of free threading</a>. So I figured why not solve the same puzzle one more time.</p>
+<p>I've used <a href="https://adventofcode.com/2024/day/6">Advent of code 2024 day 6</a> as a benchmark for in Python before in <a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a>. So I figured why not solve the same puzzle one more time.</p>
 <h2>Implementation</h2>
 <p>Implementation can be found here:</p>
 <style type="text/css">
@@ -229,235 +229,6 @@ Multi core: 0.273 s</p>
 <li>Python interop: As I mentioned earlier, this could be a big win for mojo. Certainly something I will put some time to in the future.</li>
 </ul>                    </article>
                 </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./blog-1-year-in.html" rel="bookmark"
-                               title="Permalink to Blog 1 year in">Blog 1 year in</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-09-24T00:00:00+01:00">
-                Published: Wed 24 September 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>It's been just over a year since I started my blog. In fact, this is my 27th blog post. I thought it'd be a good time for me to share some insights on blogging.</p>
-<h3>Motivation</h3>
-<p>Recently I've been asked by some people on why I do this. I think for …</p>
-                        <a class="readmore" href="./blog-1-year-in.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./asyncio-backpressure-follow-up.html" rel="bookmark"
-                               title="Permalink to Asyncio backpressure - follow up">Asyncio backpressure - follow up</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-09-14T00:00:00+01:00">
-                Published: Sun 14 September 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Previously when discussing <a href="./asyncio-backpressure-processing-lots-of-tasks-in-parallel.html">asyncio backpressure</a> I've made some claims that were not necessarily complete.</p>
-<p>I said:</p>
-<blockquote>
-<p>It works well for 100s of urls but when we hit a big number like 10000s we have a problem.</p>
-<p>The program seemingly hangs. This is because all the tasks are being created first …</p></blockquote>
-                        <a class="readmore" href="./asyncio-backpressure-follow-up.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./simplify-lambda-deployments-with-uv.html" rel="bookmark"
-                               title="Permalink to Simplify lambda deployments with UV">Simplify lambda deployments with UV</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-09-01T00:00:00+01:00">
-                Published: Mon 01 September 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>The python packaging landscape and developer experience has shifted dramatically in the past year or so with <a href="https://docs.astral.sh/uv/">uv</a>'s launch marked a pivotal moment. But behind the scenes many PEPs have worked to get us to this point. </p>
-<p>One such PEP was <a href="https://peps.python.org/pep-0723/">PEP 723 – Inline script metadata</a> which we discussed …</p>
-                        <a class="readmore" href="./simplify-lambda-deployments-with-uv.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./dynamic-config-part-1-pydantic-and-file-watchers.html" rel="bookmark"
-                               title="Permalink to Dynamic config part 1: Pydantic and file watchers">Dynamic config part 1: Pydantic and file watchers</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-08-26T00:00:00+01:00">
-                Published: Tue 26 August 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options <a href="https://launchdarkly.com/">launchdarkly</a>, <a href="https://www.flagsmith.com/">flagsmith</a> and <a href="https://www.getunleash.io/">unleash</a> to name a few. </p>
-<p>SaaS options can be amazing with a full array of features, but I would …</p>
-                        <a class="readmore" href="./dynamic-config-part-1-pydantic-and-file-watchers.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./subinterpreters-and-asyncio.html" rel="bookmark"
-                               title="Permalink to Subinterpreters and Asyncio">Subinterpreters and Asyncio</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-08-05T00:00:00+01:00">
-                Published: Tue 05 August 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p><a href="https://peps.python.org/pep-0734">PEP-734</a> subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late <a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734">addition</a>. subinterpreters now has a new home in the standard library module called <a href="https://docs.python.org/3.14/library/concurrent.interpreters.html">concurrent.interpreters</a>.</p>
-<p>If you've been following my blog posts you'll know that I'm particularly excited about this feature. </p>
-<ul>
-<li><a href="./how-good-are-sub-interpreters-in-python-now.html">How …</a></li></ul>
-                        <a class="readmore" href="./subinterpreters-and-asyncio.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./python-314-3-smaller-features.html" rel="bookmark"
-                               title="Permalink to Python 3.14: 3 smaller features">Python 3.14: 3 smaller features</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-07-11T00:00:00+01:00">
-                Published: Fri 11 July 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Python 3.14 is just around the corner and it's jampacked with huge updates:</p>
-<ul>
-<li><a href="./python-314-state-of-free-threading.html">Free threading and multiple interpreters?</a></li>
-<li><a href="./t-strings-the-good-and-the-ugly.html">Template strings</a></li>
-</ul>
-<p>But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire <a href="https://docs.python.org/3.14/whatsnew/3.14.html">release notes</a>. Luckily I am …</p>
-                        <a class="readmore" href="./python-314-3-smaller-features.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./my-chinese-birthdays-time-keeping-is-hard.html" rel="bookmark"
-                               title="Permalink to My Chinese birthdays, time keeping is hard!">My Chinese birthdays, time keeping is hard!</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-06-25T00:00:00+01:00">
-                Published: Wed 25 June 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a …</p>
-                        <a class="readmore" href="./my-chinese-birthdays-time-keeping-is-hard.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./asyncio-backpressure-processing-lots-of-tasks-in-parallel.html" rel="bookmark"
-                               title="Permalink to Asyncio backpressure - Processing lots of tasks in parallel">Asyncio backpressure - Processing lots of tasks in parallel</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-06-20T00:00:00+01:00">
-                Published: Fri 20 June 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>There's mixed feedback to Asyncio in the community. Some people passionately hate it whilst others believe "writing async make program go fast". This debate is way too much for me to cover here right now. Though maybe I'll look at it in the future. </p>
-<p>For me I use asyncio a …</p>
-                        <a class="readmore" href="./asyncio-backpressure-processing-lots-of-tasks-in-parallel.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./dockers-mcp-toolkit-first-look.html" rel="bookmark"
-                               title="Permalink to Docker's MCP toolkit First Look">Docker's MCP toolkit First Look</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-06-12T00:00:00+01:00">
-                Published: Thu 12 June 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Short update since <a href="./first-look-at-mcp.html">First Look at MCP</a>. Docker has released it's <a href="https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/">MCP toolkit</a> which includes a catalog of MCP servers as well as helpers to connect to the MCP clients.</p>
-<p>It is exceeding easy to use it, docker is registered as a single MCP server for your client. And tools …</p>
-                        <a class="readmore" href="./dockers-mcp-toolkit-first-look.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-  <nav>
-    <ul>
-      <li>Page 1 / 3</li>
-        <li><a href="./index2.html">&rang;</a></li>
-        <li><a href="./index3.html">&Rang;</a></li>
-    </ul>
-  </nav>
-                    </section><!-- /#content -->
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>
