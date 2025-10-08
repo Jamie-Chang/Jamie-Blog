@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-10-09T00:00:00+01:00</updated><entry><title>Python 3.14: 3 Asyncio Changes</title><link href="https://blog.changs.co.uk/python-314-3-asyncio-changes.html" rel="alternate"></link><published>2025-10-09T00:00:00+01:00</published><updated>2025-10-09T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-10-09:/python-314-3-asyncio-changes.html</id><summary type="html">&lt;p&gt;Python 3.14 was officially released yesterday October the 7th. There are a lot of new features and I've covered some of them before in:&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-10-09T00:00:00+01:00</updated><entry><title>Python 3.14: 3 Asyncio Changes</title><link href="https://blog.changs.co.uk/python-314-3-asyncio-changes.html" rel="alternate"></link><published>2025-10-09T00:00:00+01:00</published><updated>2025-10-09T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-10-09:/python-314-3-asyncio-changes.html</id><summary type="html">&lt;p&gt;Python 3.14 was officially released on October 7th. There are a lot of new features and I've covered some of them before in:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/python-314-3-smaller-features.html"&gt;Python 3.14: 3 smaller features&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html"&gt;t-strings: the good and the ugly&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/subinterpreters-and-asyncio.html"&gt;Subinterpreters and Asyncio&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;But I realised that as an asyncio poweruser I haven't …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Python 3.14 was officially released yesterday October the 7th. There are a lot of new features and I've covered some of them before in:&lt;/p&gt;
+&lt;p&gt;What I haven't covered here are any of the asyncio changes …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Python 3.14 was officially released on October 7th. There are a lot of new features and I've covered some of them before in:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/python-314-3-smaller-features.html"&gt;Python 3.14: 3 smaller features&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html"&gt;t-strings: the good and the ugly&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/subinterpreters-and-asyncio.html"&gt;Subinterpreters and Asyncio&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;But I realised that as an asyncio poweruser I haven't looked very hard into the new asyncio changes yet.&lt;/p&gt;
+&lt;p&gt;What I haven't covered here are any of the asyncio changes. There just happened to also be 3 changes to Asyncio this release ... &lt;/p&gt;
 &lt;h3&gt;Asyncio Debugger&lt;/h3&gt;
 &lt;p&gt;Python's builtin debugger &lt;a href="https://docs.python.org/3/library/pdb.html"&gt;&lt;code&gt;pdb&lt;/code&gt;&lt;/a&gt; may seem basic but one of its most powerful features is to run python code at a breakpoint:&lt;/p&gt;
 &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;my_func&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;dict&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
