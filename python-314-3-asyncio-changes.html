@@ -103,7 +103,13 @@
 
 <p>This might be a niche feature, but it's crucial for debugging things like async ORMs.</p>
 <p>If you just need to interact with async resources in a REPL, you can already start an async REPL since Python 3.8:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>asyncio
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>asyncio
+asyncio<span class="w"> </span>REPL<span class="w"> </span><span class="m">3</span>.9.6<span class="w"> </span><span class="o">(</span>default,<span class="w"> </span>Nov<span class="w"> </span><span class="m">11</span><span class="w"> </span><span class="m">2024</span>,<span class="w"> </span><span class="m">03</span>:15:38<span class="o">)</span><span class="w"> </span>
+<span class="o">[</span>Clang<span class="w"> </span><span class="m">16</span>.0.0<span class="w"> </span><span class="o">(</span>clang-1600.0.26.6<span class="o">)]</span><span class="w"> </span>on<span class="w"> </span>darwin
+Use<span class="w"> </span><span class="s2">&quot;await&quot;</span><span class="w"> </span>directly<span class="w"> </span>instead<span class="w"> </span>of<span class="w"> </span><span class="s2">&quot;asyncio.run()&quot;</span>.
+Type<span class="w"> </span><span class="s2">&quot;help&quot;</span>,<span class="w"> </span><span class="s2">&quot;copyright&quot;</span>,<span class="w"> </span><span class="s2">&quot;credits&quot;</span><span class="w"> </span>or<span class="w"> </span><span class="s2">&quot;license&quot;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span>more<span class="w"> </span>information.
+&gt;&gt;&gt;<span class="w"> </span>import<span class="w"> </span>asyncio
+&gt;&gt;&gt;<span class="w"> </span>await<span class="w"> </span>asyncio.sleep<span class="o">(</span><span class="m">1</span><span class="o">)</span>
 </code></pre></div>
 
 <h3>Asyncio Introspection</h3>
@@ -147,7 +153,7 @@
 <p>Finally, there are new <a href="https://docs.python.org/3.14/library/asyncio-graph.html">python apis</a> for this to get the information at a specific point in the code.</p>
 <h3>Asyncio in multiple free threads</h3>
 <p>Not to be confused with <a href="./free-threaded-python-with-asyncio.html">Free Threaded Python With Asyncio</a>. Where we run specific blocking code in threads using <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread">asyncio.to_thread</a>.</p>
-<p>Prior to 3.14 event loops were not thread safe in the free-threaded builds of Python. This means you can't run asyncio in a separate thread. In Python 3.14 Kumar Aditya has made changes to asyncio that makes it thread safe whilst also improving performance. You can see his blog post <a href="https://labs.quansight.org/blog/scaling-asyncio-on-free-threaded-python">here</a>.</p>
+<p>Prior to 3.14 event loops were not thread safe in the free-threaded builds of Python. This means you can't run asyncio in a separate thread. In Python 3.14 Kumar Aditya updated the event loop implementation maing it thread safe whilst also improving performance. You can see his blog post <a href="https://labs.quansight.org/blog/scaling-asyncio-on-free-threaded-python">here</a>.</p>
 <p>But if we are already doing things concurrently why would threads matter? Well this actually depends on how much blocking work your coroutines are doing.</p>
 <p>Let's say we have N coroutines all fetching data from a web page somewhere. This is perfect for asyncio, as http requests can be made without blocking the event loop.</p>
 <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
