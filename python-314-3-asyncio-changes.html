@@ -4,38 +4,44 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog - Python</title>
-                        <link rel="stylesheet" href="../theme/css/main.css" />
+                        <title>Python 3.14: 3 Asyncio Changes</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="Python 3.14 was officially released yesterday October the 7th. There are a lot of new features and I've covered some of them before in: Python..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="../">Jamie's Blog</a></h1>
+                        <h1><a href="./">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li><a href="../category/blog.html">Blog</a></li>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./python-314-3-asyncio-changes.html" rel="bookmark"
+             title="Permalink to Python 3.14: 3 Asyncio Changes">Python 3.14: 3 Asyncio Changes</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="../python-314-3-asyncio-changes.html">Python 3.14: 3 Asyncio Changes</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-10-09T00:00:00+01:00">
                 Published: Thu 09 October 2025
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/asyncio.html">asyncio</a> </p>        
-</footer><!-- /.post-info --><p>Python 3.14 was officially released yesterday October the 7th. There are a lot of new features and I've covered some of them before in:</p>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/pthon.html">πthon</a> <a href="./tag/python314.html">Python3.14</a> <a href="./tag/asyncio.html">asyncio</a> </p>        
+</footer><!-- /.post-info -->        <p>Python 3.14 was officially released yesterday October the 7th. There are a lot of new features and I've covered some of them before in:</p>
 <ul>
-<li><a href="../python-314-3-smaller-features.html">Python 3.14: 3 smaller features</a></li>
-<li><a href="../t-strings-the-good-and-the-ugly.html">t-strings: the good and the ugly</a></li>
-<li><a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
+<li><a href="./python-314-3-smaller-features.html">Python 3.14: 3 smaller features</a></li>
+<li><a href="./t-strings-the-good-and-the-ugly.html">t-strings: the good and the ugly</a></li>
+<li><a href="./subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
 </ul>
 <p>But I realised that as an asyncio poweruser I haven't looked very hard into the new asyncio changes yet.</p>
 <h3>Asyncio Debugger</h3>
@@ -140,7 +146,7 @@
 
 <p>Finally, there are new <a href="https://docs.python.org/3.14/library/asyncio-graph.html">python apis</a> for this to get the information at a specific point in the code.</p>
 <h3>Asyncio in multiple free threads</h3>
-<p>Not to be confused with <a href="../free-threaded-python-with-asyncio.html">Free Threaded Python With Asyncio</a>. Where we run specific blocking code in threads using <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread">asyncio.to_thread</a>.</p>
+<p>Not to be confused with <a href="./free-threaded-python-with-asyncio.html">Free Threaded Python With Asyncio</a>. Where we run specific blocking code in threads using <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread">asyncio.to_thread</a>.</p>
 <p>Prior to 3.14 event loops were not thread safe in the free-threaded builds of Python. This means you can't run asyncio in a separate thread. In Python 3.14 Kumar Aditya has made changes to asyncio that makes it thread safe whilst also improving performance. You can see his blog post <a href="https://labs.quansight.org/blog/scaling-asyncio-on-free-threaded-python">here</a>.</p>
 <p>But if we are already doing things concurrently why would threads matter? Well this actually depends on how much blocking work your coroutines are doing.</p>
 <p>Let's say we have N coroutines all fetching data from a web page somewhere. This is perfect for asyncio, as http requests can be made without blocking the event loop.</p>
@@ -162,7 +168,7 @@
         <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
 </code></pre></div>
 
-<p>You will ind that the CPU bound tasks will impact the performance of the event loop. This is actually a situation that I've run into a couple times already. This can be solved with <code>asyncio.to_thread</code> here but sharing a lot of data right now may have a <a href="../how-free-are-threads-in-python-now.html">performance impact</a>. </p>
+<p>You will ind that the CPU bound tasks will impact the performance of the event loop. This is actually a situation that I've run into a couple times already. This can be solved with <code>asyncio.to_thread</code> here but sharing a lot of data right now may have a <a href="./how-free-are-threads-in-python-now.html">performance impact</a>. </p>
 <p>Instead we can now spawn multiple free-threads with event loops. Each thread is still impacted by the CPU bound blocking tasks, however as we are processing the CPU-bound work concurrently, the impact is lowered. </p>
 <p>We will need a way to pass data between the threads, the best way I found is using <a href="https://docs.python.org/3/library/queue.html#queue.Queue">queue.Queue</a>:</p>
 <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
@@ -177,133 +183,11 @@
 
 <p>For benchmark performances it's better to check Kumar's blog post. He posts a very impressive performance improvement, which I also see in my own examples. He also shows a much higher raw TCP performance so there's potential to increase IO bound workloads as well.</p>
 <p>On the other hand, I found free-threading memory sharing awkward right now in Python and that impacts performance. My preferred method is using my very own <a href="https://github.com/Jamie-Chang/aiointerpreters/blob/main/examples/crawl.py">aiointerpreters</a> to launch the tasks to interpreter threads with subinterpreter's powerful shared memory functionality. </p>
-<p>As with a lot of concurrency problems, there is not a single way to solve these. This is fine, and you should try different approaches, run benchmarks see how they compare to pick the best method for your problem. </p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>As with a lot of concurrency problems, there is not a single way to solve these. This is fine, and you should try different approaches, run benchmarks see how they compare to pick the best method for your problem. </p>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../finally-trying-out-mojo.html" rel="bookmark"
-                               title="Permalink to Finally trying out Mojo 🔥">Finally trying out Mojo 🔥</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-10-02T00:00:00+01:00">
-                Published: Thu 02 October 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/mojo.html">Mojo</a> <a href="../tag/python.html">Python</a> <a href="../tag/advent-of-code.html">Advent of Code</a> </p>        
-</footer><!-- /.post-info -->                        <p><a href="https://www.modular.com/mojo">Mojo</a> has been on my radar for a while. In fact, I heard about it on launch back in May 2023. It was touted as a super set of Python with 10000s of times the performance. It's main focus is on AI related workloads with strong built in support of …</p>
-                        <a class="readmore" href="../finally-trying-out-mojo.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../subinterpreters-and-asyncio.html" rel="bookmark"
-                               title="Permalink to Subinterpreters and Asyncio">Subinterpreters and Asyncio</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-08-05T00:00:00+01:00">
-                Published: Tue 05 August 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->                        <p><a href="https://peps.python.org/pep-0734">PEP-734</a> subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late <a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734">addition</a>. subinterpreters now has a new home in the standard library module called <a href="https://docs.python.org/3.14/library/concurrent.interpreters.html">concurrent.interpreters</a>.</p>
-<p>If you've been following my blog posts you'll know that I'm particularly excited about this feature. </p>
-<ul>
-<li><a href="../how-good-are-sub-interpreters-in-python-now.html">How …</a></li></ul>
-                        <a class="readmore" href="../subinterpreters-and-asyncio.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-314-3-smaller-features.html" rel="bookmark"
-                               title="Permalink to Python 3.14: 3 smaller features">Python 3.14: 3 smaller features</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-07-11T00:00:00+01:00">
-                Published: Fri 11 July 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> </p>        
-</footer><!-- /.post-info -->                        <p>Python 3.14 is just around the corner and it's jampacked with huge updates:</p>
-<ul>
-<li><a href="../python-314-state-of-free-threading.html">Free threading and multiple interpreters?</a></li>
-<li><a href="../t-strings-the-good-and-the-ugly.html">Template strings</a></li>
-</ul>
-<p>But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire <a href="https://docs.python.org/3.14/whatsnew/3.14.html">release notes</a>. Luckily I am …</p>
-                        <a class="readmore" href="../python-314-3-smaller-features.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-314-state-of-free-threading.html" rel="bookmark"
-                               title="Permalink to Python 3.14: State of free threading">Python 3.14: State of free threading</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-05-26T00:00:00+01:00">
-                Published: Mon 26 May 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/free-threading.html">Free-threading</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->                        <p>In my posts earlier this year I talked about the parallelism performance on 3.13 free-threaded builds. In particular I looked at solving an advent of code <a href="https://adventofcode.com/2024/day/6">problem</a>. In <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> I discovered significant performance penalties for using free-threading and a lack of tooling available …</p>
-                        <a class="readmore" href="../python-314-state-of-free-threading.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../t-strings-the-good-and-the-ugly.html" rel="bookmark"
-                               title="Permalink to t-strings: the good and the ugly">t-strings: the good and the ugly</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-05-07T00:00:00+01:00">
-                Published: Wed 07 May 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/t-strings.html">t-strings</a> </p>        
-</footer><!-- /.post-info -->                        <p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially <code>t-strings</code>). </p>
-<p><a href="https://peps.python.org/pep-0750/">PEP-750</a> officially introduces the concept. The idea …</p>
-                        <a class="readmore" href="../t-strings-the-good-and-the-ugly.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>

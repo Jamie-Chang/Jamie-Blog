@@ -1,5 +1,157 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-10-02T00:00:00+01:00</updated><entry><title>Finally trying out Mojo 🔥</title><link href="https://blog.changs.co.uk/finally-trying-out-mojo.html" rel="alternate"></link><published>2025-10-02T00:00:00+01:00</published><updated>2025-10-02T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-10-02:/finally-trying-out-mojo.html</id><summary type="html">&lt;p&gt;&lt;a href="https://www.modular.com/mojo"&gt;Mojo&lt;/a&gt; has been on my radar for a while. In fact, I heard about it on launch back in May 2023. It was touted as a super set of Python with 10000s of times the performance. It's main focus is on AI related workloads with strong built in support of …&lt;/p&gt;</summary><content type="html">&lt;p&gt;&lt;a href="https://www.modular.com/mojo"&gt;Mojo&lt;/a&gt; has been on my radar for a while. In fact, I heard about it on launch back in May 2023. It was touted as a super set of Python with 10000s of times the performance. It's main focus is on AI related workloads with strong built in support of GPU programming.&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-10-09T00:00:00+01:00</updated><entry><title>Python 3.14: 3 Asyncio Changes</title><link href="https://blog.changs.co.uk/python-314-3-asyncio-changes.html" rel="alternate"></link><published>2025-10-09T00:00:00+01:00</published><updated>2025-10-09T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-10-09:/python-314-3-asyncio-changes.html</id><summary type="html">&lt;p&gt;Python 3.14 was officially released yesterday October the 7th. There are a lot of new features and I've covered some of them before in:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/python-314-3-smaller-features.html"&gt;Python 3.14: 3 smaller features&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html"&gt;t-strings: the good and the ugly&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/subinterpreters-and-asyncio.html"&gt;Subinterpreters and Asyncio&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;But I realised that as an asyncio poweruser I haven't …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Python 3.14 was officially released yesterday October the 7th. There are a lot of new features and I've covered some of them before in:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/python-314-3-smaller-features.html"&gt;Python 3.14: 3 smaller features&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html"&gt;t-strings: the good and the ugly&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/subinterpreters-and-asyncio.html"&gt;Subinterpreters and Asyncio&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;But I realised that as an asyncio poweruser I haven't looked very hard into the new asyncio changes yet.&lt;/p&gt;
+&lt;h3&gt;Asyncio Debugger&lt;/h3&gt;
+&lt;p&gt;Python's builtin debugger &lt;a href="https://docs.python.org/3/library/pdb.html"&gt;&lt;code&gt;pdb&lt;/code&gt;&lt;/a&gt; may seem basic but one of its most powerful features is to run python code at a breakpoint:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;my_func&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;dict&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="nb"&gt;breakpoint&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;  &lt;span class="c1"&gt;# or import pdb; pdb.set_trace()&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Which enters the debugger at the stack frame where breakpoint is called and allows us to interact with objects in scope. &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;my_func&lt;/span&gt;&lt;span class="p"&gt;({})&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;jamie&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;chang&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;projects&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;Jamie&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;Blog&lt;/span&gt;&lt;span class="o"&gt;/&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;stdin&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;-&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="n"&gt;my_func&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="kn"&gt;import&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nn"&gt;sys&lt;/span&gt;
+&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Pdb&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;
+&lt;span class="p"&gt;{}&lt;/span&gt;
+&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Pdb&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;However when it comes to asyncio commands it gets tricky:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;MyClient&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;now&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;time&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;time&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+
+&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;main&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+    &lt;span class="n"&gt;client&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;MyClient&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+    &lt;span class="nb"&gt;breakpoint&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;(Pdb) client.now
+&amp;lt;coroutine object MyClient.now at 0x102ad16c0&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We cannot await at all in pdb:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;(Pdb) await client.now()
+*** SyntaxError: &amp;#39;await&amp;#39; outside function
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Nor can we run it with &lt;code&gt;asyncio.run&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;(Pdb) asyncio.run(client.now)
+*** RuntimeError: asyncio.run() cannot be called from a running event loop
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Now this is possible with &lt;a href="https://docs.python.org/3.14/library/pdb.html#pdb.set_trace_async"&gt;pdb.set_trace_async&lt;/a&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;main&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+    &lt;span class="n"&gt;client&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;MyClient&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+    &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="n"&gt;pdb&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;set_trace_async&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;Note that &lt;code&gt;set_trace_async()&lt;/code&gt; is awaited here. As I understand it, this is a necessary compromise to get this feature working.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;And ... Success!&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;(Pdb) print(await client.now())
+1759933736.955492
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This might be a niche feature, but it's crucial for debugging things like async ORMs.&lt;/p&gt;
+&lt;p&gt;If you just need to interact with async resources in a REPL, you can already start an async REPL since Python 3.8:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;python&lt;span class="w"&gt; &lt;/span&gt;-m&lt;span class="w"&gt; &lt;/span&gt;asyncio
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3&gt;Asyncio Introspection&lt;/h3&gt;
+&lt;p&gt;Whether I'm teaching asyncio to newcomers or debugging complex concurrent programs myself. I've always found it difficult to visualise what's happening. &lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;When teaching asyncio we often just time the difference in performance, explaining it properly is hard.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;It is now possible with &lt;a href="https://docs.python.org/3.14/whatsnew/3.14.html#asyncio-introspection-capabilities"&gt;introspection&lt;/a&gt;. We can see the current call graph at runtime by:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;python&lt;span class="w"&gt; &lt;/span&gt;-m&lt;span class="w"&gt; &lt;/span&gt;asyncio&lt;span class="w"&gt; &lt;/span&gt;pstree&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;12345&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;where 12345 is the process id.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Note on macOS it needs to be run using sudo.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The graph looks like:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;└── (T) Task-1
+    └──  main /Users/jamie.chang/projects/concurreny-bench/backpressure/semaphore3.py:25
+        └──  Semaphore.acquire /Users/jamie.chang/.local/share/uv/python/cpython-3.14.0rc3-macos-aarch64-none/lib/python3.14/asyncio/locks.py:407
+            ├── (T) Task-30376
+            │   └──  process_url /Users/jamie.chang/projects/concurreny-bench/backpressure/semaphore3.py:15
+            │       └──  sleep /Users/jamie.chang/.local/share/uv/python/cpython-3.14.0rc3-macos-aarch64-none/lib/python3.14/asyncio/tasks.py:702
+            ├── (T) Task-30389
+            │   └──  process_url /Users/jamie.chang/projects/concurreny-bench/backpressure/semaphore3.py:15
+            │       └──  sleep /Users/jamie.chang/.local/share/uv/python/cpython-3.14.0rc3-macos-aarch64-none/lib/python3.14/asyncio/tasks.py:702
+            ├── (T) Task-30393
+            │   └──  process_url /Users/jamie.chang/projects/concurreny-bench/backpressure/semaphore3.py:15
+            │       └──  sleep /Users/jamie.chang/.local/share/uv/python/cpython-3.14.0rc3-macos-aarch64-none/lib/python3.14/asyncio/tasks.py:702
+            ├── (T) Task-30408
+            │   └──  process_url /Users/jamie.chang/projects/concurreny-bench/backpressure/semaphore3.py:15
+            │       └──  sleep /Users/jamie.chang/.local/share/uv/python/cpython-3.14.0rc3-macos-aarch64-none/lib/python3.14/asyncio/tasks.py:702
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;And make it a lot clearer what's going on inside the event loop. &lt;/p&gt;
+&lt;p&gt;Since it can be triggered on a currently running process, we can even use this to debug a live running application that may be stuck on some async resources. &lt;/p&gt;
+&lt;p&gt;I've been using this with &lt;a href="https://en.wikipedia.org/wiki/Watch_(command)"&gt;watch&lt;/a&gt; to see a live view of the graph.&lt;/p&gt;
+&lt;p&gt;You can also get the information in table form by:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;python&lt;span class="w"&gt; &lt;/span&gt;-m&lt;span class="w"&gt; &lt;/span&gt;asyncio&lt;span class="w"&gt; &lt;/span&gt;ps&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;12345&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Finally, there are new &lt;a href="https://docs.python.org/3.14/library/asyncio-graph.html"&gt;python apis&lt;/a&gt; for this to get the information at a specific point in the code.&lt;/p&gt;
+&lt;h3&gt;Asyncio in multiple free threads&lt;/h3&gt;
+&lt;p&gt;Not to be confused with &lt;a href="https://blog.changs.co.uk/free-threaded-python-with-asyncio.html"&gt;Free Threaded Python With Asyncio&lt;/a&gt;. Where we run specific blocking code in threads using &lt;a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread"&gt;asyncio.to_thread&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Prior to 3.14 event loops were not thread safe in the free-threaded builds of Python. This means you can't run asyncio in a separate thread. In Python 3.14 Kumar Aditya has made changes to asyncio that makes it thread safe whilst also improving performance. You can see his blog post &lt;a href="https://labs.quansight.org/blog/scaling-asyncio-on-free-threaded-python"&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;But if we are already doing things concurrently why would threads matter? Well this actually depends on how much blocking work your coroutines are doing.&lt;/p&gt;
+&lt;p&gt;Let's say we have N coroutines all fetching data from a web page somewhere. This is perfect for asyncio, as http requests can be made without blocking the event loop.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;TaskGroup&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="n"&gt;tg&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;url&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;urls&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;tg&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create_task&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;scrape&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;url&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;But what do we do with the scraped data? We need to parse this, so this will block the event loop as it's CPU bound.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;process&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;url&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;data&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="n"&gt;scrape&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;url&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="n"&gt;parse&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# CPU bound&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+
+&lt;span class="o"&gt;...&lt;/span&gt;
+
+&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;TaskGroup&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="n"&gt;tg&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;url&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;urls&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;tg&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create_task&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;process&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;url&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;You will ind that the CPU bound tasks will impact the performance of the event loop. This is actually a situation that I've run into a couple times already. This can be solved with &lt;code&gt;asyncio.to_thread&lt;/code&gt; here but sharing a lot of data right now may have a &lt;a href="https://blog.changs.co.uk/how-free-are-threads-in-python-now.html"&gt;performance impact&lt;/a&gt;. &lt;/p&gt;
+&lt;p&gt;Instead we can now spawn multiple free-threads with event loops. Each thread is still impacted by the CPU bound blocking tasks, however as we are processing the CPU-bound work concurrently, the impact is lowered. &lt;/p&gt;
+&lt;p&gt;We will need a way to pass data between the threads, the best way I found is using &lt;a href="https://docs.python.org/3/library/queue.html#queue.Queue"&gt;queue.Queue&lt;/a&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;asyncio&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;TaskGroup&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="n"&gt;tg&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="k"&gt;while&lt;/span&gt; &lt;span class="kc"&gt;True&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;try&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="n"&gt;url&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;queue&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get_nowait&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+        &lt;span class="k"&gt;except&lt;/span&gt; &lt;span class="n"&gt;Empty&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="k"&gt;break&lt;/span&gt;
+        &lt;span class="n"&gt;task&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;tg&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create_task&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;process&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;url&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+        &lt;span class="n"&gt;task&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;add_done_callback&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="k"&gt;lambda&lt;/span&gt; &lt;span class="n"&gt;_&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;queue&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;task_done&lt;/span&gt;&lt;span class="p"&gt;())&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;For benchmark performances it's better to check Kumar's blog post. He posts a very impressive performance improvement, which I also see in my own examples. He also shows a much higher raw TCP performance so there's potential to increase IO bound workloads as well.&lt;/p&gt;
+&lt;p&gt;On the other hand, I found free-threading memory sharing awkward right now in Python and that impacts performance. My preferred method is using my very own &lt;a href="https://github.com/Jamie-Chang/aiointerpreters/blob/main/examples/crawl.py"&gt;aiointerpreters&lt;/a&gt; to launch the tasks to interpreter threads with subinterpreter's powerful shared memory functionality. &lt;/p&gt;
+&lt;p&gt;As with a lot of concurrency problems, there is not a single way to solve these. This is fine, and you should try different approaches, run benchmarks see how they compare to pick the best method for your problem. &lt;/p&gt;</content><category term="Blog"></category><category term="Python"></category><category term="πthon"></category><category term="Python3.14"></category><category term="asyncio"></category></entry><entry><title>Finally trying out Mojo 🔥</title><link href="https://blog.changs.co.uk/finally-trying-out-mojo.html" rel="alternate"></link><published>2025-10-02T00:00:00+01:00</published><updated>2025-10-02T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-10-02:/finally-trying-out-mojo.html</id><summary type="html">&lt;p&gt;&lt;a href="https://www.modular.com/mojo"&gt;Mojo&lt;/a&gt; has been on my radar for a while. In fact, I heard about it on launch back in May 2023. It was touted as a super set of Python with 10000s of times the performance. It's main focus is on AI related workloads with strong built in support of …&lt;/p&gt;</summary><content type="html">&lt;p&gt;&lt;a href="https://www.modular.com/mojo"&gt;Mojo&lt;/a&gt; has been on my radar for a while. In fact, I heard about it on launch back in May 2023. It was touted as a super set of Python with 10000s of times the performance. It's main focus is on AI related workloads with strong built in support of GPU programming.&lt;/p&gt;
 &lt;p&gt;I've used &lt;a href="https://adventofcode.com/2024/day/6"&gt;Advent of code 2024 day 6&lt;/a&gt; as a benchmark for in Python before in &lt;a href="https://blog.changs.co.uk/python-314-state-of-free-threading.html"&gt;Python 3.14: State of free threading&lt;/a&gt;. So I figured why not solve the same puzzle one more time.&lt;/p&gt;
 &lt;h2&gt;Implementation&lt;/h2&gt;
 &lt;p&gt;Implementation can be found here:&lt;/p&gt;
@@ -925,7 +1077,7 @@ simple-lambda&lt;span class="w"&gt; &lt;/span&gt;deploy&lt;span class="w"&gt; &l
 &lt;p&gt;In contrast, when trying the same with free-threading on my machine I observed significant slowdowns.&lt;/p&gt;
 &lt;h2&gt;Parting words&lt;/h2&gt;
 &lt;p&gt;My goal with this package is to give more people the chance to leverage interpreters. I know this is probably not how everyone will prefer to use it and that's fine. I hope I've at least created a starting point for people to experiment more. &lt;/p&gt;
-&lt;p&gt;I look forward to seeing how this feature evolves, whether people use it with asyncio, or go with &lt;a href="https://en.wikipedia.org/wiki/Channel_(programming)"&gt;channels&lt;/a&gt; and &lt;a href="https://en.wikipedia.org/wiki/Communicating_sequential_processes"&gt;CSP&lt;/a&gt;, or maybe we create something entirely different. &lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>Python 3.14: 3 smaller features</title><link href="https://blog.changs.co.uk/python-314-3-smaller-features.html" rel="alternate"></link><published>2025-07-11T00:00:00+01:00</published><updated>2025-07-11T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-07-11:/python-314-3-smaller-features.html</id><summary type="html">&lt;p&gt;Python 3.14 is just around the corner and it's jampacked with huge updates:&lt;/p&gt;
+&lt;p&gt;I look forward to seeing how this feature evolves, whether people use it with asyncio, or go with &lt;a href="https://en.wikipedia.org/wiki/Channel_(programming)"&gt;channels&lt;/a&gt; and &lt;a href="https://en.wikipedia.org/wiki/Communicating_sequential_processes"&gt;CSP&lt;/a&gt;, or maybe we create something entirely different. &lt;/p&gt;</content><category term="Blog"></category><category term="Python"></category><category term="πthon"></category><category term="Python3.14"></category><category term="Subinterpreters"></category></entry><entry><title>Python 3.14: 3 smaller features</title><link href="https://blog.changs.co.uk/python-314-3-smaller-features.html" rel="alternate"></link><published>2025-07-11T00:00:00+01:00</published><updated>2025-07-11T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-07-11:/python-314-3-smaller-features.html</id><summary type="html">&lt;p&gt;Python 3.14 is just around the corner and it's jampacked with huge updates:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/python-314-state-of-free-threading.html"&gt;Free threading and multiple interpreters?&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html"&gt;Template strings&lt;/a&gt;&lt;/li&gt;
@@ -1027,7 +1179,7 @@ simple-lambda&lt;span class="w"&gt; &lt;/span&gt;deploy&lt;span class="w"&gt; &l
 &lt;blockquote&gt;
 &lt;p&gt;&lt;a href="https://datatracker.ietf.org/doc/html/rfc9562.html#section-5.7-4"&gt;Implementations SHOULD utilize UUIDv7 instead of UUIDv1 and UUIDv6 if possible&lt;/a&gt;&lt;/p&gt;
 &lt;/blockquote&gt;
-&lt;p&gt;Finally, version 8 is a standard that puts very few limits on the data inside the UUID, allowing vendors to create their own UUIDs based on custom standards. It is not something I personally have a use case for.&lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>My Chinese birthdays, time keeping is hard!</title><link href="https://blog.changs.co.uk/my-chinese-birthdays-time-keeping-is-hard.html" rel="alternate"></link><published>2025-06-25T00:00:00+01:00</published><updated>2025-06-25T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-06-25:/my-chinese-birthdays-time-keeping-is-hard.html</id><summary type="html">&lt;p&gt;I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a western one. &lt;/p&gt;
+&lt;p&gt;Finally, version 8 is a standard that puts very few limits on the data inside the UUID, allowing vendors to create their own UUIDs based on custom standards. It is not something I personally have a use case for.&lt;/p&gt;</content><category term="Blog"></category><category term="Python"></category><category term="πthon"></category><category term="Python3.14"></category></entry><entry><title>My Chinese birthdays, time keeping is hard!</title><link href="https://blog.changs.co.uk/my-chinese-birthdays-time-keeping-is-hard.html" rel="alternate"></link><published>2025-06-25T00:00:00+01:00</published><updated>2025-06-25T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-06-25:/my-chinese-birthdays-time-keeping-is-hard.html</id><summary type="html">&lt;p&gt;I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a western one. &lt;/p&gt;
 &lt;p&gt;I did find a small library called &lt;a href="https://github.com/lidaobing/python-lunardate"&gt;lunardate&lt;/a&gt;:&lt;/p&gt;
 &lt;p&gt;&lt;link rel="stylesheet" href="https://pyscript.net/releases/2025.5.1/core.css"&gt;&lt;/p&gt;
 &lt;!-- This script tag bootstraps PyScript --&gt;
@@ -1488,7 +1640,7 @@ makes it easy to split the urls into manageable batches:&lt;/p&gt;
 &lt;p&gt;The update may not be a game changer yet, but the trend is still positive.&lt;/p&gt;
 &lt;p&gt;There's also been talk of more radical changes to memory ownership and data structures see &lt;a href="https://microsoft.github.io/verona/pyrona.html"&gt;Project Verona&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;I have experienced cases where free-threading hits the mark of performance whilst being easier to use compared to subinterpreters. Though the community hasn't quite worked out the direction of free-threading, there's a good chance these incremental improvements will add up in the future allowing free-threading to become a no-brainer.&lt;/p&gt;
-&lt;p&gt;For now the best thing to do is to experiment and find examples where free-threading helps and examples where it doesn't.&lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>t-strings: the good and the ugly</title><link href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html" rel="alternate"></link><published>2025-05-07T00:00:00+01:00</published><updated>2025-05-07T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-05-07:/t-strings-the-good-and-the-ugly.html</id><summary type="html">&lt;p&gt;This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially &lt;code&gt;t-strings&lt;/code&gt;). &lt;/p&gt;
+&lt;p&gt;For now the best thing to do is to experiment and find examples where free-threading helps and examples where it doesn't.&lt;/p&gt;</content><category term="Blog"></category><category term="Python"></category><category term="πthon"></category><category term="Python3.14"></category><category term="Free-threading"></category><category term="Subinterpreters"></category></entry><entry><title>t-strings: the good and the ugly</title><link href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html" rel="alternate"></link><published>2025-05-07T00:00:00+01:00</published><updated>2025-05-07T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-05-07:/t-strings-the-good-and-the-ugly.html</id><summary type="html">&lt;p&gt;This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially &lt;code&gt;t-strings&lt;/code&gt;). &lt;/p&gt;
 &lt;p&gt;&lt;a href="https://peps.python.org/pep-0750/"&gt;PEP-750&lt;/a&gt; officially introduces the concept. The idea …&lt;/p&gt;</summary><content type="html">&lt;p&gt;This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially &lt;code&gt;t-strings&lt;/code&gt;). &lt;/p&gt;
 &lt;p&gt;&lt;a href="https://peps.python.org/pep-0750/"&gt;PEP-750&lt;/a&gt; officially introduces the concept. The idea is the syntax of &lt;code&gt;f-strings&lt;/code&gt; but allowing customised behaviours.&lt;/p&gt;
 &lt;h2&gt;Quick Recap of f-strings&lt;/h2&gt;
@@ -1601,7 +1753,7 @@ makes it easy to split the urls into manageable batches:&lt;/p&gt;
 &lt;p&gt;I think &lt;code&gt;t-strings&lt;/code&gt; are amazing and generally will be beneficial, I was definitely hyped about them. &lt;/p&gt;
 &lt;p&gt;I have recently shifted my opinions on new syntax in Python. I used to hate any weird syntax, going so far as to prefer &lt;code&gt;dict.update(new_dict)&lt;/code&gt; over the new &lt;code&gt;dict |= new_dict&lt;/code&gt;. But my recent experiments with &lt;a href="https://blog.changs.co.uk/building-a-dsl-with-python-operators.html"&gt;DSLs&lt;/a&gt; showed me that done right, there is a place for new syntax to be very beneficial.&lt;/p&gt;
 &lt;p&gt;I do also see the argument against new syntax. Before writing this post, I watched anthonywritescode's &lt;a href="https://www.youtube.com/watch?v=_QYAoNCK574&amp;amp;t=1640s"&gt;video&lt;/a&gt;. He actually goes very in depth on &lt;code&gt;t-strings&lt;/code&gt; made a good argument about the added mental overhead of this.&lt;/p&gt;
-&lt;p&gt;Therefore I can only say that we need to find our balance here. For me, I'll pursue opportunities to use &lt;code&gt;t-string&lt;/code&gt; to generate strings. But will tread more carefully when going off-piste to create complex objects.&lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>Why you should write your tools in Python Again</title><link href="https://blog.changs.co.uk/why-you-should-write-your-tools-in-python-again.html" rel="alternate"></link><published>2025-04-08T00:00:00+01:00</published><updated>2025-04-08T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-04-08:/why-you-should-write-your-tools-in-python-again.html</id><summary type="html">&lt;p&gt;You're probably thinking that there are already plenty of tools written in Python.&lt;/p&gt;
+&lt;p&gt;Therefore I can only say that we need to find our balance here. For me, I'll pursue opportunities to use &lt;code&gt;t-string&lt;/code&gt; to generate strings. But will tread more carefully when going off-piste to create complex objects.&lt;/p&gt;</content><category term="Blog"></category><category term="Python"></category><category term="πthon"></category><category term="Python3.14"></category><category term="t-strings"></category></entry><entry><title>Why you should write your tools in Python Again</title><link href="https://blog.changs.co.uk/why-you-should-write-your-tools-in-python-again.html" rel="alternate"></link><published>2025-04-08T00:00:00+01:00</published><updated>2025-04-08T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-04-08:/why-you-should-write-your-tools-in-python-again.html</id><summary type="html">&lt;p&gt;You're probably thinking that there are already plenty of tools written in Python.&lt;/p&gt;
 &lt;p&gt;But I see that most of the popular tools like &lt;code&gt;mypy&lt;/code&gt; and &lt;code&gt;flake8&lt;/code&gt; are built for development environments. In contrast, general purpose cli tools tend to be built in other languages, for example most of the docker …&lt;/p&gt;</summary><content type="html">&lt;p&gt;You're probably thinking that there are already plenty of tools written in Python.&lt;/p&gt;
 &lt;p&gt;But I see that most of the popular tools like &lt;code&gt;mypy&lt;/code&gt; and &lt;code&gt;flake8&lt;/code&gt; are built for development environments. In contrast, general purpose cli tools tend to be built in other languages, for example most of the docker/kubernetes clis are built in &lt;code&gt;go&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;This wasn't always the case, let's set our mind to the era of Python 2. 2.7 enjoyed an almost 10 year lifespan whilst the Python community was working on Python 3. The stability of 2.7 meant that it was easy to distribute tools as Python scripts. &lt;/p&gt;

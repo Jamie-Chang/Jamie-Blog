@@ -4,40 +4,34 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>t-strings: the good and the ugly</title>
-                        <link rel="stylesheet" href="./theme/css/main.css" />
+                        <title>Jamie's Blog - t-strings</title>
+                        <link rel="stylesheet" href="../theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
-    <meta name="description" content="This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <h1><a href="../">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                                                <li><a href="../category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
-  <section id="content" class="body">
-    <article>
-      <header>
-        <h1 class="entry-title">
-          <a href="./t-strings-the-good-and-the-ugly.html" rel="bookmark"
-             title="Permalink to t-strings: the good and the ugly">t-strings: the good and the ugly</a></h1>
-      </header>
 
-      <div class="entry-content">
+                <aside id="featured" class="body">
+                    <article>
+                        <h1 class="entry-title"><a href="../t-strings-the-good-and-the-ugly.html">t-strings: the good and the ugly</a></h1>
 <footer class="post-info">
         <abbr class="published" title="2025-05-07T00:00:00+01:00">
                 Published: Wed 07 May 2025
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/pthon.html">πthon</a> <a href="./tag/python314.html">Python3.14</a> <a href="./tag/t-strings.html">t-strings</a> </p>        
-</footer><!-- /.post-info -->        <p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially <code>t-strings</code>). </p>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/t-strings.html">t-strings</a> </p>        
+</footer><!-- /.post-info --><p>This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially <code>t-strings</code>). </p>
 <p><a href="https://peps.python.org/pep-0750/">PEP-750</a> officially introduces the concept. The idea is the syntax of <code>f-strings</code> but allowing customised behaviours.</p>
 <h2>Quick Recap of f-strings</h2>
 <p>F-strings were introduced in Python 3.7. The allow strings to formatted for concisely:</p>
@@ -147,13 +141,10 @@
 <p>Fringe use cases like this are usually my forte, but here it looks kind of ugly and awkward to me. This coupled with the fact that we lose all typing information when we build our 't-string` make it hard to recommend here.</p>
 <h2>Should we be using t-strings then?</h2>
 <p>I think <code>t-strings</code> are amazing and generally will be beneficial, I was definitely hyped about them. </p>
-<p>I have recently shifted my opinions on new syntax in Python. I used to hate any weird syntax, going so far as to prefer <code>dict.update(new_dict)</code> over the new <code>dict |= new_dict</code>. But my recent experiments with <a href="./building-a-dsl-with-python-operators.html">DSLs</a> showed me that done right, there is a place for new syntax to be very beneficial.</p>
+<p>I have recently shifted my opinions on new syntax in Python. I used to hate any weird syntax, going so far as to prefer <code>dict.update(new_dict)</code> over the new <code>dict |= new_dict</code>. But my recent experiments with <a href="../building-a-dsl-with-python-operators.html">DSLs</a> showed me that done right, there is a place for new syntax to be very beneficial.</p>
 <p>I do also see the argument against new syntax. Before writing this post, I watched anthonywritescode's <a href="https://www.youtube.com/watch?v=_QYAoNCK574&amp;t=1640s">video</a>. He actually goes very in depth on <code>t-strings</code> made a good argument about the added mental overhead of this.</p>
-<p>Therefore I can only say that we need to find our balance here. For me, I'll pursue opportunities to use <code>t-string</code> to generate strings. But will tread more carefully when going off-piste to create complex objects.</p>
-      </div><!-- /.entry-content -->
-
-    </article>
-  </section>
+<p>Therefore I can only say that we need to find our balance here. For me, I'll pursue opportunities to use <code>t-string</code> to generate strings. But will tread more carefully when going off-piste to create complex objects.</p>                    </article>
+                </aside><!-- /#featured -->
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>

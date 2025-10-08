@@ -4,44 +4,38 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Subinterpreters and Asyncio</title>
-                        <link rel="stylesheet" href="./theme/css/main.css" />
+                        <title>Jamie's Blog - Subinterpreters</title>
+                        <link rel="stylesheet" href="../theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
-    <meta name="description" content="PEP-734 subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late addition. subinterpreters now has a new home..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <h1><a href="../">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                                                <li><a href="../category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
-  <section id="content" class="body">
-    <article>
-      <header>
-        <h1 class="entry-title">
-          <a href="./subinterpreters-and-asyncio.html" rel="bookmark"
-             title="Permalink to Subinterpreters and Asyncio">Subinterpreters and Asyncio</a></h1>
-      </header>
 
-      <div class="entry-content">
+                <aside id="featured" class="body">
+                    <article>
+                        <h1 class="entry-title"><a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></h1>
 <footer class="post-info">
         <abbr class="published" title="2025-08-05T00:00:00+01:00">
                 Published: Tue 05 August 2025
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/pthon.html">πthon</a> <a href="./tag/python314.html">Python3.14</a> <a href="./tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->        <p><a href="https://peps.python.org/pep-0734">PEP-734</a> subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late <a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734">addition</a>. subinterpreters now has a new home in the standard library module called <a href="https://docs.python.org/3.14/library/concurrent.interpreters.html">concurrent.interpreters</a>.</p>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
+</footer><!-- /.post-info --><p><a href="https://peps.python.org/pep-0734">PEP-734</a> subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late <a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734">addition</a>. subinterpreters now has a new home in the standard library module called <a href="https://docs.python.org/3.14/library/concurrent.interpreters.html">concurrent.interpreters</a>.</p>
 <p>If you've been following my blog posts you'll know that I'm particularly excited about this feature. </p>
 <ul>
-<li><a href="./how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
-<li><a href="./python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
+<li><a href="../how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
+<li><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
 </ul>
 <p>My little advent of code example has been my goto benchmark of parallelism in Python. And multiple interpreters have consistently beaten free-threading in performance. Though I've always found the usability a little lacking.</p>
 <h2>Usability</h2>
@@ -77,7 +71,7 @@
 <p>First issue is that the function does not abstract the thread creation nor does it provide any mechanism to retrieve the results.</p>
 <p>The bigger issue for some of my use cases are that we're not reusing interpreters. Suppose we want to call something 1000s of times over the program's life cycle, creating 1000s of interpreters will not be feasible. This issue alone may turn people away from using the faster shared memory mechanism.</p>
 <h2>Using Asyncio</h2>
-<p>My solution for concurrency is almost always async, I've even made a similar case in <a href="./free-threaded-python-with-asyncio.html">Free Threaded Python With Asyncio</a>. </p>
+<p>My solution for concurrency is almost always async, I've even made a similar case in <a href="../free-threaded-python-with-asyncio.html">Free Threaded Python With Asyncio</a>. </p>
 <blockquote>
 <p>I am fully aware of how many people in the community dislike async. Unfortunately this is an opinion that could divide the community and is definitely a topic for another day. </p>
 </blockquote>
@@ -98,7 +92,7 @@
 <p>These caveats are directly linked to the design of subinterpreters, which you can read more about it below and in the original PEP. </p>
 <h3>Architecture</h3>
 <p>The architecture of the system can be represented by the following sequence diagram</p>
-<p><img alt="sequence diagram" src="./images/architecture.png"></p>
+<p><img alt="sequence diagram" src="../images/architecture.png"></p>
 <p>We spawn multiple worker(interpreter) threads and a single coordinator thread. The worker thread consume the task queue and put results on the result queue. </p>
 <p>The coordinator thread then picks up the results and sets the results in the future. Any awaiting tasks on the main thread will then resolve. Here's a simplified snippet of code to give you some idea of how this looks:</p>
 <div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Runner</span><span class="p">:</span>
@@ -248,11 +242,36 @@
 <p>In contrast, when trying the same with free-threading on my machine I observed significant slowdowns.</p>
 <h2>Parting words</h2>
 <p>My goal with this package is to give more people the chance to leverage interpreters. I know this is probably not how everyone will prefer to use it and that's fine. I hope I've at least created a starting point for people to experiment more. </p>
-<p>I look forward to seeing how this feature evolves, whether people use it with asyncio, or go with <a href="https://en.wikipedia.org/wiki/Channel_(programming)">channels</a> and <a href="https://en.wikipedia.org/wiki/Communicating_sequential_processes">CSP</a>, or maybe we create something entirely different. </p>
-      </div><!-- /.entry-content -->
+<p>I look forward to seeing how this feature evolves, whether people use it with asyncio, or go with <a href="https://en.wikipedia.org/wiki/Channel_(programming)">channels</a> and <a href="https://en.wikipedia.org/wiki/Communicating_sequential_processes">CSP</a>, or maybe we create something entirely different. </p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
 
-    </article>
-  </section>
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../python-314-state-of-free-threading.html" rel="bookmark"
+                               title="Permalink to Python 3.14: State of free threading">Python 3.14: State of free threading</a></h1>
+                    </header>
+
+                    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-05-26T00:00:00+01:00">
+                Published: Mon 26 May 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/free-threading.html">Free-threading</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
+</footer><!-- /.post-info -->                        <p>In my posts earlier this year I talked about the parallelism performance on 3.13 free-threaded builds. In particular I looked at solving an advent of code <a href="https://adventofcode.com/2024/day/6">problem</a>. In <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> I discovered significant performance penalties for using free-threading and a lack of tooling available …</p>
+                        <a class="readmore" href="../python-314-state-of-free-threading.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
+                    </ol><!-- /#posts-list -->
+                    </section><!-- /#content -->
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>
