@@ -1,6 +1,7 @@
 Title: Python 3.14: 3 smaller features
 Date: 2025.07.11
 Category: Blog
+Tags: Python, πthon, Python3.14
 
 Python 3.14 is just around the corner and it's jampacked with huge updates:
 

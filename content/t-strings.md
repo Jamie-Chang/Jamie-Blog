@@ -1,6 +1,7 @@
 Title: t-strings: the good and the ugly
 Date: 2025-05-07
 Category: Blog
+Tags: Python, πthon, Python3.14, t-strings
 
 
 This one's hot off the press as the first beta for Python 3.14 (aka. π-thon) has hit. We're looking at a chunky release with a lot of new features. But  all I can think about are these new template strings (officially `t-strings`). 

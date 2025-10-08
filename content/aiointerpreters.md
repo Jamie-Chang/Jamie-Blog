@@ -1,6 +1,7 @@
 Title: Subinterpreters and Asyncio
 Date: 2025-08-05
 Category: Blog
+Tags: Python, πthon, Python3.14, Subinterpreters
 
 
 [PEP-734](https://peps.python.org/pep-0734) subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late [addition](https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734). subinterpreters now has a new home in the standard library module called [concurrent.interpreters](https://docs.python.org/3.14/library/concurrent.interpreters.html).

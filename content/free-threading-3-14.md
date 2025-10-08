@@ -1,6 +1,7 @@
 Title: Python 3.14: State of free threading
 Date: 2025-05-26
 Category: Blog
+Tags: Python, πthon, Python3.14, Free-threading, Subinterpreters
 
 In my posts earlier this year I talked about the parallelism performance on 3.13 free-threaded builds. In particular I looked at solving an advent of code [problem](https://adventofcode.com/2024/day/6). In [How free are threads in Python now?]({filename}/free-threading-aoc.md) I discovered significant performance penalties for using free-threading and a lack of tooling available to debug these issues. In a later [post]({filename}/subinterpreter-aoc.md) I compared free-threading with the yet unreleased subinterpreters. 
 
