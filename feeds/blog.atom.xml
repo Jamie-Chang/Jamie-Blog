@@ -40,7 +40,7 @@
     &lt;span class="o"&gt;...&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
-&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;(Pdb) client.now
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;(Pdb) client.now()
 &amp;lt;coroutine object MyClient.now at 0x102ad16c0&amp;gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
@@ -50,7 +50,7 @@
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;Nor can we run it with &lt;code&gt;asyncio.run&lt;/code&gt;:&lt;/p&gt;
-&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;(Pdb) asyncio.run(client.now)
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;(Pdb) asyncio.run(client.now())
 *** RuntimeError: asyncio.run() cannot be called from a running event loop
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 

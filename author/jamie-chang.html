@@ -66,7 +66,7 @@
     <span class="o">...</span>
 </code></pre></div>
 
-<div class="highlight"><pre><span></span><code>(Pdb) client.now
+<div class="highlight"><pre><span></span><code>(Pdb) client.now()
 &lt;coroutine object MyClient.now at 0x102ad16c0&gt;
 </code></pre></div>
 
@@ -76,7 +76,7 @@
 </code></pre></div>
 
 <p>Nor can we run it with <code>asyncio.run</code>:</p>
-<div class="highlight"><pre><span></span><code>(Pdb) asyncio.run(client.now)
+<div class="highlight"><pre><span></span><code>(Pdb) asyncio.run(client.now())
 *** RuntimeError: asyncio.run() cannot be called from a running event loop
 </code></pre></div>
 
