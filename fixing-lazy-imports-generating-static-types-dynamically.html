@@ -58,7 +58,7 @@
     <span class="kn">from</span> <span class="nn">textual.widgets._checkbox</span> <span class="kn">import</span> <span class="n">Checkbox</span>
 </code></pre></div>
 
-<p>This is an example taken directly from textual which Brian discussed in his blog. Now your tooling understands the imports but at the cost of having to write this out manually. And we're still susceptible to typos and mistakes.</p>
+<p>This is an example taken directly from textual which Brian discussed in his blog. Now your tooling understands the imports but at the cost of having to write this out manually. And we're still susceptible to typos and mistakes. So is there a better way to solve this?</p>
 <h2>Providing static information dynamically</h2>
 <p>This may sound a bit contradictory but we can leverage runtime information to solve our lack of static information. </p>
 <p>Let's look at how <code>Lazy</code> is actually implemented: </p>

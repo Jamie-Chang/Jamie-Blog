@@ -23,7 +23,7 @@
     &lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;textual.widgets._checkbox&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;Checkbox&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
-&lt;p&gt;This is an example taken directly from textual which Brian discussed in his blog. Now your tooling understands the imports but at the cost of having to write this out manually. And we're still susceptible to typos and mistakes.&lt;/p&gt;
+&lt;p&gt;This is an example taken directly from textual which Brian discussed in his blog. Now your tooling understands the imports but at the cost of having to write this out manually. And we're still susceptible to typos and mistakes. So is there a better way to solve this?&lt;/p&gt;
 &lt;h2&gt;Providing static information dynamically&lt;/h2&gt;
 &lt;p&gt;This may sound a bit contradictory but we can leverage runtime information to solve our lack of static information. &lt;/p&gt;
 &lt;p&gt;Let's look at how &lt;code&gt;Lazy&lt;/code&gt; is actually implemented: &lt;/p&gt;
