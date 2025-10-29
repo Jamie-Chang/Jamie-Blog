@@ -34,7 +34,7 @@
 </footer><!-- /.post-info --><p>So I've just released a package called <a href="https://pypi.org/project/lazy-helper/">lazy-helper</a>. This comes as lazy loading has been a hot topic once again due to the proposal <a href="https://peps.python.org/pep-0810/">PEP-810</a>.</p>
 <p>Using my package we can define lazy loaded dependencies nicely:</p>
 <p><img alt="Defining a lazy module" src="../images/lazypy.png"></p>
-<p>Coincidentally Brian Okken has written a <a href="https://pythontest.com/polite-lazy-imports-python-packages/">blog post</a> covering the topic of lazy loading where he goes over how it works. This is the same mechanism my package uses, essentially defining a module level <code>__getattr__</code> with a cache. So I won't go into too much detail there.</p>
+<p>Coincidentally Brian Okken has recently written a <a href="https://pythontest.com/polite-lazy-imports-python-packages/">blog post</a> covering the topic of lazy loading where he goes over how it works. This is the same mechanism my package uses, essentially defining a module level <code>__getattr__</code> with a cache. So I won't go into too much detail there.</p>
 <h2>Obscured static information</h2>
 <p>What I want to focus on discussing is one of the downsides of this approach. Since we're using strings to represent our imports, what is imported and where it points to is now obscured. This means when you use an import like the following:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">lazy</span>
@@ -43,7 +43,7 @@
 <span class="n">lazy</span><span class="o">.</span><span class="n">typing</span>
 </code></pre></div>
 
-<p>Your editor or tools like mypy simply does not know where that leads to. Even worse, it doesn't even know if it's correct at all. If we have a typo <code>lazy.tpying</code> we won't find out until runtime.</p>
+<p>Your editor or tools like mypy simply does not know where that leads to. Even worse, it doesn't even know if it's correct at all. If we have a typo like <code>lazy.tpying</code> we won't find out until runtime.</p>
 <p>One way to provide this information is to manually specify this in a block like this:</p>
 <div class="highlight"><pre><span></span><code><span class="k">if</span> <span class="n">typing</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="o">...</span>
@@ -52,7 +52,7 @@
     <span class="kn">from</span> <span class="nn">textual.widgets._checkbox</span> <span class="kn">import</span> <span class="n">Checkbox</span>
 </code></pre></div>
 
-<p>This is an example taken directly from textual which Brian discussed in his blog. Now tooling understands the imports but at the cost of being more verbose. And we're still susceptible to typos and mistakes in the import strings.</p>
+<p>This is an example taken directly from textual which Brian discussed in his blog. Now your tooling understands the imports but at the cost of having to write this out manually. And we're still susceptible to typos and mistakes.</p>
 <h2>Providing static information dynamically</h2>
 <p>This may sound a bit contradictory but we can leverage runtime information to solve our lack of static information. </p>
 <p>Let's look at how <code>Lazy</code> is actually implemented: </p>

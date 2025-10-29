@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-10-29T00:00:00+00:00</updated><entry><title>Fixing lazy imports: Generating Static Types Dynamically</title><link href="https://blog.changs.co.uk/fixing-lazy-imports-generating-static-types-dynamically.html" rel="alternate"></link><published>2025-10-29T00:00:00+00:00</published><updated>2025-10-29T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-10-29:/fixing-lazy-imports-generating-static-types-dynamically.html</id><summary type="html">&lt;p&gt;So I've just released a package called &lt;a href="https://pypi.org/project/lazy-helper/"&gt;lazy-helper&lt;/a&gt;. This comes as lazy loading has been a hot topic once again due to the proposal &lt;a href="https://peps.python.org/pep-0810/"&gt;PEP-810&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Using my package we can define lazy loaded dependencies nicely:&lt;/p&gt;
 &lt;p&gt;&lt;img alt="Defining a lazy module" src="https://blog.changs.co.uk/images/lazypy.png"&gt;&lt;/p&gt;
-&lt;p&gt;Coincidentally Brian Okken has written a &lt;a href="https://pythontest.com/polite-lazy-imports-python-packages/"&gt;blog post&lt;/a&gt; covering the topic of lazy loading where …&lt;/p&gt;</summary><content type="html">&lt;p&gt;So I've just released a package called &lt;a href="https://pypi.org/project/lazy-helper/"&gt;lazy-helper&lt;/a&gt;. This comes as lazy loading has been a hot topic once again due to the proposal &lt;a href="https://peps.python.org/pep-0810/"&gt;PEP-810&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Coincidentally Brian Okken has recently written a &lt;a href="https://pythontest.com/polite-lazy-imports-python-packages/"&gt;blog post&lt;/a&gt; covering the topic of lazy loading …&lt;/p&gt;</summary><content type="html">&lt;p&gt;So I've just released a package called &lt;a href="https://pypi.org/project/lazy-helper/"&gt;lazy-helper&lt;/a&gt;. This comes as lazy loading has been a hot topic once again due to the proposal &lt;a href="https://peps.python.org/pep-0810/"&gt;PEP-810&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Using my package we can define lazy loaded dependencies nicely:&lt;/p&gt;
 &lt;p&gt;&lt;img alt="Defining a lazy module" src="https://blog.changs.co.uk/images/lazypy.png"&gt;&lt;/p&gt;
-&lt;p&gt;Coincidentally Brian Okken has written a &lt;a href="https://pythontest.com/polite-lazy-imports-python-packages/"&gt;blog post&lt;/a&gt; covering the topic of lazy loading where he goes over how it works. This is the same mechanism my package uses, essentially defining a module level &lt;code&gt;__getattr__&lt;/code&gt; with a cache. So I won't go into too much detail there.&lt;/p&gt;
+&lt;p&gt;Coincidentally Brian Okken has recently written a &lt;a href="https://pythontest.com/polite-lazy-imports-python-packages/"&gt;blog post&lt;/a&gt; covering the topic of lazy loading where he goes over how it works. This is the same mechanism my package uses, essentially defining a module level &lt;code&gt;__getattr__&lt;/code&gt; with a cache. So I won't go into too much detail there.&lt;/p&gt;
 &lt;h2&gt;Obscured static information&lt;/h2&gt;
 &lt;p&gt;What I want to focus on discussing is one of the downsides of this approach. Since we're using strings to represent our imports, what is imported and where it points to is now obscured. This means when you use an import like the following:&lt;/p&gt;
 &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;.&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;lazy&lt;/span&gt;
@@ -14,7 +14,7 @@
 &lt;span class="n"&gt;lazy&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;typing&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
-&lt;p&gt;Your editor or tools like mypy simply does not know where that leads to. Even worse, it doesn't even know if it's correct at all. If we have a typo &lt;code&gt;lazy.tpying&lt;/code&gt; we won't find out until runtime.&lt;/p&gt;
+&lt;p&gt;Your editor or tools like mypy simply does not know where that leads to. Even worse, it doesn't even know if it's correct at all. If we have a typo like &lt;code&gt;lazy.tpying&lt;/code&gt; we won't find out until runtime.&lt;/p&gt;
 &lt;p&gt;One way to provide this information is to manually specify this in a block like this:&lt;/p&gt;
 &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;typing&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;TYPE_CHECKING&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
     &lt;span class="o"&gt;...&lt;/span&gt;
@@ -23,7 +23,7 @@
     &lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;textual.widgets._checkbox&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;Checkbox&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
-&lt;p&gt;This is an example taken directly from textual which Brian discussed in his blog. Now tooling understands the imports but at the cost of being more verbose. And we're still susceptible to typos and mistakes in the import strings.&lt;/p&gt;
+&lt;p&gt;This is an example taken directly from textual which Brian discussed in his blog. Now your tooling understands the imports but at the cost of having to write this out manually. And we're still susceptible to typos and mistakes.&lt;/p&gt;
 &lt;h2&gt;Providing static information dynamically&lt;/h2&gt;
 &lt;p&gt;This may sound a bit contradictory but we can leverage runtime information to solve our lack of static information. &lt;/p&gt;
 &lt;p&gt;Let's look at how &lt;code&gt;Lazy&lt;/code&gt; is actually implemented: &lt;/p&gt;
