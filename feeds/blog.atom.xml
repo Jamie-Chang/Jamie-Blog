@@ -79,7 +79,11 @@
 
 &lt;p&gt;We'll then create a file with the printed code:&lt;/p&gt;
 &lt;p&gt;&lt;img alt="Generated stub file" src="https://blog.changs.co.uk/images/lazypyi.png"&gt;&lt;/p&gt;
-&lt;p&gt;Since the stub file is generated from the runtime information. Your editor should pick up any issues typos or mistake in declaring the imports. And this script also saves a lot of effort when you have a large number of imports. &lt;/p&gt;
+&lt;p&gt;Since the stub file is generated from the runtime information. Your editor should pick up any issues typos or mistake in declaring the imports. It also saves a lot of effort as you don't have to write the stub manually.&lt;/p&gt;
+&lt;p&gt;For this reason, I've packaged a cli to simplify the process:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;lazy-stubgen&lt;span class="w"&gt; &lt;/span&gt;src/lazy.py
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
 &lt;h2&gt;Stub generation is useful generally&lt;/h2&gt;
 &lt;p&gt;Python is a very dynamic language, the language places very few limitations on what you can do. On the other hand, the static typing ecosystem is relatively new with a lot of limitations. &lt;/p&gt;
 &lt;p&gt;When the type system is inadequate for a problem, there are 3 things people usually try:&lt;/p&gt;
@@ -88,13 +92,12 @@
 &lt;li&gt;Try very hard to represent the typing as best as possible. This is sometimes known as type gymnastics.&lt;/li&gt;
 &lt;li&gt;Or simply give up on trying to type the code.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;I want to be clear here, all of these are valid. Stub generators are yet another way to solve this problem, It has the potential to provide typing with very little manual effort. &lt;/p&gt;
-&lt;p&gt;It's not just something I've chosen to do here, there are plenty of other examples you should try out:&lt;/p&gt;
+&lt;p&gt;I want to be clear here, all of these are valid. Stub generators are yet another way to solve this problem, It has the potential to provide typing with very little manual effort. What's important is to keep understand all the techniques available to you and to apply then when they are needed. &lt;/p&gt;
+&lt;p&gt;Here are some other examples in the wider ecosystem you should check out:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="https://github.com/Instagram/MonkeyType"&gt;MonkeyType&lt;/a&gt; a very tool that stores typing information as the code executes, to then generate static types afterwards.&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://protobuf.dev/reference/python/python-generated/"&gt;protoc&lt;/a&gt; protocol buffers are compiled into Python code with a mess of descriptors that is not type friendly, the compiler has a &lt;code&gt;--pyi_out&lt;/code&gt; option to create the type stubs to solve this issue.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;What's important is to keep understand all the techniques available to you and to apply then when they are needed. &lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>Python 3.14: 3 Asyncio Changes</title><link href="https://blog.changs.co.uk/python-314-3-asyncio-changes.html" rel="alternate"></link><published>2025-10-09T00:00:00+01:00</published><updated>2025-10-09T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-10-09:/python-314-3-asyncio-changes.html</id><summary type="html">&lt;p&gt;Python 3.14 was officially released on October 7th. There are a lot of new features and I've covered some of them before in:&lt;/p&gt;
+&lt;/ul&gt;</content><category term="Blog"></category></entry><entry><title>Python 3.14: 3 Asyncio Changes</title><link href="https://blog.changs.co.uk/python-314-3-asyncio-changes.html" rel="alternate"></link><published>2025-10-09T00:00:00+01:00</published><updated>2025-10-09T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-10-09:/python-314-3-asyncio-changes.html</id><summary type="html">&lt;p&gt;Python 3.14 was officially released on October 7th. There are a lot of new features and I've covered some of them before in:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/python-314-3-smaller-features.html"&gt;Python 3.14: 3 smaller features&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/t-strings-the-good-and-the-ugly.html"&gt;t-strings: the good and the ugly&lt;/a&gt;&lt;/li&gt;

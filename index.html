@@ -108,7 +108,11 @@
 
 <p>We'll then create a file with the printed code:</p>
 <p><img alt="Generated stub file" src="./images/lazypyi.png"></p>
-<p>Since the stub file is generated from the runtime information. Your editor should pick up any issues typos or mistake in declaring the imports. And this script also saves a lot of effort when you have a large number of imports. </p>
+<p>Since the stub file is generated from the runtime information. Your editor should pick up any issues typos or mistake in declaring the imports. It also saves a lot of effort as you don't have to write the stub manually.</p>
+<p>For this reason, I've packaged a cli to simplify the process:</p>
+<div class="highlight"><pre><span></span><code>lazy-stubgen<span class="w"> </span>src/lazy.py
+</code></pre></div>
+
 <h2>Stub generation is useful generally</h2>
 <p>Python is a very dynamic language, the language places very few limitations on what you can do. On the other hand, the static typing ecosystem is relatively new with a lot of limitations. </p>
 <p>When the type system is inadequate for a problem, there are 3 things people usually try:</p>
@@ -117,13 +121,12 @@
 <li>Try very hard to represent the typing as best as possible. This is sometimes known as type gymnastics.</li>
 <li>Or simply give up on trying to type the code.</li>
 </ul>
-<p>I want to be clear here, all of these are valid. Stub generators are yet another way to solve this problem, It has the potential to provide typing with very little manual effort. </p>
-<p>It's not just something I've chosen to do here, there are plenty of other examples you should try out:</p>
+<p>I want to be clear here, all of these are valid. Stub generators are yet another way to solve this problem, It has the potential to provide typing with very little manual effort. What's important is to keep understand all the techniques available to you and to apply then when they are needed. </p>
+<p>Here are some other examples in the wider ecosystem you should check out:</p>
 <ul>
 <li><a href="https://github.com/Instagram/MonkeyType">MonkeyType</a> a very tool that stores typing information as the code executes, to then generate static types afterwards.</li>
 <li><a href="https://protobuf.dev/reference/python/python-generated/">protoc</a> protocol buffers are compiled into Python code with a mess of descriptors that is not type friendly, the compiler has a <code>--pyi_out</code> option to create the type stubs to solve this issue.</li>
-</ul>
-<p>What's important is to keep understand all the techniques available to you and to apply then when they are needed. </p>                    </article>
+</ul>                    </article>
                 </aside><!-- /#featured -->
                     <section id="content" class="body">
                         <h1>Other articles</h1>
