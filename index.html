@@ -20,7 +20,123 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./python-314-3-asyncio-changes.html">Python 3.14: 3 Asyncio Changes</a></h1>
+                        <h1 class="entry-title"><a href="./fixing-lazy-imports-generating-static-types-dynamically.html">Fixing lazy imports: Generating Static Types Dynamically</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2025-10-29T00:00:00+00:00">
+                Published: Wed 29 October 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>So I've just released a package called <a href="https://pypi.org/project/lazy-helper/">lazy-helper</a>. This comes as lazy loading has been a hot topic once again due to the proposal <a href="https://peps.python.org/pep-0810/">PEP-810</a>.</p>
+<p>Using my package we can define lazy loaded dependencies nicely:</p>
+<p><img alt="Defining a lazy module" src="./images/lazypy.png"></p>
+<p>Coincidentally Brian Okken has written a <a href="https://pythontest.com/polite-lazy-imports-python-packages/">blog post</a> covering the topic of lazy loading where he goes over how it works. This is the same mechanism my package uses, essentially defining a module level <code>__getattr__</code> with a cache. So I won't go into too much detail there.</p>
+<h2>Obscured static information</h2>
+<p>What I want to focus on discussing is one of the downsides of this approach. Since we're using strings to represent our imports, what is imported and where it points to is now obscured. This means when you use an import like the following:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">lazy</span>
+
+
+<span class="n">lazy</span><span class="o">.</span><span class="n">typing</span>
+</code></pre></div>
+
+<p>Your editor or tools like mypy simply does not know where that leads to. Even worse, it doesn't even know if it's correct at all. If we have a typo <code>lazy.tpying</code> we won't find out until runtime.</p>
+<p>One way to provide this information is to manually specify this in a block like this:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span> <span class="n">typing</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="kn">from</span> <span class="nn">textual.widget</span> <span class="kn">import</span> <span class="n">Widget</span>
+    <span class="kn">from</span> <span class="nn">textual.widgets._button</span> <span class="kn">import</span> <span class="n">Button</span>
+    <span class="kn">from</span> <span class="nn">textual.widgets._checkbox</span> <span class="kn">import</span> <span class="n">Checkbox</span>
+</code></pre></div>
+
+<p>This is an example taken directly from textual which Brian discussed in his blog. Now tooling understands the imports but at the cost of being more verbose. And we're still susceptible to typos and mistakes in the import strings.</p>
+<h2>Providing static information dynamically</h2>
+<p>This may sound a bit contradictory but we can leverage runtime information to solve our lack of static information. </p>
+<p>Let's look at how <code>Lazy</code> is actually implemented: </p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+
+
+<span class="nb">type</span> <span class="n">Alias</span> <span class="o">=</span> <span class="nb">str</span>
+<span class="nb">type</span> <span class="n">ModuleName</span> <span class="o">=</span> <span class="nb">str</span>
+<span class="nb">type</span> <span class="n">AttributeName</span> <span class="o">=</span> <span class="nb">str</span>
+<span class="nb">type</span> <span class="n">LazyImport</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ModuleName</span><span class="p">,</span> <span class="n">AttributeName</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Lazy</span><span class="p">:</span>
+    <span class="n">imports</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Alias</span><span class="p">,</span> <span class="n">LazyImport</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="o">...</span><span class="p">):</span> 
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Register the import&quot;&quot;&quot;</span>
+        <span class="o">...</span>
+
+    <span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the import associated with the name&quot;&quot;&quot;</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>We can see that at its core, we are wrapping a dictionary which defines all the imports we are interested in. All the information is there when we load all the lazy imports. We just need a way to expose it to the static tooling.</p>
+<h3>Enter <code>pyi</code> files</h3>
+<p><code>.pyi</code> files are what's known as <a href="https://peps.python.org/pep-0484/#stub-files">stub files</a>. They contain only typing information and used by static type checkers to infer the types without all the logic. </p>
+<p><code>.pyi</code> files takes precedence over the <code>.py</code> files they represent. So they can be used to type something that cannot be typed directly. It is quite often used for extension modules but also complex projects with a lot of legacy like <a href="https://pypi.org/project/boto3-stubs/">boto3-stubs</a>.</p>
+<p>Similar to the <code>if typing.TYPE_CHECKING:</code> approach we can create a stub file with the correct imports:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># lazy.pyi</span>
+<span class="kn">import</span> <span class="nn">typing</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TypedDict</span>
+<span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">tp</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TypedDict</span> <span class="k">as</span> <span class="n">TD</span>
+</code></pre></div>
+
+<p>The difference is that we can now have the static typing information completely separate from the actual implementation. Making it a lot easier to programmatically generate these stub files. </p>
+<p>We can generate the pyi files for the imports with a method like the following: </p>
+<div class="highlight"><pre><span></span><code>    <span class="k">def</span> <span class="nf">stubgen</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">alias</span><span class="p">,</span> <span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">attribute</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">imports</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">full_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">module</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">attribute</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">attribute</span> <span class="k">else</span> <span class="n">module</span>
+            <span class="n">from_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">import_</span> <span class="o">=</span> <span class="n">full_path</span><span class="o">.</span><span class="n">rpartition</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+            <span class="n">import_</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">import_</span><span class="si">}</span><span class="s2"> as </span><span class="si">{</span><span class="n">alias</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">import_</span> <span class="o">!=</span> <span class="n">alias</span> <span class="k">else</span> <span class="n">import_</span>
+
+            <span class="k">if</span> <span class="n">from_</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;from </span><span class="si">{</span><span class="n">from_</span><span class="si">}</span><span class="s2"> import </span><span class="si">{</span><span class="n">import_</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;import </span><span class="si">{</span><span class="n">import_</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">()</span>
+</code></pre></div>
+
+<p>We'll then create a file with the printed code:</p>
+<p><img alt="Generated stub file" src="./images/lazypyi.png"></p>
+<p>Since the stub file is generated from the runtime information. Your editor should pick up any issues typos or mistake in declaring the imports. And this script also saves a lot of effort when you have a large number of imports. </p>
+<h2>Stub generation is useful generally</h2>
+<p>Python is a very dynamic language, the language places very few limitations on what you can do. On the other hand, the static typing ecosystem is relatively new with a lot of limitations. </p>
+<p>When the type system is inadequate for a problem, there are 3 things people usually try:</p>
+<ul>
+<li>Try to change the code and not use an advance feature.</li>
+<li>Try very hard to represent the typing as best as possible. This is sometimes known as type gymnastics.</li>
+<li>Or simply give up on trying to type the code.</li>
+</ul>
+<p>I want to be clear here, all of these are valid. Stub generators are yet another way to solve this problem, It has the potential to provide typing with very little manual effort. </p>
+<p>It's not just something I've chosen to do here, there are plenty of other examples you should try out:</p>
+<ul>
+<li><a href="https://github.com/Instagram/MonkeyType">MonkeyType</a> a very tool that stores typing information as the code executes, to then generate static types afterwards.</li>
+<li><a href="https://protobuf.dev/reference/python/python-generated/">protoc</a> protocol buffers are compiled into Python code with a mess of descriptors that is not type friendly, the compiler has a <code>--pyi_out</code> option to create the type stubs to solve this issue.</li>
+</ul>
+<p>What's important is to keep understand all the techniques available to you and to apply then when they are needed. </p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./python-314-3-asyncio-changes.html" rel="bookmark"
+                               title="Permalink to Python 3.14: 3 Asyncio Changes">Python 3.14: 3 Asyncio Changes</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-10-09T00:00:00+01:00">
                 Published: Thu 09 October 2025
@@ -31,164 +147,16 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
 <p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/pthon.html">πthon</a> <a href="./tag/python314.html">Python3.14</a> <a href="./tag/asyncio.html">asyncio</a> </p>        
-</footer><!-- /.post-info --><p>Python 3.14 was officially released on October 7th. There are a lot of new features and I've covered some of them before in:</p>
+</footer><!-- /.post-info -->                        <p>Python 3.14 was officially released on October 7th. There are a lot of new features and I've covered some of them before in:</p>
 <ul>
 <li><a href="./python-314-3-smaller-features.html">Python 3.14: 3 smaller features</a></li>
 <li><a href="./t-strings-the-good-and-the-ugly.html">t-strings: the good and the ugly</a></li>
 <li><a href="./subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
 </ul>
-<p>What I haven't covered here are any of the asyncio changes. There just happened to also be 3 changes to Asyncio this release ... </p>
-<h3>Asyncio Debugger</h3>
-<p>Python's builtin debugger <a href="https://docs.python.org/3/library/pdb.html"><code>pdb</code></a> may seem basic but one of its most powerful features is to run python code at a breakpoint:</p>
-<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="nb">breakpoint</span><span class="p">()</span>  <span class="c1"># or import pdb; pdb.set_trace()</span>
-    <span class="o">...</span>
-</code></pre></div>
-
-<p>Which enters the debugger at the stack frame where breakpoint is called and allows us to interact with objects in scope. </p>
-<div class="highlight"><pre><span></span><code><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">my_func</span><span class="p">({})</span>
-<span class="o">&gt;</span><span class="w"> </span><span class="o">/</span><span class="n">Users</span><span class="o">/</span><span class="n">jamie</span><span class="o">.</span><span class="n">chang</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">Jamie</span><span class="o">-</span><span class="n">Blog</span><span class="o">/&lt;</span><span class="n">stdin</span><span class="o">&gt;-</span><span class="mi">0</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="n">my_func</span><span class="p">()</span>
-<span class="o">-&gt;</span><span class="w"> </span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
-<span class="p">(</span><span class="n">Pdb</span><span class="p">)</span><span class="w"> </span><span class="n">data</span>
-<span class="p">{}</span>
-<span class="p">(</span><span class="n">Pdb</span><span class="p">)</span><span class="w"> </span>
-</code></pre></div>
-
-<p>However when it comes to asyncio commands it gets tricky:</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">MyClient</span><span class="p">:</span>
-    <span class="k">async</span> <span class="k">def</span> <span class="nf">now</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-
-
-<span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
-    <span class="n">client</span> <span class="o">=</span> <span class="n">MyClient</span><span class="p">()</span>
-    <span class="nb">breakpoint</span><span class="p">()</span>
-    <span class="o">...</span>
-</code></pre></div>
-
-<div class="highlight"><pre><span></span><code>(Pdb) client.now()
-&lt;coroutine object MyClient.now at 0x102ad16c0&gt;
-</code></pre></div>
-
-<p>We cannot await at all in pdb:</p>
-<div class="highlight"><pre><span></span><code>(Pdb) await client.now()
-*** SyntaxError: &#39;await&#39; outside function
-</code></pre></div>
-
-<p>Nor can we run it with <code>asyncio.run</code>:</p>
-<div class="highlight"><pre><span></span><code>(Pdb) asyncio.run(client.now())
-*** RuntimeError: asyncio.run() cannot be called from a running event loop
-</code></pre></div>
-
-<p>Now this is possible with <a href="https://docs.python.org/3.14/library/pdb.html#pdb.set_trace_async">pdb.set_trace_async</a></p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
-    <span class="n">client</span> <span class="o">=</span> <span class="n">MyClient</span><span class="p">()</span>
-    <span class="k">await</span> <span class="n">pdb</span><span class="o">.</span><span class="n">set_trace_async</span><span class="p">()</span>
-    <span class="o">...</span>
-</code></pre></div>
-
-<blockquote>
-<p>Note that <code>set_trace_async()</code> is awaited here. As I understand it, this is a necessary compromise to get this feature working.</p>
-</blockquote>
-<p>And ... Success!</p>
-<div class="highlight"><pre><span></span><code>(Pdb) print(await client.now())
-1759933736.955492
-</code></pre></div>
-
-<p>This might be a niche feature, but it's crucial for debugging things like async ORMs.</p>
-<p>If you just need to interact with async resources in a REPL, you can already start an async REPL since Python 3.8:</p>
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>asyncio
-asyncio<span class="w"> </span>REPL<span class="w"> </span><span class="m">3</span>.9.6<span class="w"> </span><span class="o">(</span>default,<span class="w"> </span>Nov<span class="w"> </span><span class="m">11</span><span class="w"> </span><span class="m">2024</span>,<span class="w"> </span><span class="m">03</span>:15:38<span class="o">)</span><span class="w"> </span>
-<span class="o">[</span>Clang<span class="w"> </span><span class="m">16</span>.0.0<span class="w"> </span><span class="o">(</span>clang-1600.0.26.6<span class="o">)]</span><span class="w"> </span>on<span class="w"> </span>darwin
-Use<span class="w"> </span><span class="s2">&quot;await&quot;</span><span class="w"> </span>directly<span class="w"> </span>instead<span class="w"> </span>of<span class="w"> </span><span class="s2">&quot;asyncio.run()&quot;</span>.
-Type<span class="w"> </span><span class="s2">&quot;help&quot;</span>,<span class="w"> </span><span class="s2">&quot;copyright&quot;</span>,<span class="w"> </span><span class="s2">&quot;credits&quot;</span><span class="w"> </span>or<span class="w"> </span><span class="s2">&quot;license&quot;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span>more<span class="w"> </span>information.
-&gt;&gt;&gt;<span class="w"> </span>import<span class="w"> </span>asyncio
-&gt;&gt;&gt;<span class="w"> </span>await<span class="w"> </span>asyncio.sleep<span class="o">(</span><span class="m">1</span><span class="o">)</span>
-</code></pre></div>
-
-<h3>Asyncio Introspection</h3>
-<p>Whether I'm teaching asyncio to newcomers or debugging complex concurrent programs myself. I've always found it difficult to visualise what's happening. </p>
-<blockquote>
-<p>When teaching asyncio we often just time the difference in performance, explaining it properly is hard.</p>
-</blockquote>
-<p>It is now possible with <a href="https://docs.python.org/3.14/whatsnew/3.14.html#asyncio-introspection-capabilities">introspection</a>. We can see the current call graph at runtime by:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>asyncio<span class="w"> </span>pstree<span class="w"> </span><span class="m">12345</span>
-</code></pre></div>
-
-<p>where 12345 is the process id.</p>
-<blockquote>
-<p>Note on macOS it needs to be run using sudo.</p>
-</blockquote>
-<p>The graph looks like:</p>
-<div class="highlight"><pre><span></span><code>└── (T) Task-1
-    └──  main /Users/jamie.chang/projects/concurreny-bench/backpressure/semaphore3.py:25
-        └──  Semaphore.acquire /Users/jamie.chang/.local/share/uv/python/cpython-3.14.0rc3-macos-aarch64-none/lib/python3.14/asyncio/locks.py:407
-            ├── (T) Task-30376
-            │   └──  process_url /Users/jamie.chang/projects/concurreny-bench/backpressure/semaphore3.py:15
-            │       └──  sleep /Users/jamie.chang/.local/share/uv/python/cpython-3.14.0rc3-macos-aarch64-none/lib/python3.14/asyncio/tasks.py:702
-            ├── (T) Task-30389
-            │   └──  process_url /Users/jamie.chang/projects/concurreny-bench/backpressure/semaphore3.py:15
-            │       └──  sleep /Users/jamie.chang/.local/share/uv/python/cpython-3.14.0rc3-macos-aarch64-none/lib/python3.14/asyncio/tasks.py:702
-            ├── (T) Task-30393
-            │   └──  process_url /Users/jamie.chang/projects/concurreny-bench/backpressure/semaphore3.py:15
-            │       └──  sleep /Users/jamie.chang/.local/share/uv/python/cpython-3.14.0rc3-macos-aarch64-none/lib/python3.14/asyncio/tasks.py:702
-            ├── (T) Task-30408
-            │   └──  process_url /Users/jamie.chang/projects/concurreny-bench/backpressure/semaphore3.py:15
-            │       └──  sleep /Users/jamie.chang/.local/share/uv/python/cpython-3.14.0rc3-macos-aarch64-none/lib/python3.14/asyncio/tasks.py:702
-</code></pre></div>
-
-<p>And make it a lot clearer what's going on inside the event loop. </p>
-<p>Since it can be triggered on a currently running process, we can even use this to debug a live running application that may be stuck on some async resources. </p>
-<p>I've been using this with <a href="https://en.wikipedia.org/wiki/Watch_(command)">watch</a> to see a live view of the graph.</p>
-<p>You can also get the information in table form by:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>asyncio<span class="w"> </span>ps<span class="w"> </span><span class="m">12345</span>
-</code></pre></div>
-
-<p>Finally, there are new <a href="https://docs.python.org/3.14/library/asyncio-graph.html">python apis</a> for this to get the information at a specific point in the code.</p>
-<h3>Asyncio in multiple free threads</h3>
-<p>Not to be confused with <a href="./free-threaded-python-with-asyncio.html">Free Threaded Python With Asyncio</a>. Where we run specific blocking code in threads using <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread">asyncio.to_thread</a>.</p>
-<p>Prior to 3.14 event loops were not thread safe in the free-threaded builds of Python. This means you can't run asyncio in a separate thread. In Python 3.14 Kumar Aditya updated the event loop implementation maing it thread safe whilst also improving performance. You can see his blog post <a href="https://labs.quansight.org/blog/scaling-asyncio-on-free-threaded-python">here</a>.</p>
-<p>But if we are already doing things concurrently why would threads matter? Well this actually depends on how much blocking work your coroutines are doing.</p>
-<p>Let's say we have N coroutines all fetching data from a web page somewhere. This is perfect for asyncio, as http requests can be made without blocking the event loop.</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-    <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
-        <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">scrape</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
-</code></pre></div>
-
-<p>But what do we do with the scraped data? We need to parse this, so this will block the event loop as it's CPU bound.</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
-    <span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="n">scrape</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-    <span class="n">parse</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>  <span class="c1"># CPU bound</span>
-    <span class="o">...</span>
-
-<span class="o">...</span>
-
-<span class="k">async</span> <span class="k">with</span> <span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-    <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
-        <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
-</code></pre></div>
-
-<p>You will ind that the CPU bound tasks will impact the performance of the event loop. This is actually a situation that I've run into a couple times already. This can be solved with <code>asyncio.to_thread</code> here but sharing a lot of data right now may have a <a href="./how-free-are-threads-in-python-now.html">performance impact</a>. </p>
-<p>Instead we can now spawn multiple free-threads with event loops. Each thread is still impacted by the CPU bound blocking tasks, however as we are processing the CPU-bound work concurrently, the impact is lowered. </p>
-<p>We will need a way to pass data between the threads, the best way I found is using <a href="https://docs.python.org/3/library/queue.html#queue.Queue">queue.Queue</a>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">get_nowait</span><span class="p">()</span>
-        <span class="k">except</span> <span class="n">Empty</span><span class="p">:</span>
-            <span class="k">break</span>
-        <span class="n">task</span> <span class="o">=</span> <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
-        <span class="n">task</span><span class="o">.</span><span class="n">add_done_callback</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="n">queue</span><span class="o">.</span><span class="n">task_done</span><span class="p">())</span>
-</code></pre></div>
-
-<p>For benchmark performances it's better to check Kumar's blog post. He posts a very impressive performance improvement, which I also see in my own examples. He also shows a much higher raw TCP performance so there's potential to increase IO bound workloads as well.</p>
-<p>On the other hand, I found free-threading memory sharing awkward right now in Python and that impacts performance. My preferred method is using my very own <a href="https://github.com/Jamie-Chang/aiointerpreters/blob/main/examples/crawl.py">aiointerpreters</a> to launch the tasks to interpreter threads with subinterpreter's powerful shared memory functionality. </p>
-<p>As with a lot of concurrency problems, there is not a single way to solve these. This is fine, and you should try different approaches, run benchmarks see how they compare to pick the best method for your problem. </p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>What I haven't covered here are any of the asyncio changes …</p>
+                        <a class="readmore" href="./python-314-3-asyncio-changes.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -379,29 +347,6 @@ Type<span class="w"> </span><span class="s2">&quot;help&quot;</span>,<span class
         
 </footer><!-- /.post-info -->                        <p>I grew up in both the UK and China. So I'd like to think I have a little understanding of both cultures. China uses both the western gregorian calendar and a version of lunar calendar called 农历. This means I have a Chinese lunar birthday as well as a …</p>
                         <a class="readmore" href="./my-chinese-birthdays-time-keeping-is-hard.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./asyncio-backpressure-processing-lots-of-tasks-in-parallel.html" rel="bookmark"
-                               title="Permalink to Asyncio backpressure - Processing lots of tasks in parallel">Asyncio backpressure - Processing lots of tasks in parallel</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-06-20T00:00:00+01:00">
-                Published: Fri 20 June 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>There's mixed feedback to Asyncio in the community. Some people passionately hate it whilst others believe "writing async make program go fast". This debate is way too much for me to cover here right now. Though maybe I'll look at it in the future. </p>
-<p>For me I use asyncio a …</p>
-                        <a class="readmore" href="./asyncio-backpressure-processing-lots-of-tasks-in-parallel.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->

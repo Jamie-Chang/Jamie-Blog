@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Fixing lazy imports: Generating Static Types Dynamically</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="So I've just released a package called lazy-helper. This comes as lazy loading has been a hot topic once again due to the proposal PEP-810. Using..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./fixing-lazy-imports-generating-static-types-dynamically.html" rel="bookmark"
+             title="Permalink to Fixing lazy imports: Generating Static Types Dynamically">Fixing lazy imports: Generating Static Types Dynamically</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-10-29T00:00:00+00:00">
+                Published: Wed 29 October 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>So I've just released a package called <a href="https://pypi.org/project/lazy-helper/">lazy-helper</a>. This comes as lazy loading has been a hot topic once again due to the proposal <a href="https://peps.python.org/pep-0810/">PEP-810</a>.</p>
+<p>Using my package we can define lazy loaded dependencies nicely:</p>
+<p><img alt="Defining a lazy module" src="./images/lazypy.png"></p>
+<p>Coincidentally Brian Okken has written a <a href="https://pythontest.com/polite-lazy-imports-python-packages/">blog post</a> covering the topic of lazy loading where he goes over how it works. This is the same mechanism my package uses, essentially defining a module level <code>__getattr__</code> with a cache. So I won't go into too much detail there.</p>
+<h2>Obscured static information</h2>
+<p>What I want to focus on discussing is one of the downsides of this approach. Since we're using strings to represent our imports, what is imported and where it points to is now obscured. This means when you use an import like the following:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">lazy</span>
+
+
+<span class="n">lazy</span><span class="o">.</span><span class="n">typing</span>
+</code></pre></div>
+
+<p>Your editor or tools like mypy simply does not know where that leads to. Even worse, it doesn't even know if it's correct at all. If we have a typo <code>lazy.tpying</code> we won't find out until runtime.</p>
+<p>One way to provide this information is to manually specify this in a block like this:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span> <span class="n">typing</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="o">...</span>
+    <span class="kn">from</span> <span class="nn">textual.widget</span> <span class="kn">import</span> <span class="n">Widget</span>
+    <span class="kn">from</span> <span class="nn">textual.widgets._button</span> <span class="kn">import</span> <span class="n">Button</span>
+    <span class="kn">from</span> <span class="nn">textual.widgets._checkbox</span> <span class="kn">import</span> <span class="n">Checkbox</span>
+</code></pre></div>
+
+<p>This is an example taken directly from textual which Brian discussed in his blog. Now tooling understands the imports but at the cost of being more verbose. And we're still susceptible to typos and mistakes in the import strings.</p>
+<h2>Providing static information dynamically</h2>
+<p>This may sound a bit contradictory but we can leverage runtime information to solve our lack of static information. </p>
+<p>Let's look at how <code>Lazy</code> is actually implemented: </p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+
+
+<span class="nb">type</span> <span class="n">Alias</span> <span class="o">=</span> <span class="nb">str</span>
+<span class="nb">type</span> <span class="n">ModuleName</span> <span class="o">=</span> <span class="nb">str</span>
+<span class="nb">type</span> <span class="n">AttributeName</span> <span class="o">=</span> <span class="nb">str</span>
+<span class="nb">type</span> <span class="n">LazyImport</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ModuleName</span><span class="p">,</span> <span class="n">AttributeName</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Lazy</span><span class="p">:</span>
+    <span class="n">imports</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Alias</span><span class="p">,</span> <span class="n">LazyImport</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="o">...</span><span class="p">):</span> 
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Register the import&quot;&quot;&quot;</span>
+        <span class="o">...</span>
+
+    <span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the import associated with the name&quot;&quot;&quot;</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>We can see that at its core, we are wrapping a dictionary which defines all the imports we are interested in. All the information is there when we load all the lazy imports. We just need a way to expose it to the static tooling.</p>
+<h3>Enter <code>pyi</code> files</h3>
+<p><code>.pyi</code> files are what's known as <a href="https://peps.python.org/pep-0484/#stub-files">stub files</a>. They contain only typing information and used by static type checkers to infer the types without all the logic. </p>
+<p><code>.pyi</code> files takes precedence over the <code>.py</code> files they represent. So they can be used to type something that cannot be typed directly. It is quite often used for extension modules but also complex projects with a lot of legacy like <a href="https://pypi.org/project/boto3-stubs/">boto3-stubs</a>.</p>
+<p>Similar to the <code>if typing.TYPE_CHECKING:</code> approach we can create a stub file with the correct imports:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># lazy.pyi</span>
+<span class="kn">import</span> <span class="nn">typing</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TypedDict</span>
+<span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">tp</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TypedDict</span> <span class="k">as</span> <span class="n">TD</span>
+</code></pre></div>
+
+<p>The difference is that we can now have the static typing information completely separate from the actual implementation. Making it a lot easier to programmatically generate these stub files. </p>
+<p>We can generate the pyi files for the imports with a method like the following: </p>
+<div class="highlight"><pre><span></span><code>    <span class="k">def</span> <span class="nf">stubgen</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">alias</span><span class="p">,</span> <span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">attribute</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">imports</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">full_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">module</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">attribute</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">attribute</span> <span class="k">else</span> <span class="n">module</span>
+            <span class="n">from_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">import_</span> <span class="o">=</span> <span class="n">full_path</span><span class="o">.</span><span class="n">rpartition</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+            <span class="n">import_</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">import_</span><span class="si">}</span><span class="s2"> as </span><span class="si">{</span><span class="n">alias</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">import_</span> <span class="o">!=</span> <span class="n">alias</span> <span class="k">else</span> <span class="n">import_</span>
+
+            <span class="k">if</span> <span class="n">from_</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;from </span><span class="si">{</span><span class="n">from_</span><span class="si">}</span><span class="s2"> import </span><span class="si">{</span><span class="n">import_</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;import </span><span class="si">{</span><span class="n">import_</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">()</span>
+</code></pre></div>
+
+<p>We'll then create a file with the printed code:</p>
+<p><img alt="Generated stub file" src="./images/lazypyi.png"></p>
+<p>Since the stub file is generated from the runtime information. Your editor should pick up any issues typos or mistake in declaring the imports. And this script also saves a lot of effort when you have a large number of imports. </p>
+<h2>Stub generation is useful generally</h2>
+<p>Python is a very dynamic language, the language places very few limitations on what you can do. On the other hand, the static typing ecosystem is relatively new with a lot of limitations. </p>
+<p>When the type system is inadequate for a problem, there are 3 things people usually try:</p>
+<ul>
+<li>Try to change the code and not use an advance feature.</li>
+<li>Try very hard to represent the typing as best as possible. This is sometimes known as type gymnastics.</li>
+<li>Or simply give up on trying to type the code.</li>
+</ul>
+<p>I want to be clear here, all of these are valid. Stub generators are yet another way to solve this problem, It has the potential to provide typing with very little manual effort. </p>
+<p>It's not just something I've chosen to do here, there are plenty of other examples you should try out:</p>
+<ul>
+<li><a href="https://github.com/Instagram/MonkeyType">MonkeyType</a> a very tool that stores typing information as the code executes, to then generate static types afterwards.</li>
+<li><a href="https://protobuf.dev/reference/python/python-generated/">protoc</a> protocol buffers are compiled into Python code with a mess of descriptors that is not type friendly, the compiler has a <code>--pyi_out</code> option to create the type stubs to solve this issue.</li>
+</ul>
+<p>What's important is to keep understand all the techniques available to you and to apply then when they are needed. </p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/changs.co.uk/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
