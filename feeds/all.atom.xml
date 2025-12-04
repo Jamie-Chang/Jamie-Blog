@@ -1,5 +1,224 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-10-29T00:00:00+00:00</updated><entry><title>Fixing lazy imports: Generating Static Types Dynamically</title><link href="https://blog.changs.co.uk/fixing-lazy-imports-generating-static-types-dynamically.html" rel="alternate"></link><published>2025-10-29T00:00:00+00:00</published><updated>2025-10-29T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-10-29:/fixing-lazy-imports-generating-static-types-dynamically.html</id><summary type="html">&lt;p&gt;So I've just released a package called &lt;a href="https://pypi.org/project/lazy-helper/"&gt;lazy-helper&lt;/a&gt;. This comes as lazy loading has been a hot topic once again due to the proposal &lt;a href="https://peps.python.org/pep-0810/"&gt;PEP-810&lt;/a&gt;.&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2025-12-03T00:00:00+00:00</updated><entry><title>Trying out marimo notebooks</title><link href="https://blog.changs.co.uk/trying-out-marimo-notebooks.html" rel="alternate"></link><published>2025-12-03T00:00:00+00:00</published><updated>2025-12-03T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-12-03:/trying-out-marimo-notebooks.html</id><summary type="html">&lt;p&gt;As we approach the holiday seasons, we get to "enjoy" another 12 days of &lt;a href="https://adventofcode.com/"&gt;Advent of Code&lt;/a&gt;. Every year I try to do something a little different, last year I had a lot of fun solving it in Ocaml, prior years I've tried the latest Python features. This year I've …&lt;/p&gt;</summary><content type="html">&lt;p&gt;As we approach the holiday seasons, we get to "enjoy" another 12 days of &lt;a href="https://adventofcode.com/"&gt;Advent of Code&lt;/a&gt;. Every year I try to do something a little different, last year I had a lot of fun solving it in Ocaml, prior years I've tried the latest Python features. This year I've decided to use &lt;a href="https://marimo.io/"&gt;marimo notebooks&lt;/a&gt;. &lt;/p&gt;
+&lt;p&gt;Marimo is a jupyter competitor, providing an interactive environment to develop code and visualise data. As the new kid in the block, it has a very sleek look and good support for a lot of different visualisation frameworks. There is already a very good &lt;a href="https://realpython.com/marimo-notebook/"&gt;article&lt;/a&gt; on realpython about it, so I won't go into too much detail on its features.&lt;/p&gt;
+&lt;p&gt;Instead I'll talk about the feature that makes marimo truly standout: builtin reactivity! When a cell in marimo creates a variable, marimo tracks it. When the variable changes, any cell that references it will update automatically. For example, try changing &lt;code&gt;my_value&lt;/code&gt; in the second cell below:&lt;/p&gt;
+&lt;p&gt;&lt;iframe
+  src="https://marimo.app/l/zluj3i?embed=true&amp;show-chrome=false"
+  width="100%"
+  height=400"
+  sandbox="allow-scripts allow-same-origin"
+&gt;&lt;/iframe&gt;
+&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;If you're not familiar with embedded notebooks, you can have a look at my past &lt;a href="https://blog.changs.co.uk/my-sqlalchemy-cookbook.html"&gt;blog post&lt;/a&gt; which uses jupyter-lite. Marimo has even better support for wasm notebooks.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Honestly, when you first try it everything feels like magic. But there are some quirks the more you get into it. In order for marimo to effectively track the variables, it places restrictions on where variables can be used. And cyclical dependencies are possible here.&lt;/p&gt;
+&lt;p&gt;The good thing is marimo will let you know immediately why, so you won't need to look up why something is not working. Overall I don't find it too difficult to use but it'll be good to hear what others think.&lt;/p&gt;
+&lt;p&gt;For me, marimo is just much more fun than jupyter. I can essentially write little reactive web UI in pure Python in my own browser. The ability to embed wasm notebooks is also very handy for my blogs going forward. &lt;/p&gt;
+&lt;p&gt;In any case, here's a neat little app demonstrating the solution for today's advent of code:&lt;/p&gt;
+&lt;p&gt;&lt;iframe
+  src="https://marimo.app/l/x8qcbz?embed=true&amp;show-chrome=false"
+  width="100%"
+  height="800"
+  sandbox="allow-scripts allow-same-origin"
+&gt;&lt;/iframe&gt;
+&lt;/p&gt;
+&lt;p&gt;So what do you think? If it looks cool to you, you can try it out at &lt;a href="https://marimo.app"&gt;marimo.app&lt;/a&gt;!&lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>Writing a SQS task framework from scratch</title><link href="https://blog.changs.co.uk/writing-a-sqs-task-framework-from-scratch.html" rel="alternate"></link><published>2025-11-24T00:00:00+00:00</published><updated>2025-11-24T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-11-24:/writing-a-sqs-task-framework-from-scratch.html</id><summary type="html">&lt;p&gt;Recently I've been working on framework to run LLM tasks using AWS's excellent &lt;a href="https://aws.amazon.com/sqs/"&gt;SQS&lt;/a&gt;. And I made the decision to write my own task framework/library as opposed to using a pre-exiting framework. I thought this would be a great opportunity to discuss the considerations and levels of abstractions involved …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Recently I've been working on framework to run LLM tasks using AWS's excellent &lt;a href="https://aws.amazon.com/sqs/"&gt;SQS&lt;/a&gt;. And I made the decision to write my own task framework/library as opposed to using a pre-exiting framework. I thought this would be a great opportunity to discuss the considerations and levels of abstractions involved when coding a framework.&lt;/p&gt;
+&lt;h3&gt;Why SQS?&lt;/h3&gt;
+&lt;p&gt;Having come from using traditional message queues like RabbitMQ, I can't help but compare SQS with RabbitMQ. The thing is, whilst they can be interchangeable. I think they are actually built with different use cases in mind.&lt;/p&gt;
+&lt;p&gt;RabbitMQ is for processing a large volume of messages, the messages are strictly processed in FIFO order. SQS has more flexibility around when a message is processed and how long each task takes. So RabbitMQ is good for handling events, but SQS is better for tasks like LLM calls.&lt;/p&gt;
+&lt;p&gt;Additionally, SQS uses http to communicate between the server and the client which is easier to monitor and is easier to setup if you already have an AWS cluster.&lt;/p&gt;
+&lt;h3&gt;Why not use ...?&lt;/h3&gt;
+&lt;p&gt;Okay so, the first question I will answer you is why not a pre-existing framework? &lt;/p&gt;
+&lt;p&gt;When we talk about task framework in Python, there is a general consensus. The most popular choice is &lt;a href="https://docs.celeryq.dev/en/stable/getting-started/introduction.html"&gt;Celery&lt;/a&gt;, a framework that can handle pretty much any handle workload in any broker (be it SQS or otherwise). If you need a UI and compose tasks in a DAG (Directed Acyclic Graph) then you should use &lt;a href="https://airflow.apache.org/"&gt;Airflow&lt;/a&gt;. If you like new technology and talking about orchestration then use something &lt;a href="https://temporal.io/"&gt;temporal&lt;/a&gt;. The list really goes on and on. &lt;/p&gt;
+&lt;p&gt;I haven't used a lot of managed task solutions like temporal which admittedly is something I'd love to try out.&lt;/p&gt;
+&lt;p&gt;As for why I don't use something like celery. Celery is a framework that tries to work with everything including all brokers. That is only true to an extent as it was originally designed to work with RabbitMQ. Generally the support is also pretty good for Redis but not so good otherwise. A lot of broker specific features are either not supported or not documented.&lt;/p&gt;
+&lt;p&gt;Another issue is a lack of asyncio support. For my use case asyncio is great, no need for multiple threads or processes. Celery again tries very hard to be general, it supports the concurrency paradigm most likely to support a user's code without a lot of input from the user. But in my case, I already have an opinion of how I want my code to run, and it just doesn't make sense to use it.&lt;/p&gt;
+&lt;p&gt;Finally, my general complaint of celery is that it requires a lot of configuration for a production use case. Which can cause quite a bit of a headache. &lt;/p&gt;
+&lt;h2&gt;Creating my abstractions&lt;/h2&gt;
+&lt;p&gt;In my experience writing a good framework is all about how good the abstractions are. Abstractions can come with a cost. Whilst Celery create abstractions that allow task compositions and provides support for many brokers, but it trades broker specific features and increases in configuration complexity.&lt;/p&gt;
+&lt;p&gt;Therefore a good abstraction is about making useful trade-offs. &lt;/p&gt;
+&lt;h3&gt;Writing the code&lt;/h3&gt;
+&lt;p&gt;Before we start with abstractions, it's a good idea to first write some code to see what the it currently looks like with no abstraction.&lt;/p&gt;
+&lt;p&gt;Here I ask a LLM to provide an example:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;asyncio&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;aiobotocore.session&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;get_session&lt;/span&gt;
+
+&lt;span class="c1"&gt;# Replace with your actual Queue URL&lt;/span&gt;
+&lt;span class="n"&gt;QUEUE_URL&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;https://sqs.us-east-1.amazonaws.com/123456789012/my-queue&amp;quot;&lt;/span&gt;
+
+&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;consume_messages&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+    &lt;span class="n"&gt;session&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;get_session&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+    &lt;span class="c1"&gt;# create_client is an async context manager that handles connection cleanup&lt;/span&gt;
+    &lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create_client&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;sqs&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;region_name&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;us-east-1&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="nb"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Listening for messages on &lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;QUEUE_URL&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt;...&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+        &lt;span class="k"&gt;while&lt;/span&gt; &lt;span class="kc"&gt;True&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="k"&gt;try&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                &lt;span class="c1"&gt;# receive_message calls the SQS API&lt;/span&gt;
+                &lt;span class="c1"&gt;# WaitTimeSeconds=20 enables Long Polling (waits for messages to arrive)&lt;/span&gt;
+                &lt;span class="n"&gt;response&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;receive_message&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+                    &lt;span class="n"&gt;QueueUrl&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;QUEUE_URL&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                    &lt;span class="n"&gt;MaxNumberOfMessages&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                    &lt;span class="n"&gt;WaitTimeSeconds&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;20&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                    &lt;span class="n"&gt;VisibilityTimeout&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;60&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                &lt;span class="p"&gt;)&lt;/span&gt;
+
+                &lt;span class="c1"&gt;# Check if &amp;#39;Messages&amp;#39; key exists in response&lt;/span&gt;
+                &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;Messages&amp;#39;&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;response&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;msg&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;response&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;Messages&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+                        &lt;span class="c1"&gt;# 1. Process the message&lt;/span&gt;
+                        &lt;span class="nb"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Received body: &lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;msg&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;Body&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+                        &lt;span class="c1"&gt;# 2. Delete the message so it isn&amp;#39;t processed again&lt;/span&gt;
+                        &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;delete_message&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+                            &lt;span class="n"&gt;QueueUrl&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;QUEUE_URL&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                            &lt;span class="n"&gt;ReceiptHandle&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;msg&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;ReceiptHandle&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+                        &lt;span class="p"&gt;)&lt;/span&gt;
+                        &lt;span class="nb"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Message deleted.&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+                &lt;span class="k"&gt;else&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                    &lt;span class="nb"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;No messages received in this poll.&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+            &lt;span class="k"&gt;except&lt;/span&gt; &lt;span class="ne"&gt;Exception&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="n"&gt;e&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                &lt;span class="nb"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;f&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Error encountered: &lt;/span&gt;&lt;span class="si"&gt;{&lt;/span&gt;&lt;span class="n"&gt;e&lt;/span&gt;&lt;span class="si"&gt;}&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+                &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="n"&gt;asyncio&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;sleep&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;5&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="c1"&gt;# Backoff on error&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3&gt;Identifying Trade-offs&lt;/h3&gt;
+&lt;p&gt;Next we look at things we want to change and thus the trade-offs.&lt;/p&gt;
+&lt;p&gt;Let's start with deleting the message, the purpose of deleting the message is to signal that the message is complete and shouldn't be processed again. I personally don't like the naming of this, in the context of message queues this is usually called &lt;code&gt;ack&lt;/code&gt;. &lt;/p&gt;
+&lt;p&gt;Something like:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ack&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;message&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Next, let's look at some of the attributes we can abstract:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;VisibilityTimeout&lt;/code&gt;: is the amount of time the message can be processed for before going back on the queue, it is also how we can delay the message for when adding a message to the queue. We can make this clearer by calling it keep-alive and delay respectively.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;MaxNumberOfMessages&lt;/code&gt;: is a useful feature of SQS to fetch a batch of messages at once to increase throughput and reduce the cloud bill. But it may not be a good fit for my use case handling LLM requests as they don't work well in batches&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;WaitTimeSeconds&lt;/code&gt; enables long polling which reduces the number of requests and hence the cloud bill. This is a good idea to keep on. And there's no real need for us to turn it off. &lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Creating the client&lt;/h3&gt;
+&lt;p&gt;Now that the trade offs are identified, we will start to create the client code, and this is what I've come up with:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="nd"&gt;@dataclass&lt;/span&gt;
+&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;QueueClient&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;SQSClient&lt;/span&gt;
+    &lt;span class="n"&gt;queue&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;str&lt;/span&gt;
+    &lt;span class="n"&gt;poll_interval&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;20&lt;/span&gt;
+
+    &lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;consume&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;keep_alive&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;int&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;30&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ack&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;bool&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="kc"&gt;True&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;AsyncIterator&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;MessageTypeDef&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+        &lt;span class="k"&gt;while&lt;/span&gt; &lt;span class="kc"&gt;True&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="n"&gt;messages&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;receive_message&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+                &lt;span class="n"&gt;QueueUrl&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;queue&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                &lt;span class="n"&gt;MaxNumberOfMessages&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                &lt;span class="n"&gt;WaitTimeSeconds&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;poll_interval&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                &lt;span class="n"&gt;VisibilityTimeout&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;keep_alive&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+            &lt;span class="p"&gt;)&lt;/span&gt;
+            &lt;span class="k"&gt;match&lt;/span&gt; &lt;span class="n"&gt;messages&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                &lt;span class="k"&gt;case&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Messages&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;message&lt;/span&gt;&lt;span class="p"&gt;]}:&lt;/span&gt;
+                    &lt;span class="k"&gt;yield&lt;/span&gt; &lt;span class="n"&gt;message&lt;/span&gt;
+                    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;ack&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                        &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ack&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;message&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+                &lt;span class="k"&gt;case&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;_&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                    &lt;span class="k"&gt;continue&lt;/span&gt;
+
+    &lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;ack&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;message&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;MessageTypeDef&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;delete_message&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+            &lt;span class="n"&gt;QueueUrl&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;queue&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+            &lt;span class="n"&gt;ReceiptHandle&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;message&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;ReceiptHandle&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;
+        &lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;In order to pass the messages to the user, I've represented the stream of messages as an AsyncIterator. Iterators are truly one of Python's best features, and here it fits particularly well as are trying to expose the messages to the user without making may assumptions about how to user wants to consume it.&lt;/p&gt;
+&lt;p&gt;Consuming messages then is as simple as running an async for loop:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;main&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+    &lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;message&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;consume&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+        &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="n"&gt;handle&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;message&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</content><category term="Blog"></category><category term="Python"></category><category term="Asyncio"></category><category term="SQS"></category></entry><entry><title>How I upgrade Python</title><link href="https://blog.changs.co.uk/how-i-upgrade-python.html" rel="alternate"></link><published>2025-11-02T00:00:00+00:00</published><updated>2025-11-02T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-11-02:/how-i-upgrade-python.html</id><summary type="html">&lt;p&gt;Python 3.9 has officially retired after 5 years since its release in 2020 end of life.&lt;/p&gt;
+&lt;blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:7w4a4uncvgnzucylyosrfmm2/app.bsky.feed.post/3m4jmi5pl7s2d" data-bluesky-cid="bafyreihfz4h6q555jetztj2o4e5a2kbq7k6qkrjrttv2l3lpz5df4isrpm" data-bluesky-embed-color-mode="system"&gt;&lt;p lang="en"&gt;The final release of Python 3.9 is out!
+
+discuss.python.org/t/the-final-...
+
+May you all enjoy using the features added in Python 3.10 if that&amp;#x27;s now your oldest version …&lt;/p&gt;&lt;/blockquote&gt;</summary><content type="html">&lt;p&gt;Python 3.9 has officially retired after 5 years since its release in 2020 end of life.&lt;/p&gt;
+&lt;blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:7w4a4uncvgnzucylyosrfmm2/app.bsky.feed.post/3m4jmi5pl7s2d" data-bluesky-cid="bafyreihfz4h6q555jetztj2o4e5a2kbq7k6qkrjrttv2l3lpz5df4isrpm" data-bluesky-embed-color-mode="system"&gt;&lt;p lang="en"&gt;The final release of Python 3.9 is out!
+
+discuss.python.org/t/the-final-...
+
+May you all enjoy using the features added in Python 3.10 if that&amp;#x27;s now your oldest version. 😁
+
+docs.python.org/3/whatsnew/3...&lt;br&gt;&lt;br&gt;&lt;a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2/post/3m4jmi5pl7s2d?ref_src=embed"&gt;[image or embed]&lt;/a&gt;&lt;/p&gt;&amp;mdash; Brett Cannon (&lt;a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2?ref_src=embed"&gt;@snarky.ca&lt;/a&gt;) &lt;a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2/post/3m4jmi5pl7s2d?ref_src=embed"&gt;31 October 2025 at 23:20&lt;/a&gt;&lt;/blockquote&gt;
+&lt;script async src="https://embed.bsky.app/static/embed.js" charset="utf-8"&gt;&lt;/script&gt;
+
+&lt;p&gt;Depending on who you are you might either be rejoicing at being able to use 3.10 features in your library or be dreading the migration of your app to 3.10+. For me personally a lot of my code is already 3.10+, and in fact the few libraries I do have are already on 3.10+ whether intentional or otherwise.&lt;/p&gt;
+&lt;h2&gt;Python 3.10 Recap&lt;/h2&gt;
+&lt;p&gt;First a recap of 3.10. Whether forced to upgrade or not, Python 3.10 is a great release that brings in a lot of great changes.&lt;/p&gt;
+&lt;p&gt;I have found an &lt;a href="https://github.com/Jamie-Chang/python310/tree/main"&gt;old repo&lt;/a&gt; of mine going over the changes from 4 years ago. I strongly suggest you go over these changes either in my notebooks or from the &lt;a href="https://docs.python.org/3/whatsnew/3.10.html"&gt;official release notes&lt;/a&gt;. Highlights include:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;structural pattern matching &lt;/li&gt;
+&lt;li&gt;syntax for unions of types e.g. &lt;code&gt;int | str&lt;/code&gt; as opposed to &lt;code&gt;Union[int, str]&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;As great as 3.10 is, it's still 4 years old and there are even better features in the later releases. Therefore I would consider upgrading as much as your dependencies allow you to.&lt;/p&gt;
+&lt;h2&gt;Upgrading Python Version&lt;/h2&gt;
+&lt;p&gt;Upgrading Python can be a mixed bag. Some versions are nastier than others, Python 2 to 3 was hell, but 3.11+ has been pretty easy. &lt;/p&gt;
+&lt;p&gt;Generally the game plan is: update, test and repeat.&lt;/p&gt;
+&lt;h3&gt;Dependencies&lt;/h3&gt;
+&lt;p&gt;Dependencies are where we first start. When you upgrade Python you might find that some dependencies will need to be upgraded to support the newer Python version.&lt;/p&gt;
+&lt;p&gt;To make this process easy, my recommendation is to use &lt;a href="https://docs.astral.sh/uv/guides/install-python/"&gt;uv&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;uv makes managing different versions of Python easy with the &lt;a href="https://docs.astral.sh/uv/reference/cli/#uv-run--python"&gt;&lt;code&gt;-p&lt;/code&gt; flag&lt;/a&gt;, see Simon Willison's &lt;a href="https://til.simonwillison.net/python/uv-tests"&gt;article&lt;/a&gt; where he uses this feature to test across different versions of Python.&lt;/p&gt;
+&lt;p&gt;For example, if I want to run pytest in different versions:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;-p&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;.10&lt;span class="w"&gt; &lt;/span&gt;pytest
+uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;-p&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;.11&lt;span class="w"&gt; &lt;/span&gt;pytest
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;You can also run with different dependencies using the &lt;a href="https://docs.astral.sh/uv/reference/cli/#uv-run--with"&gt;&lt;code&gt;-w flag&lt;/code&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;-p&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;.12&lt;span class="w"&gt; &lt;/span&gt;-w&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nv"&gt;pandas&lt;/span&gt;&lt;span class="o"&gt;==&lt;/span&gt;&lt;span class="m"&gt;2&lt;/span&gt;.3.3&lt;span class="w"&gt; &lt;/span&gt;pytest
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Using uv you can narrow things down until find the right dependencies for your application. This is of course achievable without uv, but uv has a good interface and gets you there faster. &lt;/p&gt;
+&lt;h3&gt;Understanding the Python changes&lt;/h3&gt;
+&lt;p&gt;...&lt;/p&gt;
+&lt;h3&gt;Code rewrite tools&lt;/h3&gt;
+&lt;p&gt;Before you rewrite your code manually, it might be worth looking at code re-writing tools to save you some time. &lt;a href="https://github.com/asottile/pyupgrade"&gt;pyupgrade&lt;/a&gt; has some automatic rules for upgrade. &lt;/p&gt;
+&lt;p&gt;&lt;a href="https://docs.astral.sh/ruff/rules/#pyupgrade-up"&gt;ruff&lt;/a&gt; also implements the same rules as pyupgrade. Which can automatically rewrite your code with:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;ruff&lt;span class="w"&gt; &lt;/span&gt;check&lt;span class="w"&gt; &lt;/span&gt;--fix&lt;span class="w"&gt; &lt;/span&gt;--select&lt;span class="w"&gt; &lt;/span&gt;UP
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;If you have time, it might be worth reading all the ruff rules and selecting a set of rules that will help you improve your code quality. &lt;/p&gt;
+&lt;h4&gt;Custom rewriters&lt;/h4&gt;
+&lt;p&gt;If the off-the-shelf rewriters don't have enough coverage, then you will have to make the change yourself. However, if the pattern is very common then you may consider creating a tool to do the rewrite. &lt;a href="https://github.com/Instagram/LibCST"&gt;LibCST&lt;/a&gt; powers a lot of a linters and formatters in the Python ecosystem, including pyupgrade, ruff and black. Below is an example I had rewriting a simple import:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;RewriteImport&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cst&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;CSTTransformer&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="sd"&gt;&amp;quot;&amp;quot;&amp;quot;Rewrite:&lt;/span&gt;
+&lt;span class="sd"&gt;            from typing_extensions import ParamSpec&lt;/span&gt;
+&lt;span class="sd"&gt;        To:&lt;/span&gt;
+&lt;span class="sd"&gt;            from typing import ParamSpec&lt;/span&gt;
+&lt;span class="sd"&gt;    &amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;leave_ImportFrom&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+        &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;original_node&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;cst&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ImportFrom&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;updated_node&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;cst&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ImportFrom&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;cst&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;BaseStatement&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="n"&gt;cst&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;RemovalSentinel&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;match&lt;/span&gt; &lt;span class="n"&gt;original_node&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="k"&gt;case&lt;/span&gt; &lt;span class="n"&gt;cst&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;ImportFrom&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;names&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;ParamSpec&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;module&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;typing_extensions&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+                &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;updated_node&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;with_changes&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;module&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;typing&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+            &lt;span class="k"&gt;case&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;_&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;updated_node&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Above is a very straight-forward example, it will only rewrite singular imports and is barely better than a &lt;code&gt;sed&lt;/code&gt; statement. But we can compose this to make more complex rewriters. &lt;/p&gt;
+&lt;p&gt;I've found that LLMs are pretty good at coming up with these, though I suppose the questions then would be whether to use the LLMs directly to rewrite your code. This depends on several factors:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;are there edge cases, then llms might handle it better&lt;/li&gt;
+&lt;li&gt;is the code base large and is cost an issue.&lt;/li&gt;
+&lt;li&gt;is this something you want to reuse with the same result, then llms are not reliable enough.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;One more thing I want to bring up is &lt;a href="https://ast-grep.github.io/"&gt;astgrep&lt;/a&gt;, another tool to rewrite your code. This is not something that I've used, but it has a lot of recipes out of the box for Python. So it's definitely worth checking out!&lt;/p&gt;
+&lt;h4&gt;A warning&lt;/h4&gt;
+&lt;p&gt;Any changes to your code base should be reviewed and tested, this is doubly true for code written by machines, LLMs or otherwise. The changes here may be numerous, but you must exercise caution or suffer the consequences. &lt;/p&gt;
+&lt;h2&gt;Code Maintenance&lt;/h2&gt;
+&lt;p&gt;If this has been a struggle for you, then it's also an opportunity to reflect on what has made it so difficult. &lt;/p&gt;
+&lt;p&gt;Some times the problems are out of your hands, in the case of Python 2 to 3 upgrade, or something like pandas 1-&amp;gt;2. The changes you receive are too big and just need a lot of attention. &lt;/p&gt;
+&lt;p&gt;But there are other reasons:&lt;/p&gt;
+&lt;h3&gt;Upgrades are too infrequent&lt;/h3&gt;
+&lt;p&gt;If you don't get in the habit of upgrading, then each upgrade you take on more changes. This is more complexity and more risk. I've &lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>Fixing lazy imports: Generating Static Types Dynamically</title><link href="https://blog.changs.co.uk/fixing-lazy-imports-generating-static-types-dynamically.html" rel="alternate"></link><published>2025-10-29T00:00:00+00:00</published><updated>2025-10-29T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2025-10-29:/fixing-lazy-imports-generating-static-types-dynamically.html</id><summary type="html">&lt;p&gt;So I've just released a package called &lt;a href="https://pypi.org/project/lazy-helper/"&gt;lazy-helper&lt;/a&gt;. This comes as lazy loading has been a hot topic once again due to the proposal &lt;a href="https://peps.python.org/pep-0810/"&gt;PEP-810&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Using my package we can define lazy loaded dependencies nicely:&lt;/p&gt;
 &lt;p&gt;&lt;img alt="Defining a lazy module" src="https://blog.changs.co.uk/images/lazypy.png"&gt;&lt;/p&gt;
 &lt;p&gt;Coincidentally Brian Okken has recently written a &lt;a href="https://pythontest.com/polite-lazy-imports-python-packages/"&gt;blog post&lt;/a&gt; covering the topic of lazy loading …&lt;/p&gt;</summary><content type="html">&lt;p&gt;So I've just released a package called &lt;a href="https://pypi.org/project/lazy-helper/"&gt;lazy-helper&lt;/a&gt;. This comes as lazy loading has been a hot topic once again due to the proposal &lt;a href="https://peps.python.org/pep-0810/"&gt;PEP-810&lt;/a&gt;.&lt;/p&gt;

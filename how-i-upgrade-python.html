@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>How I upgrade Python</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="Python 3.9 has officially retired after 5 years since its release in 2020 end of life. The final release of Python 3.9 is out!..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./how-i-upgrade-python.html" rel="bookmark"
+             title="Permalink to How I upgrade Python">How I upgrade Python</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-11-02T00:00:00+00:00">
+                Published: Sun 02 November 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>Python 3.9 has officially retired after 5 years since its release in 2020 end of life.</p>
+<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:7w4a4uncvgnzucylyosrfmm2/app.bsky.feed.post/3m4jmi5pl7s2d" data-bluesky-cid="bafyreihfz4h6q555jetztj2o4e5a2kbq7k6qkrjrttv2l3lpz5df4isrpm" data-bluesky-embed-color-mode="system"><p lang="en">The final release of Python 3.9 is out!
+
+discuss.python.org/t/the-final-...
+
+May you all enjoy using the features added in Python 3.10 if that&#x27;s now your oldest version. 😁
+
+docs.python.org/3/whatsnew/3...<br><br><a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2/post/3m4jmi5pl7s2d?ref_src=embed">[image or embed]</a></p>&mdash; Brett Cannon (<a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2?ref_src=embed">@snarky.ca</a>) <a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2/post/3m4jmi5pl7s2d?ref_src=embed">31 October 2025 at 23:20</a></blockquote>
+<script async src="https://embed.bsky.app/static/embed.js" charset="utf-8"></script>
+
+<p>Depending on who you are you might either be rejoicing at being able to use 3.10 features in your library or be dreading the migration of your app to 3.10+. For me personally a lot of my code is already 3.10+, and in fact the few libraries I do have are already on 3.10+ whether intentional or otherwise.</p>
+<h2>Python 3.10 Recap</h2>
+<p>First a recap of 3.10. Whether forced to upgrade or not, Python 3.10 is a great release that brings in a lot of great changes.</p>
+<p>I have found an <a href="https://github.com/Jamie-Chang/python310/tree/main">old repo</a> of mine going over the changes from 4 years ago. I strongly suggest you go over these changes either in my notebooks or from the <a href="https://docs.python.org/3/whatsnew/3.10.html">official release notes</a>. Highlights include:</p>
+<ul>
+<li>structural pattern matching </li>
+<li>syntax for unions of types e.g. <code>int | str</code> as opposed to <code>Union[int, str]</code>.</li>
+</ul>
+<p>As great as 3.10 is, it's still 4 years old and there are even better features in the later releases. Therefore I would consider upgrading as much as your dependencies allow you to.</p>
+<h2>Upgrading Python Version</h2>
+<p>Upgrading Python can be a mixed bag. Some versions are nastier than others, Python 2 to 3 was hell, but 3.11+ has been pretty easy. </p>
+<p>Generally the game plan is: update, test and repeat.</p>
+<h3>Dependencies</h3>
+<p>Dependencies are where we first start. When you upgrade Python you might find that some dependencies will need to be upgraded to support the newer Python version.</p>
+<p>To make this process easy, my recommendation is to use <a href="https://docs.astral.sh/uv/guides/install-python/">uv</a>.</p>
+<p>uv makes managing different versions of Python easy with the <a href="https://docs.astral.sh/uv/reference/cli/#uv-run--python"><code>-p</code> flag</a>, see Simon Willison's <a href="https://til.simonwillison.net/python/uv-tests">article</a> where he uses this feature to test across different versions of Python.</p>
+<p>For example, if I want to run pytest in different versions:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">3</span>.10<span class="w"> </span>pytest
+uv<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">3</span>.11<span class="w"> </span>pytest
+</code></pre></div>
+
+<p>You can also run with different dependencies using the <a href="https://docs.astral.sh/uv/reference/cli/#uv-run--with"><code>-w flag</code></a></p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">3</span>.12<span class="w"> </span>-w<span class="w"> </span><span class="nv">pandas</span><span class="o">==</span><span class="m">2</span>.3.3<span class="w"> </span>pytest
+</code></pre></div>
+
+<p>Using uv you can narrow things down until find the right dependencies for your application. This is of course achievable without uv, but uv has a good interface and gets you there faster. </p>
+<h3>Understanding the Python changes</h3>
+<p>...</p>
+<h3>Code rewrite tools</h3>
+<p>Before you rewrite your code manually, it might be worth looking at code re-writing tools to save you some time. <a href="https://github.com/asottile/pyupgrade">pyupgrade</a> has some automatic rules for upgrade. </p>
+<p><a href="https://docs.astral.sh/ruff/rules/#pyupgrade-up">ruff</a> also implements the same rules as pyupgrade. Which can automatically rewrite your code with:</p>
+<div class="highlight"><pre><span></span><code>ruff<span class="w"> </span>check<span class="w"> </span>--fix<span class="w"> </span>--select<span class="w"> </span>UP
+</code></pre></div>
+
+<p>If you have time, it might be worth reading all the ruff rules and selecting a set of rules that will help you improve your code quality. </p>
+<h4>Custom rewriters</h4>
+<p>If the off-the-shelf rewriters don't have enough coverage, then you will have to make the change yourself. However, if the pattern is very common then you may consider creating a tool to do the rewrite. <a href="https://github.com/Instagram/LibCST">LibCST</a> powers a lot of a linters and formatters in the Python ecosystem, including pyupgrade, ruff and black. Below is an example I had rewriting a simple import:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">RewriteImport</span><span class="p">(</span><span class="n">cst</span><span class="o">.</span><span class="n">CSTTransformer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rewrite:</span>
+<span class="sd">            from typing_extensions import ParamSpec</span>
+<span class="sd">        To:</span>
+<span class="sd">            from typing import ParamSpec</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">leave_ImportFrom</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">original_node</span><span class="p">:</span> <span class="n">cst</span><span class="o">.</span><span class="n">ImportFrom</span><span class="p">,</span> <span class="n">updated_node</span><span class="p">:</span> <span class="n">cst</span><span class="o">.</span><span class="n">ImportFrom</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">cst</span><span class="o">.</span><span class="n">BaseStatement</span> <span class="o">|</span> <span class="n">cst</span><span class="o">.</span><span class="n">RemovalSentinel</span><span class="p">:</span>
+        <span class="k">match</span> <span class="n">original_node</span><span class="p">:</span>
+            <span class="k">case</span> <span class="n">cst</span><span class="o">.</span><span class="n">ImportFrom</span><span class="p">(</span><span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ParamSpec&quot;</span><span class="p">],</span> <span class="n">module</span><span class="o">=</span><span class="s2">&quot;typing_extensions&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">updated_node</span><span class="o">.</span><span class="n">with_changes</span><span class="p">(</span><span class="n">module</span><span class="o">=</span><span class="s2">&quot;typing&quot;</span><span class="p">)</span>
+            <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">updated_node</span>
+</code></pre></div>
+
+<p>Above is a very straight-forward example, it will only rewrite singular imports and is barely better than a <code>sed</code> statement. But we can compose this to make more complex rewriters. </p>
+<p>I've found that LLMs are pretty good at coming up with these, though I suppose the questions then would be whether to use the LLMs directly to rewrite your code. This depends on several factors:</p>
+<ul>
+<li>are there edge cases, then llms might handle it better</li>
+<li>is the code base large and is cost an issue.</li>
+<li>is this something you want to reuse with the same result, then llms are not reliable enough.</li>
+</ul>
+<p>One more thing I want to bring up is <a href="https://ast-grep.github.io/">astgrep</a>, another tool to rewrite your code. This is not something that I've used, but it has a lot of recipes out of the box for Python. So it's definitely worth checking out!</p>
+<h4>A warning</h4>
+<p>Any changes to your code base should be reviewed and tested, this is doubly true for code written by machines, LLMs or otherwise. The changes here may be numerous, but you must exercise caution or suffer the consequences. </p>
+<h2>Code Maintenance</h2>
+<p>If this has been a struggle for you, then it's also an opportunity to reflect on what has made it so difficult. </p>
+<p>Some times the problems are out of your hands, in the case of Python 2 to 3 upgrade, or something like pandas 1-&gt;2. The changes you receive are too big and just need a lot of attention. </p>
+<p>But there are other reasons:</p>
+<h3>Upgrades are too infrequent</h3>
+<p>If you don't get in the habit of upgrading, then each upgrade you take on more changes. This is more complexity and more risk. I've </p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/changs.co.uk/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Trying out marimo notebooks</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="As we approach the holiday seasons, we get to "enjoy" another 12 days of Advent of Code. Every year I try to do something a little different, last..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./trying-out-marimo-notebooks.html" rel="bookmark"
+             title="Permalink to Trying out marimo notebooks">Trying out marimo notebooks</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-12-03T00:00:00+00:00">
+                Published: Wed 03 December 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>As we approach the holiday seasons, we get to "enjoy" another 12 days of <a href="https://adventofcode.com/">Advent of Code</a>. Every year I try to do something a little different, last year I had a lot of fun solving it in Ocaml, prior years I've tried the latest Python features. This year I've decided to use <a href="https://marimo.io/">marimo notebooks</a>. </p>
+<p>Marimo is a jupyter competitor, providing an interactive environment to develop code and visualise data. As the new kid in the block, it has a very sleek look and good support for a lot of different visualisation frameworks. There is already a very good <a href="https://realpython.com/marimo-notebook/">article</a> on realpython about it, so I won't go into too much detail on its features.</p>
+<p>Instead I'll talk about the feature that makes marimo truly standout: builtin reactivity! When a cell in marimo creates a variable, marimo tracks it. When the variable changes, any cell that references it will update automatically. For example, try changing <code>my_value</code> in the second cell below:</p>
+<p><iframe
+  src="https://marimo.app/l/zluj3i?embed=true&show-chrome=false"
+  width="100%"
+  height=400"
+  sandbox="allow-scripts allow-same-origin"
+></iframe>
+</p>
+<blockquote>
+<p>If you're not familiar with embedded notebooks, you can have a look at my past <a href="./my-sqlalchemy-cookbook.html">blog post</a> which uses jupyter-lite. Marimo has even better support for wasm notebooks.</p>
+</blockquote>
+<p>Honestly, when you first try it everything feels like magic. But there are some quirks the more you get into it. In order for marimo to effectively track the variables, it places restrictions on where variables can be used. And cyclical dependencies are possible here.</p>
+<p>The good thing is marimo will let you know immediately why, so you won't need to look up why something is not working. Overall I don't find it too difficult to use but it'll be good to hear what others think.</p>
+<p>For me, marimo is just much more fun than jupyter. I can essentially write little reactive web UI in pure Python in my own browser. The ability to embed wasm notebooks is also very handy for my blogs going forward. </p>
+<p>In any case, here's a neat little app demonstrating the solution for today's advent of code:</p>
+<p><iframe
+  src="https://marimo.app/l/x8qcbz?embed=true&show-chrome=false"
+  width="100%"
+  height="800"
+  sandbox="allow-scripts allow-same-origin"
+></iframe>
+</p>
+<p>So what do you think? If it looks cool to you, you can try it out at <a href="https://marimo.app">marimo.app</a>!</p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/changs.co.uk/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
