@@ -14,7 +14,7 @@
 &lt;/blockquote&gt;
 &lt;p&gt;Honestly, when you first try it everything feels like magic. But there are some quirks the more you get into it. In order for marimo to effectively track the variables, it places restrictions on where variables can be used. And cyclical dependencies are possible here.&lt;/p&gt;
 &lt;p&gt;The good thing is marimo will let you know immediately why, so you won't need to look up why something is not working. Overall I don't find it too difficult to use but it'll be good to hear what others think.&lt;/p&gt;
-&lt;p&gt;To me, marimo is just much more fun than jupyter. I can essentially write little reactive web UI in pure Python in my own browser. The ability to embed wasm notebooks is also very handy for my blogs going forward. &lt;/p&gt;
+&lt;p&gt;To me marimo is just much more fun than jupyter, I can essentially write little reactive web UI in pure Python. I think that's important, I'm not someone who has enjoyed writing UIs, and I think it's because I just don't find javascript fun. Of course, we're not going to be able to create particularly complex and performant UIs but I think fun matters a lot too.&lt;/p&gt;
 &lt;p&gt;In any case, here's a neat little app demonstrating the solution for today's advent of code, I've included some input UI elements like the &lt;a href="https://docs.marimo.io/api/inputs/slider/"&gt;slider&lt;/a&gt;. Changing the inputs will automatically cause the output to regenerate:&lt;/p&gt;
 &lt;p&gt;&lt;iframe
   src="https://marimo.app/l/x8qcbz?embed=true&amp;show-chrome=false"
