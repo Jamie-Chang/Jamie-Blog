@@ -22,63 +22,6 @@
                         <ol id="posts-list" class="hfeed" start="9">
                 <li><article class="hentry">
                     <header>
-                        <h1><a href="./better-functools-python-functional-fun.html" rel="bookmark"
-                               title="Permalink to better-functools: Python functional fun">better-functools: Python functional fun</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-03-09T00:00:00+00:00">
-                Published: Sun 09 March 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I recently put some effort into creating <a href="https://github.com/Jamie-Chang/better-functools">better-functools</a>. It's a package that adds some tooling for functional programming in Python. And allows us to write some unique looking code in a manner similar to functional languages:</p>
-<p><img alt="better-functools" src="./images/better-functools.png">
-<a href="https://pydantic.run/store/a075fad4d27ad9d0">Try in sandbox</a></p>
-<h3>Why?</h3>
-<p>At a glance this doesn't look very "Pythonic". More complex …</p>
-                        <a class="readmore" href="./better-functools-python-functional-fun.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./sqlalchemy-footgun-discarding-the-statement.html" rel="bookmark"
-                               title="Permalink to Sqlalchemy Footgun: Discarding the statement">Sqlalchemy Footgun: Discarding the statement</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-02-02T00:00:00+00:00">
-                Published: Sun 02 February 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This one has frustrated me for a while. </p>
-<p>It starts off with a REST API route. For example in fastAPI</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">search_users</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">User</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Finds users optionally filter by user_id&quot;&quot;&quot;</span>
-    <span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">User</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">User</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span><span class="o">.</span><span class="n">scalars</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-</code></pre></div>
-
-<p>Then we get asked …</p>
-                        <a class="readmore" href="./sqlalchemy-footgun-discarding-the-statement.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
                         <h1><a href="./jamies-pattern-matching-cookbook.html" rel="bookmark"
                                title="Permalink to Jamie's Pattern Matching Cookbook">Jamie's Pattern Matching Cookbook</a></h1>
                     </header>
@@ -272,14 +215,58 @@ It enables true multi-threaded execution without the restriction of the <a href=
                         <a class="readmore" href="./closing-python-iterators.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./free-threaded-python-with-asyncio.html" rel="bookmark"
+                               title="Permalink to Free Threaded Python With Asyncio">Free Threaded Python With Asyncio</a></h1>
+                    </header>
+
+                    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2024-09-19T00:00:00+01:00">
+                Published: Thu 19 September 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->                        <p>With the imminent release of Python 3.13, I wanted to look at the biggest changes coming to Python. I think by far the most exciting feature is free-threaded Python from <a href="https://peps.python.org/pep-0703/">PEP-703</a>.</p>
+<p>As I'm quite late to the party, there's already a lot of articles talking about it. I came …</p>
+                        <a class="readmore" href="./free-threaded-python-with-asyncio.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./my-first-blog-post.html" rel="bookmark"
+                               title="Permalink to My First Blog Post">My First Blog Post</a></h1>
+                    </header>
+
+                    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2024-09-18T00:00:00+01:00">
+                Published: Wed 18 September 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->                        <p>My name is Jamie Chang, I'm a software engineer in London. I like all things Python, but I'll try to mix it up sometimes. I decided to start this blog to get some of the ideas out from my head and to practice communicating technical topics.</p>
+<p>For this site, I'm …</p>
+                        <a class="readmore" href="./my-first-blog-post.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
                     </ol><!-- /#posts-list -->
   <nav>
     <ul>
         <li><a href="./index.html">&Lang;</a></li>
         <li><a href="./index2.html">&lang;</a></li>
-      <li>Page 3 / 4</li>
-        <li><a href="./index4.html">&rang;</a></li>
-        <li><a href="./index4.html">&Rang;</a></li>
+      <li>Page 3 / 3</li>
     </ul>
   </nav>
                     </section><!-- /#content -->
