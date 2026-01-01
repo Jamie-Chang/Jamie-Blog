@@ -38,6 +38,7 @@
 <li><a href="./python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
 <li><a href="./subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
 </ul>
+<p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding of them. </p>
 <h3>Efficient data sharing between interpreters</h3>
 <p>My first attempt at using it was to solve an <a href="https://adventofcode.com/2024/day/6">Advent of Code</a>. This involved running the same function around 4000 times on the same grid of values. </p>
 <p>The function makes a lot of read only access to the grid, which causes high lock contention in a free-threaded implementation. But with interpreters the performance scaled pretty much perfectly. Here's a chart of the performance differences:</p>
@@ -53,18 +54,18 @@
     <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">,</span> <span class="n">candidates</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
 </code></pre></div>
 
-<p>... nd the results came out a lot slower. Around 4 seconds compared to the 0.6 seconds before. </p>
-<p>So that seems to prove my point then? Well not exactly, I tried rewriting my own implementation again, something like:</p>
+<p>... and the results indeed came out a lot slower. Around 4 seconds compared to the 0.6 seconds before (13 threads on my M3 Macbook). </p>
+<p>So that seems to prove my point then? Well not exactly, I tried rewriting my own implementation again like:</p>
 <div class="highlight"><pre><span></span><code>    <span class="n">candidates</span> <span class="o">=</span> <span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">start</span><span class="p">)</span>
     <span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="p">(</span><span class="s2">&quot;implementations.d6&quot;</span><span class="p">,</span> <span class="s2">&quot;solve&quot;</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="n">workers</span><span class="p">)</span>
     <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
 </code></pre></div>
 
-<p>And it was just as slow. So what's going on here?</p>
+<p>it was just as slow. So what's going on here?</p>
 <p>It turns out that whether using the standard library or hand writing my own executor, we're both using the same 'sharing' mechanism to move the arguments and results in and out of the interpreter.</p>
 <p>But I had assumed that when we shared the grid of type <code>tuple[tuple[bool, ...], ...]</code> we simply share the reference of the object. But this is not actually the case, the <a href="https://docs.python.org/3/library/concurrent.interpreters.html#interp-object-sharing">docs</a> don't go into a lot of detail in actual fact, most objects are copied between interpreters.</p>
 <p>This doesn't explain why my initial implementation was so fast. After rechecking my original code, I found out that I had gotten quite lucky and used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a> to pass the grid to each interpreter at the start. This still perform the copy but only once for each worker, on the other hand, my newer implementations copy grid for each invocation.</p>
-<p>To show this more clearly, we can use <code>memoryview</code> instead. <code>memoryview</code> is one of the few exceptions that do not require copying as it shares mutable data. Whilst the <code>memoryview</code> itself is copied each time the underlying data is not. </p>
+<p>To show this more clearly, we can use <code>memoryview</code> instead. <code>memoryview</code> is one of the few exceptions that do not require copying as it shares mutable data. The way it works is that the <code>memoryview</code> object itself is copied each time but the underlying data is simply referenced. </p>
 <p>Changing the grid to a <code>memoryview</code> backed by a <code>bytearray</code> we get back our performance we expect. See the code below:</p>
 <style type="text/css">
   .gist-file
@@ -84,12 +85,12 @@
 <blockquote>
 <p>Then there's the problem of loading functions into the interpreters. As far as I can tell, the best way to do so without pickle is to import the functions inside the interpreters. This is likely the mechanism behind <code>call_in_thread</code>.</p>
 </blockquote>
-<p>I had not realised that pickle works on functions the following <a href="https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled">way</a>:</p>
+<p>At the time, I had not realised that pickle works on functions the following <a href="https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled">way</a>:</p>
 <blockquote>
 <p>Note that functions (built-in and user-defined) are pickled by fully qualified name, not by value. This means that only the function name is pickled, along with the name of the containing module and classes. Neither the function’s code, nor any of its function attributes are pickled. Thus the defining module must be importable in the unpickling environment, and the module must contain the named object, otherwise an exception will be raised.</p>
 </blockquote>
-<p>So it was ultimately unnecessary to create a custom function loading mechanism to load the function into the interpreter (oops!).</p>
-<p>This means that there's no discernable performance benefits in my <code>Runner</code> implementation over <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a></p>
+<p>So it was ultimately unnecessary to create a custom function loading mechanism to load the function into the interpreter as pickle was already doing the same thing (oops!).</p>
+<p>This means that there's no discernable performance benefits in my <code>Runner</code> implementation over <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a>.</p>
 <h2>How should we use interpreters then?</h2>
 <p>In short just use <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a>.</p>
 <div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
@@ -127,9 +128,9 @@
 
 <h2>What about <code>aiointerpreters</code>?</h2>
 <p>I'm hoping by this point, I've successfully convinced you that <code>aiointerpreters</code> is redundant and the standard library functionality is enough.</p>
-<p>I think I can say now that I'm mostly wrong about the usability and out of the box <code>InterpreterPoolExecutor</code> works well. </p>
-<p>That being said, being a very new and niche feature there are still a lot of sharp edges. One thing that led to my confusions is that there are not many resources on how it works, there are some difference between the information from the <a href="https://pypi.org/project/interpreters-pep-734">PEP</a> and the final implementation. So I do hope I've been able to shed some light on some of the more confusing aspects of subinterpreters here. </p>
-<p>For aiointerpreters, going forward the focus will be more on enhancing the features the standard library offers rather than completely reinventing the wheel.</p>
+<p>I can now safely say that I'm wrong about the out of the box usability of <code>InterpreterPoolExecutor</code>. That being said I don't feel too silly making those mistakes. </p>
+<p>With subinterpreters still a very new and niche feature, there are still a lot of sharp edges. One thing that led to my confusions is that there are not many resources on how it works, there are some difference between the information from the <a href="https://pypi.org/project/interpreters-pep-734">PEP</a> and the final implementation. So I do hope the details I share here can save people some time. </p>
+<p>As for aiointerpreters, going forward the focus will be more on enhancing the features the standard library offers rather than completely reinventing the wheel (again). This process is already underway ... </p>
 <h3>InterpreterThreadPoolExecutor</h3>
 <p>As I've been going through the code in the <a href="https://github.com/python/cpython/blob/main/Lib/concurrent/futures/interpreter.py">standard library</a> I've discovered that the current executor implementation is written on top of <code>ThreadPoolExecutor</code>. Once a task is given to a thread it then get's sent to an interpreter within the thread.</p>
 <p>This gives us an opportunity to create a hybrid executor that can dispatch to an interpreter conditionally. I created <code>InterpreterThreadExecutor</code>:</p>
@@ -162,7 +163,7 @@
 <p>Finally, running an executor and integrating it with <code>asyncio</code> is not always straightforward, and I'm sure there's some interesting abstractions that can be created on this front. </p>
 <h2>Closing words</h2>
 <p>Apologies if this all reads like a massive dump of information, I've realised how tricky the subject of concurrency is and I found that it's important here to provide the most accurate details. </p>
-<p>Parallelism in Python is nascent and there simply isn't an obvious way to do things right now and maybe there never will be. With that comes some difficulty in knowing what do do. The most crucial thing here is to get your hands dirty and try different things for yourself and slowly a clearer understanding will form.</p>
+<p>True parallelism in Python is nascent and there simply isn't an obvious way to do things right now and maybe there never will be. With that comes some difficulty in knowing what do do. The most crucial thing here is to get your hands dirty and try different things for yourself and slowly a clearer understanding will form.</p>
 <blockquote>
 <p>p.s. If you're more interested in free-threading, please look at <a href="./python-314-state-of-free-threading.html">Python 3.14: State of free threading</a> and <a href="./how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> my opinions on it have largely remained unchanged.</p>
 </blockquote>                    </article>
