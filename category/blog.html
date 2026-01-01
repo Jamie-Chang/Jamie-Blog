@@ -46,17 +46,25 @@
 <blockquote>
 <p>There are also other ways to execute code I chose not to use like <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a> which don't take advantage of shared objects, or <code>Interpreter.call</code> which places limitations on the function called.</p>
 </blockquote>
-<p>I didn't understand why <code>InterpreterPoolExecutor</code> would have these limitations, so recently I decided to revisit this claim and put it to the test.</p>
-<p>So I used the standard executor here:</p>
+<p>But something didn't sit right with me, why would there not be an easy to use implementation for users?</p>
+<p>So I gave it another look and reimplemented my solution with the standard executor here:</p>
 <div class="highlight"><pre><span></span><code><span class="n">candidates</span> <span class="o">=</span> <span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">start</span><span class="p">)</span>
 <span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
     <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">,</span> <span class="n">candidates</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
 </code></pre></div>
 
-<p>... And the results came out a lot slower. Around 4 seconds compared to the 0.6 seconds before. </p>
-<p>So that seems to prove my point then? Well not exactly, I dug into the implementation and it should be using the exact sharing mechanisms to pass the arguments to the interpreter that I used before. I had assumed that when we shared the grid of type <code>tuple[tuple[bool, ...], ...]</code> we simply share the reference of the object. But this is not actually the case, the <a href="https://docs.python.org/3/library/concurrent.interpreters.html#interp-object-sharing">docs</a> don't go into a lot of detail but it shows the value is copied between interpreters as opposed to being passed by reference. </p>
-<p>This doesn't explain why my initial implementation was so fast. After much experimentation, I found the issue. I got quite lucky and used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a> to pass the grid to each interpreter. This still needs to copy but only relatively few times, where as the <code>InterpreterExecutor</code> method copies the grid on each invocation</p>
-<p>Not all object types require copying, <code>memoryview</code> is one of the exceptions that allows sharing of the mutable data. Whilst the <code>memoryview</code> itself is copied each time the underlying data is not. </p>
+<p>... nd the results came out a lot slower. Around 4 seconds compared to the 0.6 seconds before. </p>
+<p>So that seems to prove my point then? Well not exactly, I tried rewriting my own implementation again, something like:</p>
+<div class="highlight"><pre><span></span><code>    <span class="n">candidates</span> <span class="o">=</span> <span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">start</span><span class="p">)</span>
+    <span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="p">(</span><span class="s2">&quot;implementations.d6&quot;</span><span class="p">,</span> <span class="s2">&quot;solve&quot;</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="n">workers</span><span class="p">)</span>
+    <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
+</code></pre></div>
+
+<p>And it was just as slow. So what's going on here?</p>
+<p>It turns out that whether using the standard library or hand writing my own executor, we're both using the same 'sharing' mechanism to move the arguments and results in and out of the interpreter.</p>
+<p>But I had assumed that when we shared the grid of type <code>tuple[tuple[bool, ...], ...]</code> we simply share the reference of the object. But this is not actually the case, the <a href="https://docs.python.org/3/library/concurrent.interpreters.html#interp-object-sharing">docs</a> don't go into a lot of detail in actual fact, most objects are copied between interpreters.</p>
+<p>This doesn't explain why my initial implementation was so fast. After rechecking my original code, I found out that I had gotten quite lucky and used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a> to pass the grid to each interpreter at the start. This still perform the copy but only once for each worker, on the other hand, my newer implementations copy grid for each invocation.</p>
+<p>To show this more clearly, we can use <code>memoryview</code> instead. <code>memoryview</code> is one of the few exceptions that do not require copying as it shares mutable data. Whilst the <code>memoryview</code> itself is copied each time the underlying data is not. </p>
 <p>Changing the grid to a <code>memoryview</code> backed by a <code>bytearray</code> we get back our performance we expect. See the code below:</p>
 <style type="text/css">
   .gist-file
@@ -118,9 +126,10 @@
 </code></pre></div>
 
 <h2>What about <code>aiointerpreters</code>?</h2>
-<p>I'm hoping by this point, I've successfully convinced you that <code>aiointerpreters</code> is redundant and the standard library functionality is enough. I've always maintained the idea that subinterpreters are extremely powerful but very hard to use. </p>
-<p>I think I can say now that I'm mostly wrong about the usability and out of the box it's not hard to make it work. That being said, as it's a very new feature there are still a lot of sharp edges. One thing that led to my confusions is that there are not many resources on how it works, there are some difference between the information from the <a href="https://pypi.org/project/interpreters-pep-734">PEP</a> and the final implementation. And I do hope this article can shed some light on some of the more confusing aspects of subinterpreters. </p>
-<p>For aiointerpreters, going forward the focus will me more on enhancing the features the standard library offers rather than completely reinventing the wheel.</p>
+<p>I'm hoping by this point, I've successfully convinced you that <code>aiointerpreters</code> is redundant and the standard library functionality is enough.</p>
+<p>I think I can say now that I'm mostly wrong about the usability and out of the box <code>InterpreterPoolExecutor</code> works well. </p>
+<p>That being said, being a very new and niche feature there are still a lot of sharp edges. One thing that led to my confusions is that there are not many resources on how it works, there are some difference between the information from the <a href="https://pypi.org/project/interpreters-pep-734">PEP</a> and the final implementation. So I do hope I've been able to shed some light on some of the more confusing aspects of subinterpreters here. </p>
+<p>For aiointerpreters, going forward the focus will be more on enhancing the features the standard library offers rather than completely reinventing the wheel.</p>
 <h3>InterpreterThreadPoolExecutor</h3>
 <p>As I've been going through the code in the <a href="https://github.com/python/cpython/blob/main/Lib/concurrent/futures/interpreter.py">standard library</a> I've discovered that the current executor implementation is written on top of <code>ThreadPoolExecutor</code>. Once a task is given to a thread it then get's sent to an interpreter within the thread.</p>
 <p>This gives us an opportunity to create a hybrid executor that can dispatch to an interpreter conditionally. I created <code>InterpreterThreadExecutor</code>:</p>
@@ -133,9 +142,8 @@
 </code></pre></div>
 
 <p>When the user want to request a dedicated interpreter they simply need to wrap the function in the <code>interpreter</code> decorator.</p>
-<p>I think this makes a lot of sense as threads and interpreters both have their trade offs. Interpreters are isolated and allow parallel memory access but passing arguments needs a lot more care and could be slower. On the other hand, threads have a whole other set of trade offs to contend with: </p>
-<p>Assuming GIL is enabled, passing arguments is easy but there's no true parallelism due to the GIL.</p>
-<p>By providing a shared pool of threads that could use either subinterpreters or plain thread then we can give user the most options and improve the usability. </p>
+<p>I think this makes a lot of sense as threads and interpreters both have their trade offs. Interpreters are isolated and allow parallel memory access but passing arguments needs a lot more care and could be slower. On the other hand, threads (GIL enabled) cannot run cpu bound code in parallel.</p>
+<p>We could create 2 thread pools but I think it's a lot easier and resource efficient to maintain a single thread pool.</p>
 <p>This is particularly useful for <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread">asyncio.to_thread()</a>:</p>
 <p>We can set the default executor at a loop level:</p>
 <div class="highlight"><pre><span></span><code><span class="n">asyncio</span><span class="o">.</span><span class="n">get_running_loop</span><span class="p">()</span><span class="o">.</span><span class="n">set_default_executor</span><span class="p">(</span><span class="n">InterpreterThreadPoolExecutor</span><span class="p">())</span>
@@ -149,7 +157,7 @@
 
 <h3>More complex Executors and Runner</h3>
 <p>Whilst the default <code>aiointerpreters.runner.Runner</code> is a little redundant now, it doesn't mean there are no need for making custom versions of <code>Executor</code> or <code>Runner</code>. There is no one size fits all solution to concurrency and parallelism, so there's plenty of opportunity to create different versions of Executor that behave differently and solve different problems that the user face. </p>
-<p>I'm currently working on a <a href="https://github.com/Jamie-Chang/aiointerpreters/pull/8">Runner</a> that distributes async tasks to coroutines running in separate interpreters. </p>
+<p>I'm currently working on a <a href="https://github.com/Jamie-Chang/aiointerpreters/pull/8">Runner</a> that distributes async tasks to coroutines running in separate interpreters similar to <a href="https://github.com/omnilib/aiomultiprocess">aiomultiprocess</a>.</p>
 <p>There's also opportunity to take advantage of <code>prepare_main</code> in an executor to reduce the number of copying required. </p>
 <p>Finally, running an executor and integrating it with <code>asyncio</code> is not always straightforward, and I'm sure there's some interesting abstractions that can be created on this front. </p>
 <h2>Closing words</h2>
