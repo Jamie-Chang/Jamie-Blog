@@ -59,7 +59,7 @@ There are also other ways to execute code I chose not to use like [InterpreterPo
 Note: `Interpreter.exec` executes code in the foreground, so we would also need to wrap it in a thread.
 
 ### Calling a function
-Many of the examples in the PEO use an import inside the interpreter:
+Many of the examples in the PEP use an import inside the interpreter:
 ```py
     interp.exec("""if True:
         from mymodule import edit_data
