@@ -76,7 +76,7 @@
 <p>There are also other ways to execute code I chose not to use like <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a> which don't take advantage of shared objects, or <code>Interpreter.call</code> which places limitations on the function called.</p>
 <p>Note: <code>Interpreter.exec</code> executes code in the foreground, so we would also need to wrap it in a thread.</p>
 <h3>Calling a function</h3>
-<p>Many of the examples in the PEO use an import inside the interpreter:</p>
+<p>Many of the examples in the PEP use an import inside the interpreter:</p>
 <div class="highlight"><pre><span></span><code>    <span class="n">interp</span><span class="o">.</span><span class="n">exec</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;if True:</span>
 <span class="s2">        from mymodule import edit_data</span>
 <span class="s2">        while True:</span>

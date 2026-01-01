@@ -20,7 +20,157 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./trying-out-marimo-notebooks.html">Trying out marimo notebooks</a></h1>
+                        <h1 class="entry-title"><a href="./i-was-wrong-about-subinterpreters.html">I was wrong about Subinterpreters</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-01-05T00:00:00+00:00">
+                Published: Mon 05 January 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/pthon.html">πthon</a> <a href="./tag/python314.html">Python3.14</a> <a href="./tag/subinterpreters.html">Subinterpreters</a> </p>        
+</footer><!-- /.post-info --><p><strong><em>... but that's actually a good thing</em></strong></p>
+<p>I've already written a ton about subinterpreters since a year ago:  </p>
+<ul>
+<li><a href="./how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
+<li><a href="./python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
+<li><a href="./subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
+</ul>
+<h3>Efficient data sharing between interpreters</h3>
+<p>My first attempt at using it was to solve an <a href="https://adventofcode.com/2024/day/6">Advent of Code</a>. This involved running the same function around 4000 times on the same grid of values. </p>
+<p>The function makes a lot of read only access to the grid, which causes high lock contention in a multi-threaded implementation. But with interpreters the performance scaled pretty much perfectly. Here's the diagram to prove it:</p>
+<p><img alt="interpreters vs threads" src="./images/AoC-day-6.png"></p>
+<p>In the article I claimed:</p>
+<blockquote>
+<p>There are also other ways to execute code I chose not to use like <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a> which don't take advantage of shared objects, or <code>Interpreter.call</code> which places limitations on the function called.</p>
+</blockquote>
+<p>I didn't understand why <code>InterpreterPoolExecutor</code> would have these limitations, so recently I decided to revisit this claim and put it to the test.</p>
+<p>So I used the standard executor here:</p>
+<div class="highlight"><pre><span></span><code><span class="n">candidates</span> <span class="o">=</span> <span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">start</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">,</span> <span class="n">candidates</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
+</code></pre></div>
+
+<p>... And the results came out a lot slower. Around 4 seconds compared to the 0.6 seconds before. </p>
+<p>So that seems to prove my point then? Well not exactly, I dug into the implementation and it should be using the exact sharing mechanisms to pass the arguments to the interpreter that I used before. I had assumed that when we shared the grid of type <code>tuple[tuple[bool, ...], ...]</code> we simply share the reference of the object. But this is not actually the case, the <a href="https://docs.python.org/3/library/concurrent.interpreters.html#interp-object-sharing">docs</a> don't go into a lot of detail but it shows the value is copied between interpreters as opposed to being passed by reference. </p>
+<p>This doesn't explain why my initial implementation was so fast. After much experimentation, I found the issue. I got quite lucky and used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a> to pass the grid to each interpreter. This still needs to copy but only relatively few times, where as the <code>InterpreterExecutor</code> method copies the grid on each invocation</p>
+<p>Not all object types require copying, <code>memoryview</code> is one of the exceptions that allows sharing of the mutable data. Whilst the <code>memoryview</code> itself is copied each time the underlying data is not. </p>
+<p>Changing the grid to a <code>memoryview</code> backed by a <code>bytearray</code> we get back our performance we expect. See the code below:</p>
+<style type="text/css">
+  .gist-file
+  .gist-data {max-height: 500px;}
+</style>
+
+<script src="https://gist.github.com/Jamie-Chang/8263a304260d717308c6deb72f9f3e91.js"></script>
+
+<h3>Efficient function passing</h3>
+<p>In <a href="./subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a>, I tried to make subinterpreters work more generally with asyncio and created <a href="https://github.com/Jamie-Chang/aiointerpreters">aiointerpreters</a>.</p>
+<p>Here again I made some incorrect claims:</p>
+<blockquote>
+<p>In order to pass the function itself, the arguments and return values are pickled before they are passed to the interpreters. Which will impact performance and may cancel out a lot of the performance gains over other parallelism mechanisms like free-threading and multi-processing.</p>
+</blockquote>
+<p>Which as we know now, the only way to avoid copying the data is using <code>memoryview</code> or to reduce the amount of copying using something <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a>.</p>
+<p>Another thing I got wrong is:</p>
+<blockquote>
+<p>Then there's the problem of loading functions into the interpreters. As far as I can tell, the best way to do so without pickle is to import the functions inside the interpreters. This is likely the mechanism behind <code>call_in_thread</code>.</p>
+</blockquote>
+<p>I had not realised that pickle works on functions the following <a href="https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled">way</a>:</p>
+<blockquote>
+<p>Note that functions (built-in and user-defined) are pickled by fully qualified name, not by value. This means that only the function name is pickled, along with the name of the containing module and classes. Neither the function’s code, nor any of its function attributes are pickled. Thus the defining module must be importable in the unpickling environment, and the module must contain the named object, otherwise an exception will be raised.</p>
+</blockquote>
+<p>So it was ultimately unnecessary to create a custom function loading mechanism to load the function into the interpreter (oops!).</p>
+<p>This means that there's no discernable performance benefits in my <code>Runner</code> implementation over <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a></p>
+<h2>How should we use interpreters then?</h2>
+<p>In short just use <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+
+    <span class="c1"># or </span>
+    <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">single_arg</span><span class="p">)</span>
+    <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">single_arg</span><span class="p">)</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>Results can be accessed easily via <a href="https://docs.python.org/3/library/concurrent.futures.html#future-objects">futures</a>. The standard lib also provides some basic way to synchronise futures via <a href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.wait">wait</a> or <a href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.as_completed">as_completed</a></p>
+<h3>Asyncio</h3>
+<p>What if you need more complex synchronisation? We can run Executors in asyncio using <a href="https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor">loop.run_in_executor(...)</a>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
+    <span class="k">await</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_in_executor</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">argument</span><span class="p">)</span>
+</code></pre></div>
+
+<p>here's an example using the excellent <code>asyncio.TaskGroup</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">to_coro</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">aw</span><span class="p">:</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">aw</span>
+
+<span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">):</span>
+            <span class="c1"># NOTE: a task must be created from a coroutine, run_in_executor returns an `asyncio.Future`</span>
+            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span>
+                <span class="n">to_coro</span><span class="p">(</span>
+                    <span class="n">loop</span><span class="o">.</span><span class="n">run_in_executor</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">argument</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+</code></pre></div>
+
+<h2>What about <code>aiointerpreters</code>?</h2>
+<p>I'm hoping by this point, I've successfully convinced you that <code>aiointerpreters</code> is redundant and the standard library functionality is enough. I've always maintained the idea that subinterpreters are extremely powerful but very hard to use. </p>
+<p>I think I can say now that I'm mostly wrong about the usability and out of the box it's not hard to make it work. That being said, as it's a very new feature there are still a lot of sharp edges. One thing that led to my confusions is that there are not many resources on how it works, there are some difference between the information from the <a href="https://pypi.org/project/interpreters-pep-734">PEP</a> and the final implementation. And I do hope this article can shed some light on some of the more confusing aspects of subinterpreters. </p>
+<p>For aiointerpreters, going forward the focus will me more on enhancing the features the standard library offers rather than completely reinventing the wheel.</p>
+<h3>InterpreterThreadPoolExecutor</h3>
+<p>As I've been going through the code in the <a href="https://github.com/python/cpython/blob/main/Lib/concurrent/futures/interpreter.py">standard library</a> I've discovered that the current executor implementation is written on top of <code>ThreadPoolExecutor</code>. Once a task is given to a thread it then get's sent to an interpreter within the thread.</p>
+<p>This gives us an opportunity to create a hybrid executor that can dispatch to an interpreter conditionally. I created <code>InterpreterThreadExecutor</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">aiointerpreters.executors</span> <span class="kn">import</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">,</span> <span class="n">interpreter</span>
+
+
+<span class="k">with</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">interpreter</span><span class="p">(</span><span class="n">cpu_bound</span><span class="p">),</span> <span class="p">(</span><span class="n">argument</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">)))</span>
+    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">io_bound</span><span class="p">,</span> <span class="p">(</span><span class="n">argument</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">)))</span>
+</code></pre></div>
+
+<p>When the user want to request a dedicated interpreter they simply need to wrap the function in the <code>interpreter</code> decorator.</p>
+<p>I think this makes a lot of sense as threads and interpreters both have their trade offs. Interpreters are isolated and allow parallel memory access but passing arguments needs a lot more care and could be slower. On the other hand, threads have a whole other set of trade offs to contend with: </p>
+<p>Assuming GIL is enabled, passing arguments is easy but there's no true parallelism due to the GIL.</p>
+<p>By providing a shared pool of threads that could use either subinterpreters or plain thread then we can give user the most options and improve the usability. </p>
+<p>This is particularly useful for <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread">asyncio.to_thread()</a>:</p>
+<p>We can set the default executor at a loop level:</p>
+<div class="highlight"><pre><span></span><code><span class="n">asyncio</span><span class="o">.</span><span class="n">get_running_loop</span><span class="p">()</span><span class="o">.</span><span class="n">set_default_executor</span><span class="p">(</span><span class="n">InterpreterThreadPoolExecutor</span><span class="p">())</span>
+</code></pre></div>
+
+<p>And then whenever we call <code>to_thread</code> the correct executor will be chosen based on what the user specified.</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">interpreter</span><span class="p">(</span><span class="n">cpu_bound</span><span class="p">),</span> <span class="n">argument</span><span class="p">))</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">io_bound</span><span class="p">,</span> <span class="n">argument</span><span class="p">))</span>
+</code></pre></div>
+
+<h3>More complex Executors and Runner</h3>
+<p>Whilst the default <code>aiointerpreters.runner.Runner</code> is a little redundant now, it doesn't mean there are no need for making custom versions of <code>Executor</code> or <code>Runner</code>. There is no one size fits all solution to concurrency and parallelism, so there's plenty of opportunity to create different versions of Executor that behave differently and solve different problems that the user face. </p>
+<p>I'm currently working on a <a href="https://github.com/Jamie-Chang/aiointerpreters/pull/8">Runner</a> that distributes async tasks to coroutines running in separate interpreters. </p>
+<p>There's also opportunity to take advantage of <code>prepare_main</code> in an executor to reduce the number of copying required. </p>
+<p>Finally, running an executor and integrating it with <code>asyncio</code> is not always straightforward, and I'm sure there's some interesting abstractions that can be created on this front. </p>
+<h2>Closing words</h2>
+<p>Apologies if this all reads like a massive dump of information, I've realised how tricky the subject of concurrency is and I found that it's important here to provide the most accurate details. </p>
+<p>Parallelism in Python is nascent and there simply isn't an obvious way to do things right now and maybe there never will be. With that comes some difficulty in knowing what do do. The most crucial thing here is to get your hands dirty and try different things for yourself and slowly a clearer understanding will form.</p>
+<blockquote>
+<p>p.s. If you're more interested in free-threading, please look at <a href="./python-314-state-of-free-threading.html">Python 3.14: State of free threading</a> and <a href="./how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> my opinions on it have largely remained unchanged.</p>
+</blockquote>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./trying-out-marimo-notebooks.html" rel="bookmark"
+                               title="Permalink to Trying out marimo notebooks">Trying out marimo notebooks</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-12-03T00:00:00+00:00">
                 Published: Wed 03 December 2025
@@ -31,36 +181,10 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>As we approach the holiday seasons, we get to "enjoy" another 12 days of <a href="https://adventofcode.com/">Advent of Code</a>. Every year I try to do something a little different, last year I had a lot of fun solving it in Ocaml, prior years I've tried the latest Python features. This year I've decided to use <a href="https://marimo.io/">marimo notebooks</a>. </p>
-<p>Marimo is a jupyter competitor, providing an interactive environment to develop code and visualise data. As the new kid in the block, it has a very sleek look and good support for a lot of different visualisation frameworks. There is already a very good <a href="https://realpython.com/marimo-notebook/">article</a> on realpython about it, so I won't go into too much detail on its features.</p>
-<p>Instead I'll talk about the feature that makes marimo truly standout: builtin reactivity! When a cell in marimo creates a variable, marimo tracks it. When the variable changes, any cell that references it will update automatically. For example, try changing <code>my_value</code> in the second cell below:</p>
-<p><iframe
-  src="https://marimo.app/l/zluj3i?embed=true&show-chrome=false"
-  width="100%"
-  height="350"
-  sandbox="allow-scripts allow-same-origin"
-></iframe>
-</p>
-<blockquote>
-<p>If you're not familiar with embedded notebooks, you can have a look at my past <a href="./my-sqlalchemy-cookbook.html">blog post</a> which uses jupyter-lite. Marimo has even better support for wasm notebooks.</p>
-</blockquote>
-<p>Honestly, when you first try it everything feels like magic. But there are some quirks the more you get into it. In order for marimo to effectively track the variables, it places restrictions on where variables can be used. And cyclical dependencies are possible here.</p>
-<p>The good thing is marimo will let you know immediately why, so you won't need to look up why something is not working. Overall I don't find it too difficult to use but it'll be good to hear what others think.</p>
-<p>To me marimo is just much more fun than jupyter, I can essentially write little reactive web UI in pure Python. I think that's important, I'm not someone who has enjoyed writing UIs, and I think it's because I just don't find javascript fun. Of course, we're not going to be able to create particularly complex and performant UIs but I think fun matters a lot too.</p>
-<p>In any case, here's a neat little app demonstrating the solution for today's advent of code, I've included some input UI elements like the <a href="https://docs.marimo.io/api/inputs/slider/">slider</a>. Changing the inputs will automatically cause the output to regenerate:</p>
-<p><iframe
-  src="https://marimo.app/l/x8qcbz?embed=true&show-chrome=false"
-  width="100%"
-  height="800"
-  sandbox="allow-scripts allow-same-origin"
-></iframe>
-</p>
-<p>So what do you think? If it looks cool to you, you can try it out at <a href="https://marimo.app">marimo.app</a>!</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>As we approach the holiday seasons, we get to "enjoy" another 12 days of <a href="https://adventofcode.com/">Advent of Code</a>. Every year I try to do something a little different, last year I had a lot of fun solving it in Ocaml, prior years I've tried the latest Python features. This year I've …</p>
+                        <a class="readmore" href="./trying-out-marimo-notebooks.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -257,39 +381,12 @@
                         <a class="readmore" href="./subinterpreters-and-asyncio.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./python-314-3-smaller-features.html" rel="bookmark"
-                               title="Permalink to Python 3.14: 3 smaller features">Python 3.14: 3 smaller features</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-07-11T00:00:00+01:00">
-                Published: Fri 11 July 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/pthon.html">πthon</a> <a href="./tag/python314.html">Python3.14</a> </p>        
-</footer><!-- /.post-info -->                        <p>Python 3.14 is just around the corner and it's jampacked with huge updates:</p>
-<ul>
-<li><a href="./python-314-state-of-free-threading.html">Free threading and multiple interpreters?</a></li>
-<li><a href="./t-strings-the-good-and-the-ugly.html">Template strings</a></li>
-</ul>
-<p>But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire <a href="https://docs.python.org/3.14/whatsnew/3.14.html">release notes</a>. Luckily I am …</p>
-                        <a class="readmore" href="./python-314-3-smaller-features.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
                     </ol><!-- /#posts-list -->
   <nav>
     <ul>
-      <li>Page 1 / 3</li>
+      <li>Page 1 / 4</li>
         <li><a href="./index2.html">&rang;</a></li>
-        <li><a href="./index3.html">&Rang;</a></li>
+        <li><a href="./index4.html">&Rang;</a></li>
     </ul>
   </nav>
                     </section><!-- /#content -->

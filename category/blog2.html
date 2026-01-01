@@ -22,6 +22,33 @@
                         <ol id="posts-list" class="hfeed" start="9">
                 <li><article class="hentry">
                     <header>
+                        <h1><a href="../python-314-3-smaller-features.html" rel="bookmark"
+                               title="Permalink to Python 3.14: 3 smaller features">Python 3.14: 3 smaller features</a></h1>
+                    </header>
+
+                    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-07-11T00:00:00+01:00">
+                Published: Fri 11 July 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> </p>        
+</footer><!-- /.post-info -->                        <p>Python 3.14 is just around the corner and it's jampacked with huge updates:</p>
+<ul>
+<li><a href="../python-314-state-of-free-threading.html">Free threading and multiple interpreters?</a></li>
+<li><a href="../t-strings-the-good-and-the-ugly.html">Template strings</a></li>
+</ul>
+<p>But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire <a href="https://docs.python.org/3.14/whatsnew/3.14.html">release notes</a>. Luckily I am …</p>
+                        <a class="readmore" href="../python-314-3-smaller-features.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
+
+                <li><article class="hentry">
+                    <header>
                         <h1><a href="../my-chinese-birthdays-time-keeping-is-hard.html" rel="bookmark"
                                title="Permalink to My Chinese birthdays, time keeping is hard!">My Chinese birthdays, time keeping is hard!</a></h1>
                     </header>
@@ -230,45 +257,14 @@
                         <a class="readmore" href="../better-functools-python-functional-fun.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../sqlalchemy-footgun-discarding-the-statement.html" rel="bookmark"
-                               title="Permalink to Sqlalchemy Footgun: Discarding the statement">Sqlalchemy Footgun: Discarding the statement</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-02-02T00:00:00+00:00">
-                Published: Sun 02 February 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This one has frustrated me for a while. </p>
-<p>It starts off with a REST API route. For example in fastAPI</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">search_users</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">User</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Finds users optionally filter by user_id&quot;&quot;&quot;</span>
-    <span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">User</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">User</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span><span class="o">.</span><span class="n">scalars</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-</code></pre></div>
-
-<p>Then we get asked …</p>
-                        <a class="readmore" href="../sqlalchemy-footgun-discarding-the-statement.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
                     </ol><!-- /#posts-list -->
   <nav>
     <ul>
         <li><a href="../category/blog.html">&Lang;</a></li>
         <li><a href="../category/blog.html">&lang;</a></li>
-      <li>Page 2 / 3</li>
+      <li>Page 2 / 4</li>
         <li><a href="../category/blog3.html">&rang;</a></li>
-        <li><a href="../category/blog3.html">&Rang;</a></li>
+        <li><a href="../category/blog4.html">&Rang;</a></li>
     </ul>
   </nav>
                     </section><!-- /#content -->
