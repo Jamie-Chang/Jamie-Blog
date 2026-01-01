@@ -16,7 +16,7 @@
 &lt;/ul&gt;
 &lt;h3&gt;Efficient data sharing between interpreters&lt;/h3&gt;
 &lt;p&gt;My first attempt at using it was to solve an &lt;a href="https://adventofcode.com/2024/day/6"&gt;Advent of Code&lt;/a&gt;. This involved running the same function around 4000 times on the same grid of values. &lt;/p&gt;
-&lt;p&gt;The function makes a lot of read only access to the grid, which causes high lock contention in a multi-threaded implementation. But with interpreters the performance scaled pretty much perfectly. Here's the diagram to prove it:&lt;/p&gt;
+&lt;p&gt;The function makes a lot of read only access to the grid, which causes high lock contention in a free-threaded implementation. But with interpreters the performance scaled pretty much perfectly. Here's a chart of the performance differences:&lt;/p&gt;
 &lt;p&gt;&lt;img alt="interpreters vs threads" src="https://blog.changs.co.uk/images/AoC-day-6.png"&gt;&lt;/p&gt;
 &lt;p&gt;In the article I claimed:&lt;/p&gt;
 &lt;blockquote&gt;
