@@ -20,7 +20,418 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./i-was-wrong-about-subinterpreters.html">I was wrong about Subinterpreters</a></h1>
+                        <h1 class="entry-title"><a href="./asyncio-is-neither-fast-nor-slow.html">Asyncio is neither fast nor slow</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-01-12T00:00:00+00:00">
+                Published: Mon 12 January 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p><strong><em>Don't listen to random benchmarks..</em></strong></p>
+<p>I recently came across an <a href="https://hackeryarn.com/post/async-python-benchmarks/">article</a> benchmarking Python performances in web frameworks, comparing asyncio and sync performance. </p>
+<p>The author sets out to measure performance of <a href="https://fastapi.tiangolo.com/">FastAPI</a>/<a href="https://www.djangoproject.com/">Django</a> web servers running with postgresql comparing async and non-async workloads. The methodology is pretty reasonable, the following is his result for an endpoint with a single postgres database read:</p>
+<table>
+<thead>
+<tr>
+<th>Server type</th>
+<th>workers</th>
+<th>RPS</th>
+<th>Latency avg</th>
+<th>Latency max</th>
+<th>Median</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sync Django</td>
+<td>1</td>
+<td>456</td>
+<td>140ms</td>
+<td>262ms</td>
+<td>153ms</td>
+</tr>
+<tr>
+<td>Sync Django</td>
+<td>2</td>
+<td>669</td>
+<td>96ms</td>
+<td>262ms</td>
+<td>132ms</td>
+</tr>
+<tr>
+<td>Sync Django Pooled</td>
+<td>1</td>
+<td>569</td>
+<td>112ms</td>
+<td>171ms</td>
+<td>117ms</td>
+</tr>
+<tr>
+<td>Sync Django Pooled</td>
+<td>2</td>
+<td>1822</td>
+<td>35ms</td>
+<td>98ms</td>
+<td>50ms</td>
+</tr>
+<tr>
+<td>Async Django</td>
+<td>1</td>
+<td>205</td>
+<td>312ms</td>
+<td>467ms</td>
+<td>331ms</td>
+</tr>
+<tr>
+<td>Async Django</td>
+<td>2</td>
+<td>541</td>
+<td>118ms</td>
+<td>304ms</td>
+<td>196ms</td>
+</tr>
+<tr>
+<td>FastAPI</td>
+<td>1</td>
+<td>236</td>
+<td>271ms</td>
+<td>372ms</td>
+<td>287ms</td>
+</tr>
+<tr>
+<td>FastAPI</td>
+<td>2</td>
+<td>409</td>
+<td>156ms</td>
+<td>433ms</td>
+<td>224ms</td>
+</tr>
+</tbody>
+</table>
+<p>As a result the author concludes:</p>
+<blockquote>
+<p>These benchmarks show just how much optimization for sync web services Django and the Python has. Sync Django Pooled outperforms or matches all other configurations. Even FastAPI only performs better when it’s the sole bottleneck.</p>
+</blockquote>
+<p>When I read these result I had some doubts, I noticed that:  </p>
+<p>1.⁠ ⁠it shows that the best sync django scenario with 2 workers, has more than 4x throughput that the equivalent fastapi async solution.
+2.⁠ ⁠2 workers of sync django pooled is 3x the performance of a single worker.</p>
+<p>The former doesn't line with the my personal experience. Asyncio does add overhead in some cases, but the scenario laid out here should have postgres as the bottleneck. Overhead caused by asyncio's event loop shouldn't be significant. </p>
+<p>The latter also seemed a little odd, as the throughput increase should be proportional to the number of workers.</p>
+<h3>Reviewing the code</h3>
+<p>Since the results don't match my own expectation then either my mental model is wrong or it's the benchmark. So let's review the benchmark code.</p>
+<p>The code for the fastapi endpoint is as follows:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/quote&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">quote</span><span class="p">(</span><span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">)):</span>
+    <span class="n">statement</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">select</span><span class="p">(</span><span class="n">Quote</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">random</span><span class="p">())</span><span class="o">.</span><span class="n">options</span><span class="p">(</span><span class="n">selectinload</span><span class="p">(</span><span class="n">Quote</span><span class="o">.</span><span class="n">author</span><span class="p">))</span>
+    <span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span>
+    <span class="n">quote</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;quote&quot;</span><span class="p">:</span> <span class="n">quote</span><span class="o">.</span><span class="n">quote_text</span><span class="p">,</span>
+        <span class="s2">&quot;author&quot;</span><span class="p">:</span> <span class="n">quote</span><span class="o">.</span><span class="n">author</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+    <span class="p">}</span>
+</code></pre></div>
+
+<p>Here a single random quote is fetched from the table. <a href="https://www.sqlalchemy.org/">SQLAlchemy</a> is used as an orm to facilitate query building. Everything seems in order.</p>
+<p>But wait, there's a subtle problem here! By default <a href="https://www.sqlalchemy.org/">SQLAlchemy</a> does not batch results, instead it will fetch all results into memory first when ⁠ execute ⁠ is called. So whilst ⁠ <code>.scalar()</code> ⁠only returns the first result, in the background all results are fetched.</p>
+<h3>Recreating the benchmark</h3>
+<p>So I recreated the benchmark with my code fix for fastapi.</p>
+<div class="highlight"><pre><span></span><code><span class="n">statement</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">select</span><span class="p">(</span><span class="n">Quote</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">random</span><span class="p">())</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">options</span><span class="p">(</span><span class="n">selectinload</span><span class="p">(</span><span class="n">Quote</span><span class="o">.</span><span class="n">author</span><span class="p">))</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<p>I tried where possible to keep the same code and parameters to the original. </p>
+<p>•⁠  ⁠Hardware: Macbook Pro M3 11 cores 18 GB of RAM
+•⁠  ⁠Connection Pool Configuration: min 5 - max 15 connections
+•⁠  ⁠Data: 100 authors with 1000 quotes
+•⁠  ⁠Benchmark: ⁠ rewrk -d 30s -c 64 --host http://localhost:8000/quote/ ⁠</p>
+<h3>Results</h3>
+<p>And the results are as follows:</p>
+<table>
+<thead>
+<tr>
+<th>Server type</th>
+<th>workers</th>
+<th>RPS</th>
+<th>Latency avg</th>
+<th>Latency max</th>
+<th>Median</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sync Django</td>
+<td>1</td>
+<td>341.81</td>
+<td>186.61ms</td>
+<td>418.90ms</td>
+<td>223.96ms</td>
+</tr>
+<tr>
+<td>Sync Django</td>
+<td>2</td>
+<td>338.74</td>
+<td>188.07ms</td>
+<td>467.42ms</td>
+<td>227.23ms</td>
+</tr>
+<tr>
+<td>Sync Django Pooled</td>
+<td>1</td>
+<td>440.46</td>
+<td>144.92ms</td>
+<td>281.12ms</td>
+<td>150.94ms</td>
+</tr>
+<tr>
+<td>Sync Django Pooled</td>
+<td>2</td>
+<td>419.01</td>
+<td>152.30ms</td>
+<td>374.59ms</td>
+<td>167.25ms</td>
+</tr>
+<tr>
+<td>Async Django</td>
+<td>1</td>
+<td>323.32</td>
+<td>197.28ms</td>
+<td>497.76ms</td>
+<td>249.85ms</td>
+</tr>
+<tr>
+<td>Async Django</td>
+<td>2</td>
+<td>322.78</td>
+<td>197.45ms</td>
+<td>453.63ms</td>
+<td>249.18ms</td>
+</tr>
+<tr>
+<td>FastAPI</td>
+<td>1</td>
+<td>687.26</td>
+<td>92.95ms</td>
+<td>326.49ms</td>
+<td>110.29ms</td>
+</tr>
+<tr>
+<td>FastAPI</td>
+<td>2</td>
+<td>673.85</td>
+<td>94.78ms</td>
+<td>332.11ms</td>
+<td>121.00ms</td>
+</tr>
+</tbody>
+</table>
+<p>As expected the FastAPI implementation does a lot better here compared to before. Performing better than the best django version. </p>
+<p>What's weird is that the worker count makes very little difference in the performance, often slowing down rather than speeding up. My guess is that my setup has more rows in the database, therefore we reach a saturation point a lot quicker.</p>
+<h3>The dilemma of benchmarks</h3>
+<p>Still you might be a bit disappointed with this benchmark as I was, the original had a much clearer trend between async/sync worker count and pooled database connections. However this is precisely what happens with these "real world" benchmarks. Here we're trying to represent a real use case, not necessarily to prove a point. </p>
+<p>On the other hand, there exist many micro-benchmarks out there, where variables are controlled and a smaller more predictable scenario is measured.</p>
+<p>There are places for both types of benchmarks, real world benchmarks can be more interesting but the data is messy and requires more critical analysis.</p>
+<h3>Critical analysis</h3>
+<p>My results are convenient for my beliefs and one might conclude from it that asyncio is indeed much faster. </p>
+<p>But looking at the numbers I wondered why Django is so much slower, where does the slow down actually come from. I expected asyncio to do quite well but I assumed we can make up the performance with more threads or workers, but that does not seem to be the case.</p>
+<p>This lead me into a deep dive, trying almost every combination of configuration, implementation and framework. </p>
+<p>First I wanted more control over the variables, <a href="https://www.djangoproject.com/">Django</a> is a very different framework compared to <a href="https://fastapi.tiangolo.com/">FastAPI</a> and a there are too many possibilities when it comes to the performance discrepancy. <a href="https://flask.palletsprojects.com/">Flask</a> is a lighter weight framework compared to <a href="https://www.djangoproject.com/">Django</a> as such it is a much better sync vs async comparison.</p>
+<p>Secondly, the original benchmark makes a point of the benefits of pooled connections. However, async django can also benefit from pooled connections. <a href="https://www.sqlalchemy.org/">Sqlalchemy</a> also uses a connection pool by default. So I see no reason to not use connection pools across the board.</p>
+<h3>The new results</h3>
+<p>This time around I decided to run different thread and worker configurations through the gauntlet and only keep the best performing configurations.</p>
+<p>This was generally 3 workers and 5 threads on my machine, giving me a total of 15 threads. However other configurations with similar total thread counts also performed very similarly. </p>
+<table>
+<thead>
+<tr>
+<th>Server type</th>
+<th>workers</th>
+<th>threads</th>
+<th>RPS</th>
+<th>Latency avg</th>
+<th>Latency max</th>
+<th>Median</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FastAPI (Pooled)</td>
+<td>1</td>
+<td>-</td>
+<td>687.26</td>
+<td>92.95ms</td>
+<td>326.49ms</td>
+<td>110.29ms</td>
+</tr>
+<tr>
+<td>Flask (Pooled)</td>
+<td>3</td>
+<td>5</td>
+<td>682.73</td>
+<td>93.66ms</td>
+<td>239.67ms</td>
+<td>104.34ms</td>
+</tr>
+<tr>
+<td>Django (Pooled)</td>
+<td>3</td>
+<td>5</td>
+<td>411.91</td>
+<td>155.17ms</td>
+<td>299.19ms</td>
+<td>169.44ms</td>
+</tr>
+<tr>
+<td>Django Async (Pooled)</td>
+<td>1</td>
+<td>-</td>
+<td>406.90</td>
+<td>152.79ms</td>
+<td>279.93ms</td>
+<td>160.32ms</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>NOTE: asgi for the async frameworks don't use threads</p>
+</blockquote>
+<p>And this time, the results are more even with the fastapi implementation pulling a little ahead over flask, though over many different runs the results are practically identical. </p>
+<p>This is more an expected result, as once again the main bottleneck is the database and not the web framework. </p>
+<p>These results show that there is no significant difference between the django implementations. The original discrepancies are easily explained by the the connection pooling.</p>
+<p>The only thing that doesn't make sense to me is why django is slower than the flask implementation all else being equal. </p>
+<h3>Digging even deeper</h3>
+<p>My immediate thought was skill issues, I don't have a lot of experiences with django and it's possible I made a mistake that lead to performance degradation. Checking the code and the orm generated SQL query, nothing really stood out. Then I confirmed that the database driver we're using is indeed psycopg 3 so no differences there.</p>
+<p>Finally, I decided to give a closer look at the connection pool used in django, and that's where it all clicked. django uses <a href="https://www.psycopg.org/psycopg3/docs/basic/pool.html">psycopg_pool</a> an implementation provided directly by <a href="https://www.psycopg.org/">psycopg</a>. Where as sqlalchemy has its own implementation. The differences are actually significant, </p>
+<ul>
+<li>sqlalchemy has a lazy pool implementation, which means that connections are created or destroyed only when the pool is being accessed.</li>
+<li>⁠On the other hand, psycopg-pool actively maintains the pool and processes tasks using background thread workers.</li>
+</ul>
+<p>So one more time, I modified my fastapi and flask implementation to use the same connection pool as Django:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/quote/&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">quote</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">PlainTextResponse</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">pool</span><span class="o">.</span><span class="n">connection</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+
+            <span class="k">await</span> <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;SELECT q.id, q.quote_text, a.name FROM quotes_quote q &quot;</span>
+                <span class="s2">&quot;JOIN quotes_author a ON q.author_id = a.id &quot;</span>
+                <span class="s2">&quot;ORDER BY RANDOM() LIMIT 1&quot;</span>
+            <span class="p">)</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="k">await</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">PlainTextResponse</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">--</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>And I got the following results:</p>
+<table>
+<thead>
+<tr>
+<th>Server type</th>
+<th>workers</th>
+<th>threads</th>
+<th>RPS</th>
+<th>Latency avg</th>
+<th>Latency max</th>
+<th>Median</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FastAPI</td>
+<td>1</td>
+<td>-</td>
+<td>687.26</td>
+<td>92.95ms</td>
+<td>326.49ms</td>
+<td>110.29ms</td>
+</tr>
+<tr>
+<td>FastAPI (psycopg_pool)</td>
+<td>1</td>
+<td>-</td>
+<td>526.21</td>
+<td>121.49ms</td>
+<td>248.73ms</td>
+<td>128.85ms</td>
+</tr>
+<tr>
+<td>Flask</td>
+<td>3</td>
+<td>5</td>
+<td>682.73</td>
+<td>93.66ms</td>
+<td>239.67ms</td>
+<td>104.34ms</td>
+</tr>
+<tr>
+<td>Flask (psycopg_pool)</td>
+<td>3</td>
+<td>5</td>
+<td>532.82</td>
+<td>119.95ms</td>
+<td>289.91ms</td>
+<td>172.75ms</td>
+</tr>
+<tr>
+<td>Django</td>
+<td>3</td>
+<td>5</td>
+<td>411.91</td>
+<td>155.17ms</td>
+<td>299.19ms</td>
+<td>169.44ms</td>
+</tr>
+<tr>
+<td>Django Async</td>
+<td>1</td>
+<td>-</td>
+<td>406.90</td>
+<td>152.79ms</td>
+<td>279.93ms</td>
+<td>160.32ms</td>
+</tr>
+</tbody>
+</table>
+<p>So it's quite clear here that <a href="https://www.psycopg.org/psycopg3/docs/basic/pool.html">psycopg_pool</a> is the root cause in this particularly scenario.</p>
+<p>There is still some differences between django and the other frameworks, but I think that's likely because we're using raw sql queries over django's orm. </p>
+<h3>Conclusion</h3>
+<p>If you were hoping for an answer of "just use async" or "don't use async", life is not so simple. The lesson I hope you take is that there are nuances when it comes to this topic. </p>
+<p>Time and time again there's been posts on async performances, and we often see misleading benchmarks or analysis. </p>
+<p>Let's sum up my own thoughts:</p>
+<ul>
+<li>Asyncio's advantage has never been speed in particular, but the cost. We can achieve the same performance with no added threads or processes.</li>
+<li>Even then you might consider using django or other sync frameworks if you're more familiar with them or if they provide something you don't get elsewhere, e.g. django's rich middleware plugin system.</li>
+<li>Benchmarks cannot be taken at face value, try to reproduce it for your requirements (LLMs are pretty good at this).</li>
+<li>Lastly when you get a result from a benchmark that doesn't match expectation, it's prudent that you investigate where the discrepancy comes from.</li>
+</ul>
+<h3>Future Steps</h3>
+<p>This whole exercise, as exhausting as it is, barely scratches the itch. There's quite a few unexplored questions:</p>
+<ul>
+<li>What is the advantage of <a href="https://www.psycopg.org/psycopg3/docs/basic/pool.html"><code>psycopg_pool</code></a>'s implementation, are there cases where it performs better?</li>
+<li>Are there any configuration or ticks I'm missing to speed up <a href="https://www.djangoproject.com/">Django</a>?</li>
+<li>There's not a lot of analysis on async django as it uses threads to run database queries and middlewares, but I think it's worth looking at which situations where async django wins.</li>
+<li>Is there a general rule for thread/process numbers that maximise the performances and what are the trade offs of having more threads.</li>
+</ul>
+<p>In the near future I intend to put together a more comprehensive comparison of different concurrency models and explore these questions.</p>
+<p>The best I could do right now is to provide the full <a href="https://github.com/Jamie-Chang/web-async-benchmark">source code</a> and hopefully encourage people to make their own measurements and share their results. In case there's been any mistakes the feedback is very much welcome there.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./i-was-wrong-about-subinterpreters.html" rel="bookmark"
+                               title="Permalink to I was wrong about Subinterpreters">I was wrong about Subinterpreters</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-01-01T00:00:00+00:00">
                 Published: Thu 01 January 2026
@@ -31,147 +442,17 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
 <p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/pthon.html">πthon</a> <a href="./tag/python314.html">Python3.14</a> <a href="./tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info --><p><strong><em>... but that's actually a good thing</em></strong></p>
+</footer><!-- /.post-info -->                        <p><strong><em>... but that's actually a good thing</em></strong></p>
 <p>I've already written a ton about subinterpreters since a year ago:  </p>
 <ul>
 <li><a href="./how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
 <li><a href="./python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
 <li><a href="./subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
 </ul>
-<p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding of them. </p>
-<h3>Efficient data sharing between interpreters</h3>
-<p>My first attempt at using it was to solve an <a href="https://adventofcode.com/2024/day/6">Advent of Code</a>. This involved running the same function around 4000 times on the same grid of values. </p>
-<p>The function makes a lot of read only access to the grid, which causes high lock contention in a free-threaded implementation. But with interpreters the performance scaled pretty much perfectly. Here's a chart of the performance differences:</p>
-<p><img alt="interpreters vs threads" src="./images/AoC-day-6.png"></p>
-<p>In the article I claimed:</p>
-<blockquote>
-<p>There are also other ways to execute code I chose not to use like <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a> which don't take advantage of shared objects, or <code>Interpreter.call</code> which places limitations on the function called.</p>
-</blockquote>
-<p>But something didn't sit right with me, why would there not be an easy to use implementation for users?</p>
-<p>So I gave it another look and reimplemented my solution with the standard executor here:</p>
-<div class="highlight"><pre><span></span><code><span class="n">candidates</span> <span class="o">=</span> <span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">start</span><span class="p">)</span>
-<span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">,</span> <span class="n">candidates</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
-</code></pre></div>
-
-<p>... and the results indeed came out a lot slower. Around 4 seconds compared to the 0.6 seconds before (13 threads on my M3 Macbook). </p>
-<p>So that seems to prove my point then? Well not exactly, I tried rewriting my own implementation again like:</p>
-<div class="highlight"><pre><span></span><code>    <span class="n">candidates</span> <span class="o">=</span> <span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">start</span><span class="p">)</span>
-    <span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="p">(</span><span class="s2">&quot;implementations.d6&quot;</span><span class="p">,</span> <span class="s2">&quot;solve&quot;</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="n">workers</span><span class="p">)</span>
-    <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
-</code></pre></div>
-
-<p>it was just as slow. So what's going on here?</p>
-<p>It turns out that whether using the standard library or hand writing my own executor, we're both using the same 'sharing' mechanism to move the arguments and results in and out of the interpreter.</p>
-<p>But I had assumed that when we shared the grid of type <code>tuple[tuple[bool, ...], ...]</code> we simply share the reference of the object. But this is not actually the case, the <a href="https://docs.python.org/3/library/concurrent.interpreters.html#interp-object-sharing">docs</a> don't go into a lot of detail in actual fact, most objects are copied between interpreters.</p>
-<p>This doesn't explain why my initial implementation was so fast. After rechecking my original code, I found out that I had gotten quite lucky and used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a> to pass the grid to each interpreter at the start. This still perform the copy but only once for each worker, on the other hand, my newer implementations copy grid for each invocation.</p>
-<p>To show this more clearly, we can use <code>memoryview</code> instead. <code>memoryview</code> is one of the few exceptions that do not require copying as it shares mutable data. The way it works is that the <code>memoryview</code> object itself is copied each time but the underlying data is simply referenced. </p>
-<p>Changing the grid to a <code>memoryview</code> backed by a <code>bytearray</code> we get back our performance we expect. See the code below:</p>
-<style type="text/css">
-  .gist-file
-  .gist-data {max-height: 500px;}
-</style>
-
-<script src="https://gist.github.com/Jamie-Chang/8263a304260d717308c6deb72f9f3e91.js"></script>
-
-<h3>Efficient function passing</h3>
-<p>In <a href="./subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a>, I tried to make subinterpreters work more generally with asyncio and created <a href="https://github.com/Jamie-Chang/aiointerpreters">aiointerpreters</a>.</p>
-<p>Here again I made some incorrect claims:</p>
-<blockquote>
-<p>In order to pass the function itself, the arguments and return values are pickled before they are passed to the interpreters. Which will impact performance and may cancel out a lot of the performance gains over other parallelism mechanisms like free-threading and multi-processing.</p>
-</blockquote>
-<p>Which as we know now, the only way to avoid copying the data is using <code>memoryview</code> or to reduce the amount of copying using something <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a>.</p>
-<p>Another thing I got wrong is:</p>
-<blockquote>
-<p>Then there's the problem of loading functions into the interpreters. As far as I can tell, the best way to do so without pickle is to import the functions inside the interpreters. This is likely the mechanism behind <code>call_in_thread</code>.</p>
-</blockquote>
-<p>At the time, I had not realised that pickle works on functions the following <a href="https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled">way</a>:</p>
-<blockquote>
-<p>Note that functions (built-in and user-defined) are pickled by fully qualified name, not by value. This means that only the function name is pickled, along with the name of the containing module and classes. Neither the function’s code, nor any of its function attributes are pickled. Thus the defining module must be importable in the unpickling environment, and the module must contain the named object, otherwise an exception will be raised.</p>
-</blockquote>
-<p>So it was ultimately unnecessary to create a custom function loading mechanism to load the function into the interpreter as pickle was already doing the same thing (oops!).</p>
-<p>This means that there's no discernable performance benefits in my <code>Runner</code> implementation over <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a>.</p>
-<h2>How should we use interpreters then?</h2>
-<p>In short just use <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-
-    <span class="c1"># or </span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">single_arg</span><span class="p">)</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">single_arg</span><span class="p">)</span>
-    <span class="o">...</span>
-</code></pre></div>
-
-<p>Results can be accessed easily via <a href="https://docs.python.org/3/library/concurrent.futures.html#future-objects">futures</a>. The standard lib also provides some basic way to synchronise futures via <a href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.wait">wait</a> or <a href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.as_completed">as_completed</a></p>
-<h3>Asyncio</h3>
-<p>What if you need more complex synchronisation? We can run Executors in asyncio using <a href="https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor">loop.run_in_executor(...)</a>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
-    <span class="k">await</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_in_executor</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">argument</span><span class="p">)</span>
-</code></pre></div>
-
-<p>here's an example using the excellent <code>asyncio.TaskGroup</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">to_coro</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">aw</span><span class="p">:</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
-    <span class="k">return</span> <span class="k">await</span> <span class="n">aw</span>
-
-<span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
-    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">):</span>
-            <span class="c1"># NOTE: a task must be created from a coroutine, run_in_executor returns an `asyncio.Future`</span>
-            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span>
-                <span class="n">to_coro</span><span class="p">(</span>
-                    <span class="n">loop</span><span class="o">.</span><span class="n">run_in_executor</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">argument</span><span class="p">)</span>
-                <span class="p">)</span>
-            <span class="p">)</span>
-</code></pre></div>
-
-<h2>What about <code>aiointerpreters</code>?</h2>
-<p>I'm hoping by this point, I've successfully convinced you that <code>aiointerpreters</code> is redundant and the standard library functionality is enough.</p>
-<p>I can now safely say that I'm wrong about the out of the box usability of <code>InterpreterPoolExecutor</code>. That being said I don't feel too silly making those mistakes. </p>
-<p>With subinterpreters still a very new and niche feature, there are still a lot of sharp edges. One thing that led to my confusions is that there are not many resources on how it works, there are some difference between the information from the <a href="https://pypi.org/project/interpreters-pep-734">PEP</a> and the final implementation. So I do hope the details I share here can save people some time. </p>
-<p>As for aiointerpreters, going forward the focus will be more on enhancing the features the standard library offers rather than completely reinventing the wheel (again). This process is already underway ... </p>
-<h3>InterpreterThreadPoolExecutor</h3>
-<p>As I've been going through the code in the <a href="https://github.com/python/cpython/blob/main/Lib/concurrent/futures/interpreter.py">standard library</a> I've discovered that the current executor implementation is written on top of <code>ThreadPoolExecutor</code>. Once a task is given to a thread it then get's sent to an interpreter within the thread.</p>
-<p>This gives us an opportunity to create a hybrid executor that can dispatch to an interpreter conditionally. I created <code>InterpreterThreadExecutor</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">aiointerpreters.executors</span> <span class="kn">import</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">,</span> <span class="n">interpreter</span>
-
-
-<span class="k">with</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">interpreter</span><span class="p">(</span><span class="n">cpu_bound</span><span class="p">),</span> <span class="p">(</span><span class="n">argument</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">)))</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">io_bound</span><span class="p">,</span> <span class="p">(</span><span class="n">argument</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">)))</span>
-</code></pre></div>
-
-<p>When the user want to request a dedicated interpreter they simply need to wrap the function in the <code>interpreter</code> decorator.</p>
-<p>I think this makes a lot of sense as threads and interpreters both have their trade offs. Interpreters are isolated and allow parallel memory access but passing arguments needs a lot more care and could be slower. On the other hand, threads (GIL enabled) cannot run cpu bound code in parallel.</p>
-<p>We could create 2 thread pools but I think it's a lot easier and resource efficient to maintain a single thread pool.</p>
-<p>This is particularly useful for <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread">asyncio.to_thread()</a>:</p>
-<p>We can set the default executor at a loop level:</p>
-<div class="highlight"><pre><span></span><code><span class="n">asyncio</span><span class="o">.</span><span class="n">get_running_loop</span><span class="p">()</span><span class="o">.</span><span class="n">set_default_executor</span><span class="p">(</span><span class="n">InterpreterThreadPoolExecutor</span><span class="p">())</span>
-</code></pre></div>
-
-<p>And then whenever we call <code>to_thread</code> the correct executor will be chosen based on what the user specified.</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">interpreter</span><span class="p">(</span><span class="n">cpu_bound</span><span class="p">),</span> <span class="n">argument</span><span class="p">))</span>
-    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">io_bound</span><span class="p">,</span> <span class="n">argument</span><span class="p">))</span>
-</code></pre></div>
-
-<h3>More complex Executors and Runner</h3>
-<p>Whilst the default <code>aiointerpreters.runner.Runner</code> is a little redundant now, it doesn't mean there are no need for making custom versions of <code>Executor</code> or <code>Runner</code>. There is no one size fits all solution to concurrency and parallelism, so there's plenty of opportunity to create different versions of Executor that behave differently and solve different problems that the user face. </p>
-<p>I'm currently working on a <a href="https://github.com/Jamie-Chang/aiointerpreters/pull/8">Runner</a> that distributes async tasks to coroutines running in separate interpreters similar to <a href="https://github.com/omnilib/aiomultiprocess">aiomultiprocess</a>.</p>
-<p>There's also opportunity to take advantage of <code>prepare_main</code> in an executor to reduce the number of copying required. </p>
-<p>Finally, running an executor and integrating it with <code>asyncio</code> is not always straightforward, and I'm sure there's some interesting abstractions that can be created on this front. </p>
-<h2>Closing words</h2>
-<p>Apologies if this all reads like a massive dump of information, I've realised how tricky the subject of concurrency is and I found that it's important here to provide the most accurate details. </p>
-<p>True parallelism in Python is nascent and there simply isn't an obvious way to do things right now and maybe there never will be. With that comes some difficulty in knowing what do do. The most crucial thing here is to get your hands dirty and try different things for yourself and slowly a clearer understanding will form.</p>
-<blockquote>
-<p>p.s. If you're more interested in free-threading, please look at <a href="./python-314-state-of-free-threading.html">Python 3.14: State of free threading</a> and <a href="./how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> my opinions on it have largely remained unchanged.</p>
-</blockquote>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding …</p>
+                        <a class="readmore" href="./i-was-wrong-about-subinterpreters.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -363,31 +644,6 @@
 </footer><!-- /.post-info -->                        <p>Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options <a href="https://launchdarkly.com/">launchdarkly</a>, <a href="https://www.flagsmith.com/">flagsmith</a> and <a href="https://www.getunleash.io/">unleash</a> to name a few. </p>
 <p>SaaS options can be amazing with a full array of features, but I would …</p>
                         <a class="readmore" href="./dynamic-config-part-1-pydantic-and-file-watchers.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./subinterpreters-and-asyncio.html" rel="bookmark"
-                               title="Permalink to Subinterpreters and Asyncio">Subinterpreters and Asyncio</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-08-05T00:00:00+01:00">
-                Published: Tue 05 August 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/pthon.html">πthon</a> <a href="./tag/python314.html">Python3.14</a> <a href="./tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->                        <p><a href="https://peps.python.org/pep-0734">PEP-734</a> subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late <a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734">addition</a>. subinterpreters now has a new home in the standard library module called <a href="https://docs.python.org/3.14/library/concurrent.interpreters.html">concurrent.interpreters</a>.</p>
-<p>If you've been following my blog posts you'll know that I'm particularly excited about this feature. </p>
-<ul>
-<li><a href="./how-good-are-sub-interpreters-in-python-now.html">How …</a></li></ul>
-                        <a class="readmore" href="./subinterpreters-and-asyncio.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->

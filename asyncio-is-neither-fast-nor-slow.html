@@ -4,34 +4,40 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog - Jamie Chang</title>
-                        <link rel="stylesheet" href="../theme/css/main.css" />
+                        <title>Asyncio is neither fast nor slow</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="Don't listen to random benchmarks.. I recently came across an article benchmarking Python performances in web frameworks, comparing asyncio and..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="../">Jamie's Blog</a></h1>
+                        <h1><a href="./">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li><a href="../category/blog.html">Blog</a></li>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./asyncio-is-neither-fast-nor-slow.html" rel="bookmark"
+             title="Permalink to Asyncio is neither fast nor slow">Asyncio is neither fast nor slow</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="../asyncio-is-neither-fast-nor-slow.html">Asyncio is neither fast nor slow</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-01-12T00:00:00+00:00">
                 Published: Mon 12 January 2026
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p><strong><em>Don't listen to random benchmarks..</em></strong></p>
+</footer><!-- /.post-info -->        <p><strong><em>Don't listen to random benchmarks..</em></strong></p>
 <p>I recently came across an <a href="https://hackeryarn.com/post/async-python-benchmarks/">article</a> benchmarking Python performances in web frameworks, comparing asyncio and sync performance. </p>
 <p>The author sets out to measure performance of <a href="https://fastapi.tiangolo.com/">FastAPI</a>/<a href="https://www.djangoproject.com/">Django</a> web servers running with postgresql comparing async and non-async workloads. The methodology is pretty reasonable, the following is his result for an endpoint with a single postgres database read:</p>
 <table>
@@ -418,243 +424,11 @@
 <li>Is there a general rule for thread/process numbers that maximise the performances and what are the trade offs of having more threads.</li>
 </ul>
 <p>In the near future I intend to put together a more comprehensive comparison of different concurrency models and explore these questions.</p>
-<p>The best I could do right now is to provide the full <a href="https://github.com/Jamie-Chang/web-async-benchmark">source code</a> and hopefully encourage people to make their own measurements and share their results. In case there's been any mistakes the feedback is very much welcome there.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>The best I could do right now is to provide the full <a href="https://github.com/Jamie-Chang/web-async-benchmark">source code</a> and hopefully encourage people to make their own measurements and share their results. In case there's been any mistakes the feedback is very much welcome there.</p>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../i-was-wrong-about-subinterpreters.html" rel="bookmark"
-                               title="Permalink to I was wrong about Subinterpreters">I was wrong about Subinterpreters</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-01-01T00:00:00+00:00">
-                Published: Thu 01 January 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->                        <p><strong><em>... but that's actually a good thing</em></strong></p>
-<p>I've already written a ton about subinterpreters since a year ago:  </p>
-<ul>
-<li><a href="../how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
-<li><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
-<li><a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
-</ul>
-<p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding …</p>
-                        <a class="readmore" href="../i-was-wrong-about-subinterpreters.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../trying-out-marimo-notebooks.html" rel="bookmark"
-                               title="Permalink to Trying out marimo notebooks">Trying out marimo notebooks</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-12-03T00:00:00+00:00">
-                Published: Wed 03 December 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>As we approach the holiday seasons, we get to "enjoy" another 12 days of <a href="https://adventofcode.com/">Advent of Code</a>. Every year I try to do something a little different, last year I had a lot of fun solving it in Ocaml, prior years I've tried the latest Python features. This year I've …</p>
-                        <a class="readmore" href="../trying-out-marimo-notebooks.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../fixing-lazy-imports-generating-static-types-dynamically.html" rel="bookmark"
-                               title="Permalink to Fixing lazy imports: Generating Static Types Dynamically">Fixing lazy imports: Generating Static Types Dynamically</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-10-29T00:00:00+00:00">
-                Published: Wed 29 October 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>So I've just released a package called <a href="https://pypi.org/project/lazy-helper/">lazy-helper</a>. This comes as lazy loading has been a hot topic once again due to the proposal <a href="https://peps.python.org/pep-0810/">PEP-810</a>.</p>
-<p>Using my package we can define lazy loaded dependencies nicely:</p>
-<p><img alt="Defining a lazy module" src="../images/lazypy.png"></p>
-<p>Coincidentally Brian Okken has recently written a <a href="https://pythontest.com/polite-lazy-imports-python-packages/">blog post</a> covering the topic of lazy loading …</p>
-                        <a class="readmore" href="../fixing-lazy-imports-generating-static-types-dynamically.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-314-3-asyncio-changes.html" rel="bookmark"
-                               title="Permalink to Python 3.14: 3 Asyncio Changes">Python 3.14: 3 Asyncio Changes</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-10-09T00:00:00+01:00">
-                Published: Thu 09 October 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/asyncio.html">asyncio</a> </p>        
-</footer><!-- /.post-info -->                        <p>Python 3.14 was officially released on October 7th. There are a lot of new features and I've covered some of them before in:</p>
-<ul>
-<li><a href="../python-314-3-smaller-features.html">Python 3.14: 3 smaller features</a></li>
-<li><a href="../t-strings-the-good-and-the-ugly.html">t-strings: the good and the ugly</a></li>
-<li><a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
-</ul>
-<p>What I haven't covered here are any of the asyncio changes …</p>
-                        <a class="readmore" href="../python-314-3-asyncio-changes.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../finally-trying-out-mojo.html" rel="bookmark"
-                               title="Permalink to Finally trying out Mojo 🔥">Finally trying out Mojo 🔥</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-10-02T00:00:00+01:00">
-                Published: Thu 02 October 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/mojo.html">Mojo</a> <a href="../tag/python.html">Python</a> <a href="../tag/advent-of-code.html">Advent of Code</a> </p>        
-</footer><!-- /.post-info -->                        <p><a href="https://www.modular.com/mojo">Mojo</a> has been on my radar for a while. In fact, I heard about it on launch back in May 2023. It was touted as a super set of Python with 10000s of times the performance. It's main focus is on AI related workloads with strong built in support of …</p>
-                        <a class="readmore" href="../finally-trying-out-mojo.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../blog-1-year-in.html" rel="bookmark"
-                               title="Permalink to Blog 1 year in">Blog 1 year in</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-09-24T00:00:00+01:00">
-                Published: Wed 24 September 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>It's been just over a year since I started my blog. In fact, this is my 27th blog post. I thought it'd be a good time for me to share some insights on blogging.</p>
-<h3>Motivation</h3>
-<p>Recently I've been asked by some people on why I do this. I think for …</p>
-                        <a class="readmore" href="../blog-1-year-in.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../asyncio-backpressure-follow-up.html" rel="bookmark"
-                               title="Permalink to Asyncio backpressure - follow up">Asyncio backpressure - follow up</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-09-14T00:00:00+01:00">
-                Published: Sun 14 September 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Previously when discussing <a href="../asyncio-backpressure-processing-lots-of-tasks-in-parallel.html">asyncio backpressure</a> I've made some claims that were not necessarily complete.</p>
-<p>I said:</p>
-<blockquote>
-<p>It works well for 100s of urls but when we hit a big number like 10000s we have a problem.</p>
-<p>The program seemingly hangs. This is because all the tasks are being created first …</p></blockquote>
-                        <a class="readmore" href="../asyncio-backpressure-follow-up.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../simplify-lambda-deployments-with-uv.html" rel="bookmark"
-                               title="Permalink to Simplify lambda deployments with UV">Simplify lambda deployments with UV</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-09-01T00:00:00+01:00">
-                Published: Mon 01 September 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>The python packaging landscape and developer experience has shifted dramatically in the past year or so with <a href="https://docs.astral.sh/uv/">uv</a>'s launch marked a pivotal moment. But behind the scenes many PEPs have worked to get us to this point. </p>
-<p>One such PEP was <a href="https://peps.python.org/pep-0723/">PEP 723 – Inline script metadata</a> which we discussed …</p>
-                        <a class="readmore" href="../simplify-lambda-deployments-with-uv.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../dynamic-config-part-1-pydantic-and-file-watchers.html" rel="bookmark"
-                               title="Permalink to Dynamic config part 1: Pydantic and file watchers">Dynamic config part 1: Pydantic and file watchers</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-08-26T00:00:00+01:00">
-                Published: Tue 26 August 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options <a href="https://launchdarkly.com/">launchdarkly</a>, <a href="https://www.flagsmith.com/">flagsmith</a> and <a href="https://www.getunleash.io/">unleash</a> to name a few. </p>
-<p>SaaS options can be amazing with a full array of features, but I would …</p>
-                        <a class="readmore" href="../dynamic-config-part-1-pydantic-and-file-watchers.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-  <nav>
-    <ul>
-      <li>Page 1 / 4</li>
-        <li><a href="../author/jamie-chang2.html">&rang;</a></li>
-        <li><a href="../author/jamie-chang4.html">&Rang;</a></li>
-    </ul>
-  </nav>
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>
