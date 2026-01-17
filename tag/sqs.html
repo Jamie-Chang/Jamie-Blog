@@ -38,8 +38,8 @@
 <p>Additionally, SQS uses http to communicate between the server and the client which is easier to monitor and is easier to setup if you already have an AWS cluster.</p>
 <h3>Why not use ...?</h3>
 <p>Okay so, the first question I will answer you is why not a pre-existing framework? </p>
-<p>When we talk about task framework in Python, there is a general consensus. The most popular choice is <a href="https://docs.celeryq.dev/en/stable/getting-started/introduction.html">Celery</a>, a framework that can handle pretty much any handle workload in any broker (be it SQS or otherwise). If you need a UI and compose tasks in a DAG (Directed Acyclic Graph) then you should use <a href="https://airflow.apache.org/">Airflow</a>. If you like new technology and talking about orchestration then use something <a href="https://temporal.io/">temporal</a>. The list really goes on and on. </p>
-<p>I haven't used a lot of managed task solutions like temporal which admittedly is something I'd love to try out.</p>
+<p>When we talk about task framework in Python, there is a general consensus. The most popular choice is <a href="https://docs.celeryq.dev/en/stable/getting-started/introduction.html">Celery</a>, a framework that can handle pretty much any handle workload in any broker (be it SQS or otherwise). If you need a UI and compose tasks in a DAG (Directed Acyclic Graph) then you should use <a href="https://airflow.apache.org/">Airflow</a>. If you like new technology and talking about orchestration then use something like <a href="https://temporal.io/">temporal</a>. The list really goes on and on. </p>
+<p>I haven't used a lot of managed task solutions like temporal or <a href="https://www.prefect.io/">prefect</a> which admittedly is something I'd love to try out.</p>
 <p>As for why I don't use something like celery. Celery is a framework that tries to work with everything including all brokers. That is only true to an extent as it was originally designed to work with RabbitMQ. Generally the support is also pretty good for Redis but not so good otherwise. A lot of broker specific features are either not supported or not documented.</p>
 <p>Another issue is a lack of asyncio support. For my use case asyncio is great, no need for multiple threads or processes. Celery again tries very hard to be general, it supports the concurrency paradigm most likely to support a user's code without a lot of input from the user. But in my case, I already have an opinion of how I want my code to run, and it just doesn't make sense to use it.</p>
 <p>Finally, my general complaint of celery is that it requires a lot of configuration for a production use case. Which can cause quite a bit of a headache. </p>
@@ -175,10 +175,10 @@
             <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
 </code></pre></div>
 
-<p>We can clearly abstract this more, e.g. retrying on some fix interval or based on the number of failures prior. But this is a decision that ultimately is up to the user, and we shouldn't try to abstract it in the most basic client.</p>
+<p>This may look a little ugly right now, but we want to avoid abstracting things prematurely, so I've left this for later.</p>
 <h3>Extending keep alive</h3>
-<p>One thing writing our own abstraction enables us to do is to extend the keep alive. This is one thing celery is not particularly good for. I believe it simply sets it to a very big value, which could cause problems if a message needs to be retied.</p>
-<p>Extending the keep-alive is the same operation as retrying: <code>change_message_visibility</code> in one case we set the timeout so that we can retry after a period of time, in the other case we extend the timeout so that we won't retry too soon. </p>
+<p>One thing I wanted to do over celery is to manage the timeout of the message. Celery is configured with a static value which doesn't work well for a something like LLM queries.</p>
+<p>Extending the keep-alive is essentially the same operation as retrying: <code>change_message_visibility</code> in one case we set the timeout so that we can retry after a period of time, in the other case we extend the timeout so that we won't retry too soon. </p>
 <p>In the <code>QueueClient</code> goes:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">QueueClient</span><span class="p">:</span>
@@ -194,9 +194,9 @@
 
 <h2>Abstracting consumption</h2>
 <p>As it is right now, our <code>QueueClient</code> can be tested and used. We know that it will function quite well because we've been careful to make abstraction decisions that improve usability but minimise the cost.</p>
-<p>You may already see the next piece of complexity to tackle, as we have made our <code>QueueClient</code> simple, the consumer loop is more complex than it needs to be, requiring the user to understand how to manage the lifecycle of a message. </p>
+<p>I hinted early that we could do a bit more abstraction. As we have made our <code>QueueClient</code> simple, the consumer loop is more complex than it needs to be, requiring the user to understand how to manage the lifecycle of a message. </p>
 <p>We've left this out because there are many different ways the user may want to manage the message's lifecycle, so enforcing one way may restrict the user's options. </p>
-<p>However, we can provide some abstraction with helpful implementation without forcing the user to go down one path or the other. </p>
+<p>However, we can provide some abstraction with helpful implementation without narrowing the user's options. </p>
 <p>To do this we can use a abstract base class or a <a href="https://typing.python.org/en/latest/spec/protocol.html">Protocol</a> to define what we want the <code>LifeCycle</code> to look like:</p>
 <div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">LifeCycle</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Defines the lifecycle of a single message.</span>
@@ -287,9 +287,9 @@
 </code></pre></div>
 
 <p>Pretty easy right? And should the user want a different lifecycle or to not use it, they are free to do so without any restrictions enforced by the framework. </p>
-<p>The philosophy here is to steer your user to the right direction but ultimately to trust them. Something I find most frameworks violating. </p>
+<p>The philosophy here is to steer your user to the right direction but ultimately to trust them. A principal I find most frameworks violating. </p>
 <h3>Scaling it</h3>
-<p>You might wonder if we can scale the task consumption. This is where our decision to use asyncio helps us. We needn't worry about abstractions to enable scaling ourselves as asyncio already comes with <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.TaskGroup">TaskGroup</a>.</p>
+<p>You might wonder if we can scale the task consumption. After all we must be using asyncio for a reason. We needn't worry about coming up with abstractions ourselves as asyncio already comes with <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.TaskGroup">TaskGroup</a>.</p>
 <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">QueueClient</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">life_cycle</span> <span class="o">=</span> <span class="n">HeartbeatLifeCycle</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
     <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">consume</span><span class="p">():</span>
@@ -304,10 +304,10 @@
             <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">(</span><span class="n">client</span><span class="p">))</span>
 </code></pre></div>
 
-<p>When there's a good standard library or well known abstraction, this lowers the cost on the user, as we are not creating anything novel. </p>
+<p>When there's a good standard library or well known abstraction, this lowers the cost on the user, as we are not creating anything new. </p>
 <h2>Closing Words</h2>
-<p>Creating the perfect abstraction is no small task, a good place to start is something simple and humble. But even then it doesn't always work out in your first try. Sometimes we require many iterations.</p>
-<p>I see some crazy abstraction that grow ad-hoc over a lengthy amount of time, gaining more and more features but not taking care of the abstraction. This is a common thing to happen, so it's okay to recognise an abstraction is not working and start over. Because only then can we work towards something better.</p>
+<p>Creating the perfect abstraction is no small task, a good place to start is something humble and go from there. But even then it doesn't always work out in your first try. Sometimes we need a lot of iterations to get there.</p>
+<p>I see some crazy abstractions that grew ad-hoc over a lengthy amount of time, gaining more and more features but not taking care of the abstraction. This is a common issue with even very popular frameworks, it's okay to recognise an abstraction is not working and start over. Because only then can we work towards something better.</p>
 <p>If you're interested in using this library/framework, it's published to pypi as <a href="https://pypi.org/project/simple-async-sqs/">simple-async-sqs</a>. </p>                    </article>
                 </aside><!-- /#featured -->
                 <section id="extras" class="body">
