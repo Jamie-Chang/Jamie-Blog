@@ -4,34 +4,40 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog - Asyncio</title>
-                        <link rel="stylesheet" href="../theme/css/main.css" />
+                        <title>Writing a SQS task framework from scratch</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="Recently I've been working on framework to run LLM tasks using AWS's excellent SQS. And I made the decision to write my own task framework/library..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="../">Jamie's Blog</a></h1>
+                        <h1><a href="./">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li><a href="../category/blog.html">Blog</a></li>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./writing-a-sqs-task-framework-from-scratch.html" rel="bookmark"
+             title="Permalink to Writing a SQS task framework from scratch">Writing a SQS task framework from scratch</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="../writing-a-sqs-task-framework-from-scratch.html">Writing a SQS task framework from scratch</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-01-18T00:00:00+00:00">
                 Published: Sun 18 January 2026
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/asyncio.html">Asyncio</a> <a href="../tag/sqs.html">SQS</a> </p>        
-</footer><!-- /.post-info --><p>Recently I've been working on framework to run LLM tasks using AWS's excellent <a href="https://aws.amazon.com/sqs/">SQS</a>. And I made the decision to write my own task framework/library as opposed to using a pre-exiting framework. I thought this would be a great opportunity to discuss the considerations and levels of abstractions involved when coding a framework.</p>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/asyncio.html">Asyncio</a> <a href="./tag/sqs.html">SQS</a> </p>        
+</footer><!-- /.post-info -->        <p>Recently I've been working on framework to run LLM tasks using AWS's excellent <a href="https://aws.amazon.com/sqs/">SQS</a>. And I made the decision to write my own task framework/library as opposed to using a pre-exiting framework. I thought this would be a great opportunity to discuss the considerations and levels of abstractions involved when coding a framework.</p>
 <h3>Why SQS?</h3>
 <p>Having come from using traditional message queues like RabbitMQ, I can't help but compare SQS with RabbitMQ. The thing is, whilst they can be interchangeable. I think they are actually built with different use cases in mind.</p>
 <p>RabbitMQ is for processing a large volume of messages, the messages are strictly processed in FIFO order. SQS has more flexibility around when a message is processed and how long each task takes. So RabbitMQ is good for handling events, but SQS is better for tasks like LLM calls.</p>
@@ -308,42 +314,11 @@
 <h2>Closing Words</h2>
 <p>Creating the perfect abstraction is no small task, a good place to start is something simple and humble. But even then it doesn't always work out in your first try. Sometimes we require many iterations.</p>
 <p>I see some crazy abstraction that grow ad-hoc over a lengthy amount of time, gaining more and more features but not taking care of the abstraction. This is a common thing to happen, so it's okay to recognise an abstraction is not working and start over. Because only then can we work towards something better.</p>
-<p>If you're interested in using this library/framework, it's published to pypi as <a href="https://pypi.org/project/simple-async-sqs/">simple-async-sqs</a>. </p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>If you're interested in using this library/framework, it's published to pypi as <a href="https://pypi.org/project/simple-async-sqs/">simple-async-sqs</a>. </p>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-314-3-asyncio-changes.html" rel="bookmark"
-                               title="Permalink to Python 3.14: 3 Asyncio Changes">Python 3.14: 3 Asyncio Changes</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-10-09T00:00:00+01:00">
-                Published: Thu 09 October 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/asyncio.html">asyncio</a> </p>        
-</footer><!-- /.post-info -->                        <p>Python 3.14 was officially released on October 7th. There are a lot of new features and I've covered some of them before in:</p>
-<ul>
-<li><a href="../python-314-3-smaller-features.html">Python 3.14: 3 smaller features</a></li>
-<li><a href="../t-strings-the-good-and-the-ugly.html">t-strings: the good and the ugly</a></li>
-<li><a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
-</ul>
-<p>What I haven't covered here are any of the asyncio changes …</p>
-                        <a class="readmore" href="../python-314-3-asyncio-changes.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>

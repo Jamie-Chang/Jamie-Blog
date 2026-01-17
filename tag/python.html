@@ -20,7 +20,308 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../i-was-wrong-about-subinterpreters.html">I was wrong about Subinterpreters</a></h1>
+                        <h1 class="entry-title"><a href="../writing-a-sqs-task-framework-from-scratch.html">Writing a SQS task framework from scratch</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-01-18T00:00:00+00:00">
+                Published: Sun 18 January 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/asyncio.html">Asyncio</a> <a href="../tag/sqs.html">SQS</a> </p>        
+</footer><!-- /.post-info --><p>Recently I've been working on framework to run LLM tasks using AWS's excellent <a href="https://aws.amazon.com/sqs/">SQS</a>. And I made the decision to write my own task framework/library as opposed to using a pre-exiting framework. I thought this would be a great opportunity to discuss the considerations and levels of abstractions involved when coding a framework.</p>
+<h3>Why SQS?</h3>
+<p>Having come from using traditional message queues like RabbitMQ, I can't help but compare SQS with RabbitMQ. The thing is, whilst they can be interchangeable. I think they are actually built with different use cases in mind.</p>
+<p>RabbitMQ is for processing a large volume of messages, the messages are strictly processed in FIFO order. SQS has more flexibility around when a message is processed and how long each task takes. So RabbitMQ is good for handling events, but SQS is better for tasks like LLM calls.</p>
+<p>Additionally, SQS uses http to communicate between the server and the client which is easier to monitor and is easier to setup if you already have an AWS cluster.</p>
+<h3>Why not use ...?</h3>
+<p>Okay so, the first question I will answer you is why not a pre-existing framework? </p>
+<p>When we talk about task framework in Python, there is a general consensus. The most popular choice is <a href="https://docs.celeryq.dev/en/stable/getting-started/introduction.html">Celery</a>, a framework that can handle pretty much any handle workload in any broker (be it SQS or otherwise). If you need a UI and compose tasks in a DAG (Directed Acyclic Graph) then you should use <a href="https://airflow.apache.org/">Airflow</a>. If you like new technology and talking about orchestration then use something <a href="https://temporal.io/">temporal</a>. The list really goes on and on. </p>
+<p>I haven't used a lot of managed task solutions like temporal which admittedly is something I'd love to try out.</p>
+<p>As for why I don't use something like celery. Celery is a framework that tries to work with everything including all brokers. That is only true to an extent as it was originally designed to work with RabbitMQ. Generally the support is also pretty good for Redis but not so good otherwise. A lot of broker specific features are either not supported or not documented.</p>
+<p>Another issue is a lack of asyncio support. For my use case asyncio is great, no need for multiple threads or processes. Celery again tries very hard to be general, it supports the concurrency paradigm most likely to support a user's code without a lot of input from the user. But in my case, I already have an opinion of how I want my code to run, and it just doesn't make sense to use it.</p>
+<p>Finally, my general complaint of celery is that it requires a lot of configuration for a production use case. Which can cause quite a bit of a headache. </p>
+<h2>Creating my abstractions</h2>
+<p>In my experience writing a good framework is all about how good the abstractions are. Abstractions can come with a cost. Whilst Celery create abstractions that allow task compositions and provides support for many brokers, but it trades broker specific features and increases in configuration complexity.</p>
+<p>Therefore a good abstraction is about making useful trade-offs. </p>
+<h3>Writing the code</h3>
+<p>Before we start with abstractions, it's a good idea to first write some code to see what the it currently looks like with no abstraction.</p>
+<p>Here I ask a LLM to provide an example:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="kn">from</span> <span class="nn">aiobotocore.session</span> <span class="kn">import</span> <span class="n">get_session</span>
+
+<span class="c1"># Replace with your actual Queue URL</span>
+<span class="n">QUEUE_URL</span> <span class="o">=</span> <span class="s2">&quot;https://sqs.us-east-1.amazonaws.com/123456789012/my-queue&quot;</span>
+
+<span class="k">async</span> <span class="k">def</span> <span class="nf">consume_messages</span><span class="p">():</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="n">get_session</span><span class="p">()</span>
+
+    <span class="c1"># create_client is an async context manager that handles connection cleanup</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">session</span><span class="o">.</span><span class="n">create_client</span><span class="p">(</span><span class="s1">&#39;sqs&#39;</span><span class="p">,</span> <span class="n">region_name</span><span class="o">=</span><span class="s1">&#39;us-east-1&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">client</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Listening for messages on </span><span class="si">{</span><span class="n">QUEUE_URL</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># receive_message calls the SQS API</span>
+                <span class="c1"># WaitTimeSeconds=20 enables Long Polling (waits for messages to arrive)</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">receive_message</span><span class="p">(</span>
+                    <span class="n">QueueUrl</span><span class="o">=</span><span class="n">QUEUE_URL</span><span class="p">,</span>
+                    <span class="n">MaxNumberOfMessages</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                    <span class="n">WaitTimeSeconds</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+                    <span class="n">VisibilityTimeout</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="c1"># Check if &#39;Messages&#39; key exists in response</span>
+                <span class="k">if</span> <span class="s1">&#39;Messages&#39;</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;Messages&#39;</span><span class="p">]:</span>
+                        <span class="c1"># 1. Process the message</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Received body: </span><span class="si">{</span><span class="n">msg</span><span class="p">[</span><span class="s1">&#39;Body&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                        <span class="c1"># 2. Delete the message so it isn&#39;t processed again</span>
+                        <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">delete_message</span><span class="p">(</span>
+                            <span class="n">QueueUrl</span><span class="o">=</span><span class="n">QUEUE_URL</span><span class="p">,</span>
+                            <span class="n">ReceiptHandle</span><span class="o">=</span><span class="n">msg</span><span class="p">[</span><span class="s1">&#39;ReceiptHandle&#39;</span><span class="p">]</span>
+                        <span class="p">)</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Message deleted.&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No messages received in this poll.&quot;</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error encountered: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>  <span class="c1"># Backoff on error</span>
+</code></pre></div>
+
+<h3>Identifying Trade-offs</h3>
+<p>Next we look at things we want to change and thus the trade-offs.</p>
+<p>Let's start with deleting the message, the purpose of deleting the message is to signal that the message is complete and shouldn't be processed again. I personally don't like the naming of this, in the context of message queues this is usually called <code>ack</code>. </p>
+<p>Something like:</p>
+<div class="highlight"><pre><span></span><code><span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Next, let's look at some of the attributes we can abstract:</p>
+<ul>
+<li><code>VisibilityTimeout</code>: is the amount of time the message can be processed for before going back on the queue, it is also how we can delay the message for when adding a message to the queue. We can make this clearer by calling it keep-alive and delay respectively.</li>
+<li><code>MaxNumberOfMessages</code>: is a useful feature of SQS to fetch a batch of messages at once to increase throughput and reduce the cloud bill. But it may not be a good fit for my use case handling LLM requests as they don't work well in batches</li>
+<li><code>WaitTimeSeconds</code> enables long polling which reduces the number of requests and hence the cloud bill. This is a good idea to keep on. And there's no real need for us to turn it off. </li>
+</ul>
+<h3>Creating the client</h3>
+<p>Now that the trade offs are identified, we will start to create the client code, and this is what I've come up with:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">QueueClient</span><span class="p">:</span>
+    <span class="n">client</span><span class="p">:</span> <span class="n">SQSClient</span>
+    <span class="n">queue</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">consume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keep_alive</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">messages</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">receive_message</span><span class="p">(</span>
+                <span class="n">QueueUrl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">,</span>
+                <span class="n">MaxNumberOfMessages</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                <span class="n">WaitTimeSeconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">poll_interval</span><span class="p">,</span>
+                <span class="n">VisibilityTimeout</span><span class="o">=</span><span class="n">keep_alive</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">match</span> <span class="n">messages</span><span class="p">:</span>
+                <span class="k">case</span> <span class="p">{</span><span class="s2">&quot;Messages&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">message</span><span class="p">]}:</span>
+                    <span class="k">yield</span> <span class="n">message</span>
+                <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">ack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">delete_message</span><span class="p">(</span>
+            <span class="n">QueueUrl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">,</span>
+            <span class="n">ReceiptHandle</span><span class="o">=</span><span class="n">message</span><span class="p">[</span><span class="s2">&quot;ReceiptHandle&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+</code></pre></div>
+
+<p>In order to pass the messages to the user, I've represented the stream of messages as an AsyncIterator. Iterators are truly one of Python's best features, and here it fits particularly well as are trying to expose the messages to the user without making may assumptions about how to user wants to consume it.</p>
+<p>Consuming messages then is as simple as running an async for loop:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">consume</span><span class="p">():</span>
+        <span class="k">await</span> <span class="n">handle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<h3>Error Handling</h3>
+<p>A good task framework should provide utilities to handle errors well, in our scenario we simply terminate if we encounter an error. This could be enough provided that we automatically restart our process, but generally this is not the expectation.</p>
+<p>The standard terminology for this is <code>nack</code> the opposite of <code>ack</code>. In SQS terms this is simply <a href="https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sqs/client/change_message_visibility.html#SQS.Client.change_message_visibility"><code>change_message_visibility</code></a> or <code>delete_message</code> depending whether we want to retry.</p>
+<p>So inside <code>QueueClient</code> goes:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">QueueClient</span><span class="p">:</span>
+    <span class="o">...</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">nack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">,</span> <span class="n">retry_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">retry_timeout</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">change_message_visibility</span><span class="p">(</span>
+            <span class="n">QueueUrl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">,</span>
+            <span class="n">ReceiptHandle</span><span class="o">=</span><span class="n">message</span><span class="p">[</span><span class="s2">&quot;ReceiptHandle&quot;</span><span class="p">],</span>
+            <span class="n">VisibilityTimeout</span><span class="o">=</span><span class="n">retry_timeout</span><span class="p">,</span>
+        <span class="p">)</span>
+</code></pre></div>
+
+<p>Consuming messages with error handling is:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">consume</span><span class="p">():</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">handle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<p>We can clearly abstract this more, e.g. retrying on some fix interval or based on the number of failures prior. But this is a decision that ultimately is up to the user, and we shouldn't try to abstract it in the most basic client.</p>
+<h3>Extending keep alive</h3>
+<p>One thing writing our own abstraction enables us to do is to extend the keep alive. This is one thing celery is not particularly good for. I believe it simply sets it to a very big value, which could cause problems if a message needs to be retied.</p>
+<p>Extending the keep-alive is the same operation as retrying: <code>change_message_visibility</code> in one case we set the timeout so that we can retry after a period of time, in the other case we extend the timeout so that we won't retry too soon. </p>
+<p>In the <code>QueueClient</code> goes:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">QueueClient</span><span class="p">:</span>
+    <span class="o">...</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">keep_alive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">duration</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">change_message_visibility</span><span class="p">(</span>
+            <span class="n">QueueUrl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">,</span>
+            <span class="n">ReceiptHandle</span><span class="o">=</span><span class="n">message</span><span class="p">[</span><span class="s2">&quot;ReceiptHandle&quot;</span><span class="p">],</span>
+            <span class="n">VisibilityTimeout</span><span class="o">=</span><span class="n">duration</span><span class="p">,</span>
+        <span class="p">)</span>
+</code></pre></div>
+
+<h2>Abstracting consumption</h2>
+<p>As it is right now, our <code>QueueClient</code> can be tested and used. We know that it will function quite well because we've been careful to make abstraction decisions that improve usability but minimise the cost.</p>
+<p>You may already see the next piece of complexity to tackle, as we have made our <code>QueueClient</code> simple, the consumer loop is more complex than it needs to be, requiring the user to understand how to manage the lifecycle of a message. </p>
+<p>We've left this out because there are many different ways the user may want to manage the message's lifecycle, so enforcing one way may restrict the user's options. </p>
+<p>However, we can provide some abstraction with helpful implementation without forcing the user to go down one path or the other. </p>
+<p>To do this we can use a abstract base class or a <a href="https://typing.python.org/en/latest/spec/protocol.html">Protocol</a> to define what we want the <code>LifeCycle</code> to look like:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">LifeCycle</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Defines the lifecycle of a single message.</span>
+
+<span class="sd">    That is what happens </span>
+<span class="sd">        - when a message is processed successfully</span>
+<span class="sd">        - when a message errors</span>
+<span class="sd">        - during the message processing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>We use a <code>AsyncContextManager</code> here because it gives us the most flexibility, wrapping the message handler.</p>
+<p>So our basic version of message processing would look something like: </p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">BasicLifeCycle</span><span class="p">:</span>
+    <span class="n">client</span><span class="p">:</span> <span class="n">QueueClient</span>
+
+    <span class="nd">@asynccontextmanager</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">message</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<p>We can improve on this with a retry option:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">RetryLifeCycle</span><span class="p">:</span>
+    <span class="n">client</span><span class="p">:</span> <span class="n">QueueClient</span>
+    <span class="n">retry</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="nd">@asynccontextmanager</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">message</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">retry</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<p>And adding more complexity for convenience, we can also provide a background task to keep the message alive. This allows us to process the message for a functionally infinite amount of time:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">HeartbeatLifeCycle</span><span class="p">:</span>
+    <span class="n">client</span><span class="p">:</span> <span class="n">QueueClient</span>
+    <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="nd">@asynccontextmanager</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">auto_keep_alive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">async</span> <span class="k">def</span> <span class="nf">_keep_alive</span><span class="p">():</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interval</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">keep_alive</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+
+        <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">_keep_live</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">yield</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="n">task</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+
+    <span class="nd">@asynccontextmanager</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">async</span> <span class="k">with</span> <span class="n">auto_keep_alive</span><span class="p">():</span>
+                <span class="k">yield</span> <span class="n">message</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<h2>Finally putting everything together</h2>
+<p>Let's compose what a single consumer would look like:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">client</span> <span class="o">=</span> <span class="n">QueueClient</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+    <span class="n">life_cycle</span> <span class="o">=</span> <span class="n">HeartbeatLifeCycle</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">consume</span><span class="p">():</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">life_cycle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span> <span class="k">as</span> <span class="n">message</span><span class="p">:</span>
+            <span class="n">handle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>  <span class="c1"># That&#39;s it!</span>
+</code></pre></div>
+
+<p>Pretty easy right? And should the user want a different lifecycle or to not use it, they are free to do so without any restrictions enforced by the framework. </p>
+<p>The philosophy here is to steer your user to the right direction but ultimately to trust them. Something I find most frameworks violating. </p>
+<h3>Scaling it</h3>
+<p>You might wonder if we can scale the task consumption. This is where our decision to use asyncio helps us. We needn't worry about abstractions to enable scaling ourselves as asyncio already comes with <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.TaskGroup">TaskGroup</a>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">QueueClient</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">life_cycle</span> <span class="o">=</span> <span class="n">HeartbeatLifeCycle</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">consume</span><span class="p">():</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">life_cycle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span> <span class="k">as</span> <span class="n">message</span><span class="p">:</span>
+            <span class="n">handle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+
+<span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">workers</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="n">client</span> <span class="o">=</span> <span class="n">QueueClient</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">workers</span><span class="p">):</span>
+            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">(</span><span class="n">client</span><span class="p">))</span>
+</code></pre></div>
+
+<p>When there's a good standard library or well known abstraction, this lowers the cost on the user, as we are not creating anything novel. </p>
+<h2>Closing Words</h2>
+<p>Creating the perfect abstraction is no small task, a good place to start is something simple and humble. But even then it doesn't always work out in your first try. Sometimes we require many iterations.</p>
+<p>I see some crazy abstraction that grow ad-hoc over a lengthy amount of time, gaining more and more features but not taking care of the abstraction. This is a common thing to happen, so it's okay to recognise an abstraction is not working and start over. Because only then can we work towards something better.</p>
+<p>If you're interested in using this library/framework, it's published to pypi as <a href="https://pypi.org/project/simple-async-sqs/">simple-async-sqs</a>. </p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../i-was-wrong-about-subinterpreters.html" rel="bookmark"
+                               title="Permalink to I was wrong about Subinterpreters">I was wrong about Subinterpreters</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-01-01T00:00:00+00:00">
                 Published: Thu 01 January 2026
@@ -31,147 +332,17 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
 <p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info --><p><strong><em>... but that's actually a good thing</em></strong></p>
+</footer><!-- /.post-info -->                        <p><strong><em>... but that's actually a good thing</em></strong></p>
 <p>I've already written a ton about subinterpreters since a year ago:  </p>
 <ul>
 <li><a href="../how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
 <li><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
 <li><a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
 </ul>
-<p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding of them. </p>
-<h3>Efficient data sharing between interpreters</h3>
-<p>My first attempt at using it was to solve an <a href="https://adventofcode.com/2024/day/6">Advent of Code</a>. This involved running the same function around 4000 times on the same grid of values. </p>
-<p>The function makes a lot of read only access to the grid, which causes high lock contention in a free-threaded implementation. But with interpreters the performance scaled pretty much perfectly. Here's a chart of the performance differences:</p>
-<p><img alt="interpreters vs threads" src="../images/AoC-day-6.png"></p>
-<p>In the article I claimed:</p>
-<blockquote>
-<p>There are also other ways to execute code I chose not to use like <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a> which don't take advantage of shared objects, or <code>Interpreter.call</code> which places limitations on the function called.</p>
-</blockquote>
-<p>But something didn't sit right with me, why would there not be an easy to use implementation for users?</p>
-<p>So I gave it another look and reimplemented my solution with the standard executor here:</p>
-<div class="highlight"><pre><span></span><code><span class="n">candidates</span> <span class="o">=</span> <span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">start</span><span class="p">)</span>
-<span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">,</span> <span class="n">candidates</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
-</code></pre></div>
-
-<p>... and the results indeed came out a lot slower. Around 4 seconds compared to the 0.6 seconds before (13 threads on my M3 Macbook). </p>
-<p>So that seems to prove my point then? Well not exactly, I tried rewriting my own implementation again like:</p>
-<div class="highlight"><pre><span></span><code>    <span class="n">candidates</span> <span class="o">=</span> <span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">start</span><span class="p">)</span>
-    <span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="p">(</span><span class="s2">&quot;implementations.d6&quot;</span><span class="p">,</span> <span class="s2">&quot;solve&quot;</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="n">workers</span><span class="p">)</span>
-    <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
-</code></pre></div>
-
-<p>it was just as slow. So what's going on here?</p>
-<p>It turns out that whether using the standard library or hand writing my own executor, we're both using the same 'sharing' mechanism to move the arguments and results in and out of the interpreter.</p>
-<p>But I had assumed that when we shared the grid of type <code>tuple[tuple[bool, ...], ...]</code> we simply share the reference of the object. But this is not actually the case, the <a href="https://docs.python.org/3/library/concurrent.interpreters.html#interp-object-sharing">docs</a> don't go into a lot of detail in actual fact, most objects are copied between interpreters.</p>
-<p>This doesn't explain why my initial implementation was so fast. After rechecking my original code, I found out that I had gotten quite lucky and used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a> to pass the grid to each interpreter at the start. This still perform the copy but only once for each worker, on the other hand, my newer implementations copy grid for each invocation.</p>
-<p>To show this more clearly, we can use <code>memoryview</code> instead. <code>memoryview</code> is one of the few exceptions that do not require copying as it shares mutable data. The way it works is that the <code>memoryview</code> object itself is copied each time but the underlying data is simply referenced. </p>
-<p>Changing the grid to a <code>memoryview</code> backed by a <code>bytearray</code> we get back our performance we expect. See the code below:</p>
-<style type="text/css">
-  .gist-file
-  .gist-data {max-height: 500px;}
-</style>
-
-<script src="https://gist.github.com/Jamie-Chang/8263a304260d717308c6deb72f9f3e91.js"></script>
-
-<h3>Efficient function passing</h3>
-<p>In <a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a>, I tried to make subinterpreters work more generally with asyncio and created <a href="https://github.com/Jamie-Chang/aiointerpreters">aiointerpreters</a>.</p>
-<p>Here again I made some incorrect claims:</p>
-<blockquote>
-<p>In order to pass the function itself, the arguments and return values are pickled before they are passed to the interpreters. Which will impact performance and may cancel out a lot of the performance gains over other parallelism mechanisms like free-threading and multi-processing.</p>
-</blockquote>
-<p>Which as we know now, the only way to avoid copying the data is using <code>memoryview</code> or to reduce the amount of copying using something <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a>.</p>
-<p>Another thing I got wrong is:</p>
-<blockquote>
-<p>Then there's the problem of loading functions into the interpreters. As far as I can tell, the best way to do so without pickle is to import the functions inside the interpreters. This is likely the mechanism behind <code>call_in_thread</code>.</p>
-</blockquote>
-<p>At the time, I had not realised that pickle works on functions the following <a href="https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled">way</a>:</p>
-<blockquote>
-<p>Note that functions (built-in and user-defined) are pickled by fully qualified name, not by value. This means that only the function name is pickled, along with the name of the containing module and classes. Neither the function’s code, nor any of its function attributes are pickled. Thus the defining module must be importable in the unpickling environment, and the module must contain the named object, otherwise an exception will be raised.</p>
-</blockquote>
-<p>So it was ultimately unnecessary to create a custom function loading mechanism to load the function into the interpreter as pickle was already doing the same thing (oops!).</p>
-<p>This means that there's no discernable performance benefits in my <code>Runner</code> implementation over <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a>.</p>
-<h2>How should we use interpreters then?</h2>
-<p>In short just use <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-
-    <span class="c1"># or </span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">single_arg</span><span class="p">)</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">single_arg</span><span class="p">)</span>
-    <span class="o">...</span>
-</code></pre></div>
-
-<p>Results can be accessed easily via <a href="https://docs.python.org/3/library/concurrent.futures.html#future-objects">futures</a>. The standard lib also provides some basic way to synchronise futures via <a href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.wait">wait</a> or <a href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.as_completed">as_completed</a></p>
-<h3>Asyncio</h3>
-<p>What if you need more complex synchronisation? We can run Executors in asyncio using <a href="https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor">loop.run_in_executor(...)</a>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
-    <span class="k">await</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_in_executor</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">argument</span><span class="p">)</span>
-</code></pre></div>
-
-<p>here's an example using the excellent <code>asyncio.TaskGroup</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">to_coro</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">aw</span><span class="p">:</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
-    <span class="k">return</span> <span class="k">await</span> <span class="n">aw</span>
-
-<span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
-    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">):</span>
-            <span class="c1"># NOTE: a task must be created from a coroutine, run_in_executor returns an `asyncio.Future`</span>
-            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span>
-                <span class="n">to_coro</span><span class="p">(</span>
-                    <span class="n">loop</span><span class="o">.</span><span class="n">run_in_executor</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">argument</span><span class="p">)</span>
-                <span class="p">)</span>
-            <span class="p">)</span>
-</code></pre></div>
-
-<h2>What about <code>aiointerpreters</code>?</h2>
-<p>I'm hoping by this point, I've successfully convinced you that <code>aiointerpreters</code> is redundant and the standard library functionality is enough.</p>
-<p>I can now safely say that I'm wrong about the out of the box usability of <code>InterpreterPoolExecutor</code>. That being said I don't feel too silly making those mistakes. </p>
-<p>With subinterpreters still a very new and niche feature, there are still a lot of sharp edges. One thing that led to my confusions is that there are not many resources on how it works, there are some difference between the information from the <a href="https://pypi.org/project/interpreters-pep-734">PEP</a> and the final implementation. So I do hope the details I share here can save people some time. </p>
-<p>As for aiointerpreters, going forward the focus will be more on enhancing the features the standard library offers rather than completely reinventing the wheel (again). This process is already underway ... </p>
-<h3>InterpreterThreadPoolExecutor</h3>
-<p>As I've been going through the code in the <a href="https://github.com/python/cpython/blob/main/Lib/concurrent/futures/interpreter.py">standard library</a> I've discovered that the current executor implementation is written on top of <code>ThreadPoolExecutor</code>. Once a task is given to a thread it then get's sent to an interpreter within the thread.</p>
-<p>This gives us an opportunity to create a hybrid executor that can dispatch to an interpreter conditionally. I created <code>InterpreterThreadExecutor</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">aiointerpreters.executors</span> <span class="kn">import</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">,</span> <span class="n">interpreter</span>
-
-
-<span class="k">with</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">interpreter</span><span class="p">(</span><span class="n">cpu_bound</span><span class="p">),</span> <span class="p">(</span><span class="n">argument</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">)))</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">io_bound</span><span class="p">,</span> <span class="p">(</span><span class="n">argument</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">)))</span>
-</code></pre></div>
-
-<p>When the user want to request a dedicated interpreter they simply need to wrap the function in the <code>interpreter</code> decorator.</p>
-<p>I think this makes a lot of sense as threads and interpreters both have their trade offs. Interpreters are isolated and allow parallel memory access but passing arguments needs a lot more care and could be slower. On the other hand, threads (GIL enabled) cannot run cpu bound code in parallel.</p>
-<p>We could create 2 thread pools but I think it's a lot easier and resource efficient to maintain a single thread pool.</p>
-<p>This is particularly useful for <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread">asyncio.to_thread()</a>:</p>
-<p>We can set the default executor at a loop level:</p>
-<div class="highlight"><pre><span></span><code><span class="n">asyncio</span><span class="o">.</span><span class="n">get_running_loop</span><span class="p">()</span><span class="o">.</span><span class="n">set_default_executor</span><span class="p">(</span><span class="n">InterpreterThreadPoolExecutor</span><span class="p">())</span>
-</code></pre></div>
-
-<p>And then whenever we call <code>to_thread</code> the correct executor will be chosen based on what the user specified.</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">interpreter</span><span class="p">(</span><span class="n">cpu_bound</span><span class="p">),</span> <span class="n">argument</span><span class="p">))</span>
-    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">io_bound</span><span class="p">,</span> <span class="n">argument</span><span class="p">))</span>
-</code></pre></div>
-
-<h3>More complex Executors and Runner</h3>
-<p>Whilst the default <code>aiointerpreters.runner.Runner</code> is a little redundant now, it doesn't mean there are no need for making custom versions of <code>Executor</code> or <code>Runner</code>. There is no one size fits all solution to concurrency and parallelism, so there's plenty of opportunity to create different versions of Executor that behave differently and solve different problems that the user face. </p>
-<p>I'm currently working on a <a href="https://github.com/Jamie-Chang/aiointerpreters/pull/8">Runner</a> that distributes async tasks to coroutines running in separate interpreters similar to <a href="https://github.com/omnilib/aiomultiprocess">aiomultiprocess</a>.</p>
-<p>There's also opportunity to take advantage of <code>prepare_main</code> in an executor to reduce the number of copying required. </p>
-<p>Finally, running an executor and integrating it with <code>asyncio</code> is not always straightforward, and I'm sure there's some interesting abstractions that can be created on this front. </p>
-<h2>Closing words</h2>
-<p>Apologies if this all reads like a massive dump of information, I've realised how tricky the subject of concurrency is and I found that it's important here to provide the most accurate details. </p>
-<p>True parallelism in Python is nascent and there simply isn't an obvious way to do things right now and maybe there never will be. With that comes some difficulty in knowing what do do. The most crucial thing here is to get your hands dirty and try different things for yourself and slowly a clearer understanding will form.</p>
-<blockquote>
-<p>p.s. If you're more interested in free-threading, please look at <a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a> and <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> my opinions on it have largely remained unchanged.</p>
-</blockquote>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding …</p>
+                        <a class="readmore" href="../i-was-wrong-about-subinterpreters.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>

@@ -20,7 +20,308 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../asyncio-is-neither-fast-nor-slow.html">Asyncio is neither fast nor slow</a></h1>
+                        <h1 class="entry-title"><a href="../writing-a-sqs-task-framework-from-scratch.html">Writing a SQS task framework from scratch</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-01-18T00:00:00+00:00">
+                Published: Sun 18 January 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/asyncio.html">Asyncio</a> <a href="../tag/sqs.html">SQS</a> </p>        
+</footer><!-- /.post-info --><p>Recently I've been working on framework to run LLM tasks using AWS's excellent <a href="https://aws.amazon.com/sqs/">SQS</a>. And I made the decision to write my own task framework/library as opposed to using a pre-exiting framework. I thought this would be a great opportunity to discuss the considerations and levels of abstractions involved when coding a framework.</p>
+<h3>Why SQS?</h3>
+<p>Having come from using traditional message queues like RabbitMQ, I can't help but compare SQS with RabbitMQ. The thing is, whilst they can be interchangeable. I think they are actually built with different use cases in mind.</p>
+<p>RabbitMQ is for processing a large volume of messages, the messages are strictly processed in FIFO order. SQS has more flexibility around when a message is processed and how long each task takes. So RabbitMQ is good for handling events, but SQS is better for tasks like LLM calls.</p>
+<p>Additionally, SQS uses http to communicate between the server and the client which is easier to monitor and is easier to setup if you already have an AWS cluster.</p>
+<h3>Why not use ...?</h3>
+<p>Okay so, the first question I will answer you is why not a pre-existing framework? </p>
+<p>When we talk about task framework in Python, there is a general consensus. The most popular choice is <a href="https://docs.celeryq.dev/en/stable/getting-started/introduction.html">Celery</a>, a framework that can handle pretty much any handle workload in any broker (be it SQS or otherwise). If you need a UI and compose tasks in a DAG (Directed Acyclic Graph) then you should use <a href="https://airflow.apache.org/">Airflow</a>. If you like new technology and talking about orchestration then use something <a href="https://temporal.io/">temporal</a>. The list really goes on and on. </p>
+<p>I haven't used a lot of managed task solutions like temporal which admittedly is something I'd love to try out.</p>
+<p>As for why I don't use something like celery. Celery is a framework that tries to work with everything including all brokers. That is only true to an extent as it was originally designed to work with RabbitMQ. Generally the support is also pretty good for Redis but not so good otherwise. A lot of broker specific features are either not supported or not documented.</p>
+<p>Another issue is a lack of asyncio support. For my use case asyncio is great, no need for multiple threads or processes. Celery again tries very hard to be general, it supports the concurrency paradigm most likely to support a user's code without a lot of input from the user. But in my case, I already have an opinion of how I want my code to run, and it just doesn't make sense to use it.</p>
+<p>Finally, my general complaint of celery is that it requires a lot of configuration for a production use case. Which can cause quite a bit of a headache. </p>
+<h2>Creating my abstractions</h2>
+<p>In my experience writing a good framework is all about how good the abstractions are. Abstractions can come with a cost. Whilst Celery create abstractions that allow task compositions and provides support for many brokers, but it trades broker specific features and increases in configuration complexity.</p>
+<p>Therefore a good abstraction is about making useful trade-offs. </p>
+<h3>Writing the code</h3>
+<p>Before we start with abstractions, it's a good idea to first write some code to see what the it currently looks like with no abstraction.</p>
+<p>Here I ask a LLM to provide an example:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="kn">from</span> <span class="nn">aiobotocore.session</span> <span class="kn">import</span> <span class="n">get_session</span>
+
+<span class="c1"># Replace with your actual Queue URL</span>
+<span class="n">QUEUE_URL</span> <span class="o">=</span> <span class="s2">&quot;https://sqs.us-east-1.amazonaws.com/123456789012/my-queue&quot;</span>
+
+<span class="k">async</span> <span class="k">def</span> <span class="nf">consume_messages</span><span class="p">():</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="n">get_session</span><span class="p">()</span>
+
+    <span class="c1"># create_client is an async context manager that handles connection cleanup</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">session</span><span class="o">.</span><span class="n">create_client</span><span class="p">(</span><span class="s1">&#39;sqs&#39;</span><span class="p">,</span> <span class="n">region_name</span><span class="o">=</span><span class="s1">&#39;us-east-1&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">client</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Listening for messages on </span><span class="si">{</span><span class="n">QUEUE_URL</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># receive_message calls the SQS API</span>
+                <span class="c1"># WaitTimeSeconds=20 enables Long Polling (waits for messages to arrive)</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">receive_message</span><span class="p">(</span>
+                    <span class="n">QueueUrl</span><span class="o">=</span><span class="n">QUEUE_URL</span><span class="p">,</span>
+                    <span class="n">MaxNumberOfMessages</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                    <span class="n">WaitTimeSeconds</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+                    <span class="n">VisibilityTimeout</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="c1"># Check if &#39;Messages&#39; key exists in response</span>
+                <span class="k">if</span> <span class="s1">&#39;Messages&#39;</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;Messages&#39;</span><span class="p">]:</span>
+                        <span class="c1"># 1. Process the message</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Received body: </span><span class="si">{</span><span class="n">msg</span><span class="p">[</span><span class="s1">&#39;Body&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                        <span class="c1"># 2. Delete the message so it isn&#39;t processed again</span>
+                        <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">delete_message</span><span class="p">(</span>
+                            <span class="n">QueueUrl</span><span class="o">=</span><span class="n">QUEUE_URL</span><span class="p">,</span>
+                            <span class="n">ReceiptHandle</span><span class="o">=</span><span class="n">msg</span><span class="p">[</span><span class="s1">&#39;ReceiptHandle&#39;</span><span class="p">]</span>
+                        <span class="p">)</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Message deleted.&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No messages received in this poll.&quot;</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error encountered: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>  <span class="c1"># Backoff on error</span>
+</code></pre></div>
+
+<h3>Identifying Trade-offs</h3>
+<p>Next we look at things we want to change and thus the trade-offs.</p>
+<p>Let's start with deleting the message, the purpose of deleting the message is to signal that the message is complete and shouldn't be processed again. I personally don't like the naming of this, in the context of message queues this is usually called <code>ack</code>. </p>
+<p>Something like:</p>
+<div class="highlight"><pre><span></span><code><span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Next, let's look at some of the attributes we can abstract:</p>
+<ul>
+<li><code>VisibilityTimeout</code>: is the amount of time the message can be processed for before going back on the queue, it is also how we can delay the message for when adding a message to the queue. We can make this clearer by calling it keep-alive and delay respectively.</li>
+<li><code>MaxNumberOfMessages</code>: is a useful feature of SQS to fetch a batch of messages at once to increase throughput and reduce the cloud bill. But it may not be a good fit for my use case handling LLM requests as they don't work well in batches</li>
+<li><code>WaitTimeSeconds</code> enables long polling which reduces the number of requests and hence the cloud bill. This is a good idea to keep on. And there's no real need for us to turn it off. </li>
+</ul>
+<h3>Creating the client</h3>
+<p>Now that the trade offs are identified, we will start to create the client code, and this is what I've come up with:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">QueueClient</span><span class="p">:</span>
+    <span class="n">client</span><span class="p">:</span> <span class="n">SQSClient</span>
+    <span class="n">queue</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">consume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keep_alive</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">messages</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">receive_message</span><span class="p">(</span>
+                <span class="n">QueueUrl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">,</span>
+                <span class="n">MaxNumberOfMessages</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                <span class="n">WaitTimeSeconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">poll_interval</span><span class="p">,</span>
+                <span class="n">VisibilityTimeout</span><span class="o">=</span><span class="n">keep_alive</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">match</span> <span class="n">messages</span><span class="p">:</span>
+                <span class="k">case</span> <span class="p">{</span><span class="s2">&quot;Messages&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">message</span><span class="p">]}:</span>
+                    <span class="k">yield</span> <span class="n">message</span>
+                <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">ack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">delete_message</span><span class="p">(</span>
+            <span class="n">QueueUrl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">,</span>
+            <span class="n">ReceiptHandle</span><span class="o">=</span><span class="n">message</span><span class="p">[</span><span class="s2">&quot;ReceiptHandle&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+</code></pre></div>
+
+<p>In order to pass the messages to the user, I've represented the stream of messages as an AsyncIterator. Iterators are truly one of Python's best features, and here it fits particularly well as are trying to expose the messages to the user without making may assumptions about how to user wants to consume it.</p>
+<p>Consuming messages then is as simple as running an async for loop:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">consume</span><span class="p">():</span>
+        <span class="k">await</span> <span class="n">handle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<h3>Error Handling</h3>
+<p>A good task framework should provide utilities to handle errors well, in our scenario we simply terminate if we encounter an error. This could be enough provided that we automatically restart our process, but generally this is not the expectation.</p>
+<p>The standard terminology for this is <code>nack</code> the opposite of <code>ack</code>. In SQS terms this is simply <a href="https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sqs/client/change_message_visibility.html#SQS.Client.change_message_visibility"><code>change_message_visibility</code></a> or <code>delete_message</code> depending whether we want to retry.</p>
+<p>So inside <code>QueueClient</code> goes:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">QueueClient</span><span class="p">:</span>
+    <span class="o">...</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">nack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">,</span> <span class="n">retry_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">retry_timeout</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">change_message_visibility</span><span class="p">(</span>
+            <span class="n">QueueUrl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">,</span>
+            <span class="n">ReceiptHandle</span><span class="o">=</span><span class="n">message</span><span class="p">[</span><span class="s2">&quot;ReceiptHandle&quot;</span><span class="p">],</span>
+            <span class="n">VisibilityTimeout</span><span class="o">=</span><span class="n">retry_timeout</span><span class="p">,</span>
+        <span class="p">)</span>
+</code></pre></div>
+
+<p>Consuming messages with error handling is:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">consume</span><span class="p">():</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">handle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<p>We can clearly abstract this more, e.g. retrying on some fix interval or based on the number of failures prior. But this is a decision that ultimately is up to the user, and we shouldn't try to abstract it in the most basic client.</p>
+<h3>Extending keep alive</h3>
+<p>One thing writing our own abstraction enables us to do is to extend the keep alive. This is one thing celery is not particularly good for. I believe it simply sets it to a very big value, which could cause problems if a message needs to be retied.</p>
+<p>Extending the keep-alive is the same operation as retrying: <code>change_message_visibility</code> in one case we set the timeout so that we can retry after a period of time, in the other case we extend the timeout so that we won't retry too soon. </p>
+<p>In the <code>QueueClient</code> goes:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">QueueClient</span><span class="p">:</span>
+    <span class="o">...</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">keep_alive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">duration</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">change_message_visibility</span><span class="p">(</span>
+            <span class="n">QueueUrl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">,</span>
+            <span class="n">ReceiptHandle</span><span class="o">=</span><span class="n">message</span><span class="p">[</span><span class="s2">&quot;ReceiptHandle&quot;</span><span class="p">],</span>
+            <span class="n">VisibilityTimeout</span><span class="o">=</span><span class="n">duration</span><span class="p">,</span>
+        <span class="p">)</span>
+</code></pre></div>
+
+<h2>Abstracting consumption</h2>
+<p>As it is right now, our <code>QueueClient</code> can be tested and used. We know that it will function quite well because we've been careful to make abstraction decisions that improve usability but minimise the cost.</p>
+<p>You may already see the next piece of complexity to tackle, as we have made our <code>QueueClient</code> simple, the consumer loop is more complex than it needs to be, requiring the user to understand how to manage the lifecycle of a message. </p>
+<p>We've left this out because there are many different ways the user may want to manage the message's lifecycle, so enforcing one way may restrict the user's options. </p>
+<p>However, we can provide some abstraction with helpful implementation without forcing the user to go down one path or the other. </p>
+<p>To do this we can use a abstract base class or a <a href="https://typing.python.org/en/latest/spec/protocol.html">Protocol</a> to define what we want the <code>LifeCycle</code> to look like:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">LifeCycle</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Defines the lifecycle of a single message.</span>
+
+<span class="sd">    That is what happens </span>
+<span class="sd">        - when a message is processed successfully</span>
+<span class="sd">        - when a message errors</span>
+<span class="sd">        - during the message processing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>We use a <code>AsyncContextManager</code> here because it gives us the most flexibility, wrapping the message handler.</p>
+<p>So our basic version of message processing would look something like: </p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">BasicLifeCycle</span><span class="p">:</span>
+    <span class="n">client</span><span class="p">:</span> <span class="n">QueueClient</span>
+
+    <span class="nd">@asynccontextmanager</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">message</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<p>We can improve on this with a retry option:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">RetryLifeCycle</span><span class="p">:</span>
+    <span class="n">client</span><span class="p">:</span> <span class="n">QueueClient</span>
+    <span class="n">retry</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="nd">@asynccontextmanager</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">message</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">retry</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<p>And adding more complexity for convenience, we can also provide a background task to keep the message alive. This allows us to process the message for a functionally infinite amount of time:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">HeartbeatLifeCycle</span><span class="p">:</span>
+    <span class="n">client</span><span class="p">:</span> <span class="n">QueueClient</span>
+    <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="nd">@asynccontextmanager</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">auto_keep_alive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">async</span> <span class="k">def</span> <span class="nf">_keep_alive</span><span class="p">():</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interval</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">keep_alive</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+
+        <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">_keep_live</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">yield</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="n">task</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+
+    <span class="nd">@asynccontextmanager</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">async</span> <span class="k">with</span> <span class="n">auto_keep_alive</span><span class="p">():</span>
+                <span class="k">yield</span> <span class="n">message</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+
+<h2>Finally putting everything together</h2>
+<p>Let's compose what a single consumer would look like:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">client</span> <span class="o">=</span> <span class="n">QueueClient</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+    <span class="n">life_cycle</span> <span class="o">=</span> <span class="n">HeartbeatLifeCycle</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">consume</span><span class="p">():</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">life_cycle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span> <span class="k">as</span> <span class="n">message</span><span class="p">:</span>
+            <span class="n">handle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>  <span class="c1"># That&#39;s it!</span>
+</code></pre></div>
+
+<p>Pretty easy right? And should the user want a different lifecycle or to not use it, they are free to do so without any restrictions enforced by the framework. </p>
+<p>The philosophy here is to steer your user to the right direction but ultimately to trust them. Something I find most frameworks violating. </p>
+<h3>Scaling it</h3>
+<p>You might wonder if we can scale the task consumption. This is where our decision to use asyncio helps us. We needn't worry about abstractions to enable scaling ourselves as asyncio already comes with <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.TaskGroup">TaskGroup</a>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">client</span><span class="p">:</span> <span class="n">QueueClient</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">life_cycle</span> <span class="o">=</span> <span class="n">HeartbeatLifeCycle</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">consume</span><span class="p">():</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">life_cycle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span> <span class="k">as</span> <span class="n">message</span><span class="p">:</span>
+            <span class="n">handle</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+
+<span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">workers</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="n">client</span> <span class="o">=</span> <span class="n">QueueClient</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">workers</span><span class="p">):</span>
+            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">(</span><span class="n">client</span><span class="p">))</span>
+</code></pre></div>
+
+<p>When there's a good standard library or well known abstraction, this lowers the cost on the user, as we are not creating anything novel. </p>
+<h2>Closing Words</h2>
+<p>Creating the perfect abstraction is no small task, a good place to start is something simple and humble. But even then it doesn't always work out in your first try. Sometimes we require many iterations.</p>
+<p>I see some crazy abstraction that grow ad-hoc over a lengthy amount of time, gaining more and more features but not taking care of the abstraction. This is a common thing to happen, so it's okay to recognise an abstraction is not working and start over. Because only then can we work towards something better.</p>
+<p>If you're interested in using this library/framework, it's published to pypi as <a href="https://pypi.org/project/simple-async-sqs/">simple-async-sqs</a>. </p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../asyncio-is-neither-fast-nor-slow.html" rel="bookmark"
+                               title="Permalink to Asyncio is neither fast nor slow">Asyncio is neither fast nor slow</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-01-12T00:00:00+00:00">
                 Published: Mon 12 January 2026
@@ -31,399 +332,12 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p><strong><em>Don't listen to random benchmarks..</em></strong></p>
+</footer><!-- /.post-info -->                        <p><strong><em>Don't listen to random benchmarks..</em></strong></p>
 <p>I recently came across an <a href="https://hackeryarn.com/post/async-python-benchmarks/">article</a> benchmarking Python performances in web frameworks, comparing asyncio and sync performance. </p>
-<p>The author sets out to measure performance of <a href="https://fastapi.tiangolo.com/">FastAPI</a>/<a href="https://www.djangoproject.com/">Django</a> web servers running with postgresql comparing async and non-async workloads. The methodology is pretty reasonable, the following is his result for an endpoint with a single postgres database read:</p>
-<table>
-<thead>
-<tr>
-<th>Server type</th>
-<th>workers</th>
-<th>RPS</th>
-<th>Latency avg</th>
-<th>Latency max</th>
-<th>Median</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Sync Django</td>
-<td>1</td>
-<td>456</td>
-<td>140ms</td>
-<td>262ms</td>
-<td>153ms</td>
-</tr>
-<tr>
-<td>Sync Django</td>
-<td>2</td>
-<td>669</td>
-<td>96ms</td>
-<td>262ms</td>
-<td>132ms</td>
-</tr>
-<tr>
-<td>Sync Django Pooled</td>
-<td>1</td>
-<td>569</td>
-<td>112ms</td>
-<td>171ms</td>
-<td>117ms</td>
-</tr>
-<tr>
-<td>Sync Django Pooled</td>
-<td>2</td>
-<td>1822</td>
-<td>35ms</td>
-<td>98ms</td>
-<td>50ms</td>
-</tr>
-<tr>
-<td>Async Django</td>
-<td>1</td>
-<td>205</td>
-<td>312ms</td>
-<td>467ms</td>
-<td>331ms</td>
-</tr>
-<tr>
-<td>Async Django</td>
-<td>2</td>
-<td>541</td>
-<td>118ms</td>
-<td>304ms</td>
-<td>196ms</td>
-</tr>
-<tr>
-<td>FastAPI</td>
-<td>1</td>
-<td>236</td>
-<td>271ms</td>
-<td>372ms</td>
-<td>287ms</td>
-</tr>
-<tr>
-<td>FastAPI</td>
-<td>2</td>
-<td>409</td>
-<td>156ms</td>
-<td>433ms</td>
-<td>224ms</td>
-</tr>
-</tbody>
-</table>
-<p>As a result the author concludes:</p>
-<blockquote>
-<p>These benchmarks show just how much optimization for sync web services Django and the Python has. Sync Django Pooled outperforms or matches all other configurations. Even FastAPI only performs better when it’s the sole bottleneck.</p>
-</blockquote>
-<p>When I read these result I had some doubts, I noticed that:  </p>
-<p>1.⁠ ⁠it shows that the best sync django scenario with 2 workers, has more than 4x throughput that the equivalent fastapi async solution.
-2.⁠ ⁠2 workers of sync django pooled is 3x the performance of a single worker.</p>
-<p>The former doesn't line with the my personal experience. Asyncio does add overhead in some cases, but the scenario laid out here should have postgres as the bottleneck. Overhead caused by asyncio's event loop shouldn't be significant. </p>
-<p>The latter also seemed a little odd, as the throughput increase should be proportional to the number of workers.</p>
-<h3>Reviewing the code</h3>
-<p>Since the results don't match my own expectation then either my mental model is wrong or it's the benchmark. So let's review the benchmark code.</p>
-<p>The code for the fastapi endpoint is as follows:</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/quote&quot;</span><span class="p">)</span>
-<span class="k">async</span> <span class="k">def</span> <span class="nf">quote</span><span class="p">(</span><span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">)):</span>
-    <span class="n">statement</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">select</span><span class="p">(</span><span class="n">Quote</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">random</span><span class="p">())</span><span class="o">.</span><span class="n">options</span><span class="p">(</span><span class="n">selectinload</span><span class="p">(</span><span class="n">Quote</span><span class="o">.</span><span class="n">author</span><span class="p">))</span>
-    <span class="p">)</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span>
-    <span class="n">quote</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
-
-    <span class="k">return</span> <span class="p">{</span>
-        <span class="s2">&quot;quote&quot;</span><span class="p">:</span> <span class="n">quote</span><span class="o">.</span><span class="n">quote_text</span><span class="p">,</span>
-        <span class="s2">&quot;author&quot;</span><span class="p">:</span> <span class="n">quote</span><span class="o">.</span><span class="n">author</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-    <span class="p">}</span>
-</code></pre></div>
-
-<p>Here a single random quote is fetched from the table. <a href="https://www.sqlalchemy.org/">SQLAlchemy</a> is used as an orm to facilitate query building. Everything seems in order.</p>
-<p>But wait, there's a subtle problem here! By default <a href="https://www.sqlalchemy.org/">SQLAlchemy</a> does not batch results, instead it will fetch all results into memory first when ⁠ execute ⁠ is called. So whilst ⁠ <code>.scalar()</code> ⁠only returns the first result, in the background all results are fetched.</p>
-<h3>Recreating the benchmark</h3>
-<p>So I recreated the benchmark with my code fix for fastapi.</p>
-<div class="highlight"><pre><span></span><code><span class="n">statement</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">select</span><span class="p">(</span><span class="n">Quote</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">random</span><span class="p">())</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">options</span><span class="p">(</span><span class="n">selectinload</span><span class="p">(</span><span class="n">Quote</span><span class="o">.</span><span class="n">author</span><span class="p">))</span>
-<span class="p">)</span>
-</code></pre></div>
-
-<p>I tried where possible to keep the same code and parameters to the original. </p>
-<p>•⁠  ⁠Hardware: Macbook Pro M3 11 cores 18 GB of RAM
-•⁠  ⁠Connection Pool Configuration: min 5 - max 15 connections
-•⁠  ⁠Data: 100 authors with 1000 quotes
-•⁠  ⁠Benchmark: ⁠ rewrk -d 30s -c 64 --host http://localhost:8000/quote/ ⁠</p>
-<h3>Results</h3>
-<p>And the results are as follows:</p>
-<table>
-<thead>
-<tr>
-<th>Server type</th>
-<th>workers</th>
-<th>RPS</th>
-<th>Latency avg</th>
-<th>Latency max</th>
-<th>Median</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Sync Django</td>
-<td>1</td>
-<td>341.81</td>
-<td>186.61ms</td>
-<td>418.90ms</td>
-<td>223.96ms</td>
-</tr>
-<tr>
-<td>Sync Django</td>
-<td>2</td>
-<td>338.74</td>
-<td>188.07ms</td>
-<td>467.42ms</td>
-<td>227.23ms</td>
-</tr>
-<tr>
-<td>Sync Django Pooled</td>
-<td>1</td>
-<td>440.46</td>
-<td>144.92ms</td>
-<td>281.12ms</td>
-<td>150.94ms</td>
-</tr>
-<tr>
-<td>Sync Django Pooled</td>
-<td>2</td>
-<td>419.01</td>
-<td>152.30ms</td>
-<td>374.59ms</td>
-<td>167.25ms</td>
-</tr>
-<tr>
-<td>Async Django</td>
-<td>1</td>
-<td>323.32</td>
-<td>197.28ms</td>
-<td>497.76ms</td>
-<td>249.85ms</td>
-</tr>
-<tr>
-<td>Async Django</td>
-<td>2</td>
-<td>322.78</td>
-<td>197.45ms</td>
-<td>453.63ms</td>
-<td>249.18ms</td>
-</tr>
-<tr>
-<td>FastAPI</td>
-<td>1</td>
-<td>687.26</td>
-<td>92.95ms</td>
-<td>326.49ms</td>
-<td>110.29ms</td>
-</tr>
-<tr>
-<td>FastAPI</td>
-<td>2</td>
-<td>673.85</td>
-<td>94.78ms</td>
-<td>332.11ms</td>
-<td>121.00ms</td>
-</tr>
-</tbody>
-</table>
-<p>As expected the FastAPI implementation does a lot better here compared to before. Performing better than the best django version. </p>
-<p>What's weird is that the worker count makes very little difference in the performance, often slowing down rather than speeding up. My guess is that my setup has more rows in the database, therefore we reach a saturation point a lot quicker.</p>
-<h3>The dilemma of benchmarks</h3>
-<p>Still you might be a bit disappointed with this benchmark as I was, the original had a much clearer trend between async/sync worker count and pooled database connections. However this is precisely what happens with these "real world" benchmarks. Here we're trying to represent a real use case, not necessarily to prove a point. </p>
-<p>On the other hand, there exist many micro-benchmarks out there, where variables are controlled and a smaller more predictable scenario is measured.</p>
-<p>There are places for both types of benchmarks, real world benchmarks can be more interesting but the data is messy and requires more critical analysis.</p>
-<h3>Critical analysis</h3>
-<p>My results are convenient for my beliefs and one might conclude from it that asyncio is indeed much faster. </p>
-<p>But looking at the numbers I wondered why Django is so much slower, where does the slow down actually come from. I expected asyncio to do quite well but I assumed we can make up the performance with more threads or workers, but that does not seem to be the case.</p>
-<p>This lead me into a deep dive, trying almost every combination of configuration, implementation and framework. </p>
-<p>First I wanted more control over the variables, <a href="https://www.djangoproject.com/">Django</a> is a very different framework compared to <a href="https://fastapi.tiangolo.com/">FastAPI</a> and a there are too many possibilities when it comes to the performance discrepancy. <a href="https://flask.palletsprojects.com/">Flask</a> is a lighter weight framework compared to <a href="https://www.djangoproject.com/">Django</a> as such it is a much better sync vs async comparison.</p>
-<p>Secondly, the original benchmark makes a point of the benefits of pooled connections. However, async django can also benefit from pooled connections. <a href="https://www.sqlalchemy.org/">Sqlalchemy</a> also uses a connection pool by default. So I see no reason to not use connection pools across the board.</p>
-<h3>The new results</h3>
-<p>This time around I decided to run different thread and worker configurations through the gauntlet and only keep the best performing configurations.</p>
-<p>This was generally 3 workers and 5 threads on my machine, giving me a total of 15 threads. However other configurations with similar total thread counts also performed very similarly. </p>
-<table>
-<thead>
-<tr>
-<th>Server type</th>
-<th>workers</th>
-<th>threads</th>
-<th>RPS</th>
-<th>Latency avg</th>
-<th>Latency max</th>
-<th>Median</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>FastAPI (Pooled)</td>
-<td>1</td>
-<td>-</td>
-<td>687.26</td>
-<td>92.95ms</td>
-<td>326.49ms</td>
-<td>110.29ms</td>
-</tr>
-<tr>
-<td>Flask (Pooled)</td>
-<td>3</td>
-<td>5</td>
-<td>682.73</td>
-<td>93.66ms</td>
-<td>239.67ms</td>
-<td>104.34ms</td>
-</tr>
-<tr>
-<td>Django (Pooled)</td>
-<td>3</td>
-<td>5</td>
-<td>411.91</td>
-<td>155.17ms</td>
-<td>299.19ms</td>
-<td>169.44ms</td>
-</tr>
-<tr>
-<td>Django Async (Pooled)</td>
-<td>1</td>
-<td>-</td>
-<td>406.90</td>
-<td>152.79ms</td>
-<td>279.93ms</td>
-<td>160.32ms</td>
-</tr>
-</tbody>
-</table>
-<blockquote>
-<p>NOTE: asgi for the async frameworks don't use threads</p>
-</blockquote>
-<p>And this time, the results are more even with the fastapi implementation pulling a little ahead over flask, though over many different runs the results are practically identical. </p>
-<p>This is more an expected result, as once again the main bottleneck is the database and not the web framework. </p>
-<p>These results show that there is no significant difference between the django implementations. The original discrepancies are easily explained by the the connection pooling.</p>
-<p>The only thing that doesn't make sense to me is why django is slower than the flask implementation all else being equal. </p>
-<h3>Digging even deeper</h3>
-<p>My immediate thought was skill issues, I don't have a lot of experiences with django and it's possible I made a mistake that lead to performance degradation. Checking the code and the orm generated SQL query, nothing really stood out. Then I confirmed that the database driver we're using is indeed psycopg 3 so no differences there.</p>
-<p>Finally, I decided to give a closer look at the connection pool used in django, and that's where it all clicked. django uses <a href="https://www.psycopg.org/psycopg3/docs/basic/pool.html">psycopg_pool</a> an implementation provided directly by <a href="https://www.psycopg.org/">psycopg</a>. Where as sqlalchemy has its own implementation. The differences are actually significant, </p>
-<ul>
-<li>sqlalchemy has a lazy pool implementation, which means that connections are created or destroyed only when the pool is being accessed.</li>
-<li>⁠On the other hand, psycopg-pool actively maintains the pool and processes tasks using background thread workers.</li>
-</ul>
-<p>So one more time, I modified my fastapi and flask implementation to use the same connection pool as Django:</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/quote/&quot;</span><span class="p">)</span>
-<span class="k">async</span> <span class="k">def</span> <span class="nf">quote</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">PlainTextResponse</span><span class="p">:</span>
-    <span class="k">async</span> <span class="k">with</span> <span class="n">pool</span><span class="o">.</span><span class="n">connection</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
-        <span class="k">async</span> <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
-
-            <span class="k">await</span> <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
-                <span class="s2">&quot;SELECT q.id, q.quote_text, a.name FROM quotes_quote q &quot;</span>
-                <span class="s2">&quot;JOIN quotes_author a ON q.author_id = a.id &quot;</span>
-                <span class="s2">&quot;ORDER BY RANDOM() LIMIT 1&quot;</span>
-            <span class="p">)</span>
-            <span class="n">row</span> <span class="o">=</span> <span class="k">await</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
-            <span class="k">return</span> <span class="n">PlainTextResponse</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">--</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</code></pre></div>
-
-<p>And I got the following results:</p>
-<table>
-<thead>
-<tr>
-<th>Server type</th>
-<th>workers</th>
-<th>threads</th>
-<th>RPS</th>
-<th>Latency avg</th>
-<th>Latency max</th>
-<th>Median</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>FastAPI</td>
-<td>1</td>
-<td>-</td>
-<td>687.26</td>
-<td>92.95ms</td>
-<td>326.49ms</td>
-<td>110.29ms</td>
-</tr>
-<tr>
-<td>FastAPI (psycopg_pool)</td>
-<td>1</td>
-<td>-</td>
-<td>526.21</td>
-<td>121.49ms</td>
-<td>248.73ms</td>
-<td>128.85ms</td>
-</tr>
-<tr>
-<td>Flask</td>
-<td>3</td>
-<td>5</td>
-<td>682.73</td>
-<td>93.66ms</td>
-<td>239.67ms</td>
-<td>104.34ms</td>
-</tr>
-<tr>
-<td>Flask (psycopg_pool)</td>
-<td>3</td>
-<td>5</td>
-<td>532.82</td>
-<td>119.95ms</td>
-<td>289.91ms</td>
-<td>172.75ms</td>
-</tr>
-<tr>
-<td>Django</td>
-<td>3</td>
-<td>5</td>
-<td>411.91</td>
-<td>155.17ms</td>
-<td>299.19ms</td>
-<td>169.44ms</td>
-</tr>
-<tr>
-<td>Django Async</td>
-<td>1</td>
-<td>-</td>
-<td>406.90</td>
-<td>152.79ms</td>
-<td>279.93ms</td>
-<td>160.32ms</td>
-</tr>
-</tbody>
-</table>
-<p>So it's quite clear here that <a href="https://www.psycopg.org/psycopg3/docs/basic/pool.html">psycopg_pool</a> is the root cause in this particularly scenario.</p>
-<p>There is still some differences between django and the other frameworks, but I think that's likely because we're using raw sql queries over django's orm. </p>
-<h3>Conclusion</h3>
-<p>If you were hoping for an answer of "just use async" or "don't use async", life is not so simple. The lesson I hope you take is that there are nuances when it comes to this topic. </p>
-<p>Time and time again there's been posts on async performances, and we often see misleading benchmarks or analysis. </p>
-<p>Let's sum up my own thoughts:</p>
-<ul>
-<li>Asyncio's advantage has never been speed in particular, but the cost. We can achieve the same performance with no added threads or processes.</li>
-<li>Even then you might consider using django or other sync frameworks if you're more familiar with them or if they provide something you don't get elsewhere, e.g. django's rich middleware plugin system.</li>
-<li>Benchmarks cannot be taken at face value, try to reproduce it for your requirements (LLMs are pretty good at this).</li>
-<li>Lastly when you get a result from a benchmark that doesn't match expectation, it's prudent that you investigate where the discrepancy comes from.</li>
-</ul>
-<h3>Future Steps</h3>
-<p>This whole exercise, as exhausting as it is, barely scratches the itch. There's quite a few unexplored questions:</p>
-<ul>
-<li>What is the advantage of <a href="https://www.psycopg.org/psycopg3/docs/basic/pool.html"><code>psycopg_pool</code></a>'s implementation, are there cases where it performs better?</li>
-<li>Are there any configuration or ticks I'm missing to speed up <a href="https://www.djangoproject.com/">Django</a>?</li>
-<li>There's not a lot of analysis on async django as it uses threads to run database queries and middlewares, but I think it's worth looking at which situations where async django wins.</li>
-<li>Is there a general rule for thread/process numbers that maximise the performances and what are the trade offs of having more threads.</li>
-</ul>
-<p>In the near future I intend to put together a more comprehensive comparison of different concurrency models and explore these questions.</p>
-<p>The best I could do right now is to provide the full <a href="https://github.com/Jamie-Chang/web-async-benchmark">source code</a> and hopefully encourage people to make their own measurements and share their results. In case there's been any mistakes the feedback is very much welcome there.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>The author sets out to measure performance of <a href="https://fastapi.tiangolo.com/">FastAPI</a>/<a href="https://www.djangoproject.com/">Django</a> web servers running with postgresql comparing async and non-async workloads. The methodology is pretty reasonable, the following is …</p>
+                        <a class="readmore" href="../asyncio-is-neither-fast-nor-slow.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -621,29 +535,6 @@
 </footer><!-- /.post-info -->                        <p>The python packaging landscape and developer experience has shifted dramatically in the past year or so with <a href="https://docs.astral.sh/uv/">uv</a>'s launch marked a pivotal moment. But behind the scenes many PEPs have worked to get us to this point. </p>
 <p>One such PEP was <a href="https://peps.python.org/pep-0723/">PEP 723 – Inline script metadata</a> which we discussed …</p>
                         <a class="readmore" href="../simplify-lambda-deployments-with-uv.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../dynamic-config-part-1-pydantic-and-file-watchers.html" rel="bookmark"
-                               title="Permalink to Dynamic config part 1: Pydantic and file watchers">Dynamic config part 1: Pydantic and file watchers</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-08-26T00:00:00+01:00">
-                Published: Tue 26 August 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Feature flags or dynamic configuration is something that I find very useful, however I've never had the chance to use them. This is for a lack of options <a href="https://launchdarkly.com/">launchdarkly</a>, <a href="https://www.flagsmith.com/">flagsmith</a> and <a href="https://www.getunleash.io/">unleash</a> to name a few. </p>
-<p>SaaS options can be amazing with a full array of features, but I would …</p>
-                        <a class="readmore" href="../dynamic-config-part-1-pydantic-and-file-watchers.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->
