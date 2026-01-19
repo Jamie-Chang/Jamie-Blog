@@ -237,14 +237,14 @@
 <div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">RetryLifeCycle</span><span class="p">:</span>
     <span class="n">client</span><span class="p">:</span> <span class="n">QueueClient</span>
-    <span class="n">retry</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">retry_interval</span><span class="p">:</span> <span class="nb">int</span>
 
     <span class="nd">@asynccontextmanager</span>
     <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">yield</span> <span class="n">message</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">retry</span><span class="p">)</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">retry_interval</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
@@ -260,11 +260,11 @@
     <span class="k">async</span> <span class="k">def</span> <span class="nf">auto_keep_alive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">async</span> <span class="k">def</span> <span class="nf">_keep_alive</span><span class="p">():</span>
             <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interval</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
-                <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">keep_alive</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interval</span> <span class="o">*</span> <span class="mf">0.8</span><span class="p">)</span>
+                <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">keep_alive</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interval</span><span class="p">)</span>
 
         <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-            <span class="n">task</span> <span class="o">=</span> <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">_keep_live</span><span class="p">)</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">_keep_alive</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="k">yield</span>
             <span class="k">finally</span><span class="p">:</span>
@@ -273,7 +273,7 @@
     <span class="nd">@asynccontextmanager</span>
     <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">MessageTypeDef</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterator</span><span class="p">[</span><span class="n">MessageTypeDef</span><span class="p">]:</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">async</span> <span class="k">with</span> <span class="n">auto_keep_alive</span><span class="p">():</span>
+            <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_keep_alive</span><span class="p">():</span>
                 <span class="k">yield</span> <span class="n">message</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
             <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">nack</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
