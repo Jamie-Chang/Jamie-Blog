@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Webasgi - Run python web apps in a browser</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="I recently published a project webasgi a static site allows you run FastAPI and other asgi apps (such as litestar) right in the browser. As you..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./webasgi-run-python-web-apps-in-a-browser.html" rel="bookmark"
+             title="Permalink to Webasgi - Run python web apps in a browser">Webasgi - Run python web apps in a browser</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2026-01-26T00:00:00+00:00">
+                Published: Mon 26 January 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p><img alt="webasgi" src="./images/webasgi.png"></p>
+<p>I recently published a project <a href="https://jamie-chang.github.io/webasgi/">webasgi</a> a static site allows you run <a href="https://fastapi.tiangolo.com/">FastAPI</a> and other <a href="https://asgi.readthedocs.io/en/latest/">asgi</a> apps (such as <a href="https://litestar.dev/">litestar</a>) right in the browser.</p>
+<p>As you can imagine, Python web apps are not designed to run statically in the browser, and this project has been particularly challenging to me, in fact it's taken me over a year and a very productive AI coding session to get this done. </p>
+<h3>Vibe coding</h3>
+<p>Let's get the AI coding stuff out of the way!</p>
+<p>I used Google's new <a href="https://antigravity.google/">antigravity</a> editor with Claude Opus to do most of the coding. This is mostly a concession for me as I don't have the time or expertise in Javascript to do a lot of the work. I do feel that in some sense I robbed myself the opportunity to learn through the process of coding, however the design of the app is the most interesting and what we'll focus one here.</p>
+<p>The last thing I'll say is that, this is not the first time I've attempted to use AI tools to help me code up this project, but it's the first time it's been successful. This is probably owing to the newer models and the fact that <a href="https://pyodide.org/en/stable/#">Pyodide</a> is more popular now and likely more present in the model's knowledge.</p>
+<p>In any case, let's leave the AI discussion to another day ... </p>
+<h3><a href="https://pyodide.org/en/stable/#">Pyodide</a></h3>
+<p>I've already used <a href="https://pyodide.org/en/stable/#">pyodide</a> before. I've used it in several past posts:</p>
+<ul>
+<li><a href="./my-chinese-birthdays-time-keeping-is-hard.html">My Chinese birthdays, time keeping is hard!</a>: pyscript shell using pyodide.</li>
+<li><a href="./my-sqlalchemy-cookbook.html">My SQLAlchemy Cookbook</a>: jupyter-lite notebook powered by pyodide</li>
+<li><a href="./trying-out-marimo-notebooks.html">Trying out marimo notebooks</a>: marimo notebook also powered by pyodide.</li>
+</ul>
+<p>Pyodide is an amazing project that brings a Python to the browser using <a href="https://webassembly.org/">WASM</a>. The entire Python runtime is contained within the browser with no additional server required, therefore it also has the benefit of being able to run user generated Python code safely.</p>
+<p>As such, it's already being used to create sandboxes. A prominent example is, <a href="https://pydantic.run/">pydantic.run</a> which is also the inspiration of my project. </p>
+<h3><a href="https://asgi.readthedocs.io/en/latest/">ASGI</a> (Asynchronous Server Gateway Interface)</h3>
+<p>ASGI provides an abstraction for all Python web applications. Effectively splitting the web server into two components: </p>
+<ul>
+<li>The application itself which in its simplest form is an async function that takes a request and returns a response. E.g. <a href="https://fastapi.tiangolo.com/">fastapi</a>.</li>
+<li>The web server that handles the connections and scaling. This comes in the form of libraries with horse sounding names such as <a href="https://uvicorn.dev/">uvicorn</a>, <a href="https://hypercorn.readthedocs.io/en/latest/">hypercorn</a> and <a href="https://github.com/emmett-framework/granian">granian</a>.</li>
+</ul>
+<p>This is quite a clean abstraction, allowing both sides to evolve independently, and giving the user a good amount of flexibility. One of my favourite consequences of ASGI is that we can quite easily compose ASGI applications, as seen <a href="https://jamie-chang.github.io/webasgi/#code/eyJtYWluLnB5IjoiIyAvLy8gc2NyaXB0XG4jIHJlcXVpcmVzLXB5dGhvbiA9IFwiPj0zLjExXCJcbiMgZGVwZW5kZW5jaWVzID0gW1xuIyAgIFwiZmFzdGFwaVwiLFxuIyAgIFwibGl0ZXN0YXJcIixcbiMgXVxuIyAvLy9cblxuZnJvbSBmYXN0YXBpIGltcG9ydCBGYXN0QVBJXG5mcm9tIGZhc3RhcGkucmVzcG9uc2VzIGltcG9ydCBIVE1MUmVzcG9uc2VcblxuZnJvbSBsaXRlIGltcG9ydCBhcHAgYXMgbGl0ZXN0YXJfYXBwXG5cbmFwcCA9IEZhc3RBUEkoKVxuXG5AYXBwLmdldChcIi9cIiwgcmVzcG9uc2VfY2xhc3M9SFRNTFJlc3BvbnNlKVxuYXN5bmMgZGVmIGhvbWUoKSAtPiBzdHI6XG4gICAgcmV0dXJuIFwiXCJcIlxuICAgICAgICBIZWxsbyBmcm9tIGZhc3RhcGksIHRvIHNlZSB0aGUgb3RoZXIgYXBwIGdvIHRvIFxuICAgICAgICA8Y29kZT48YSBocmVmPVwiL2xpdGVzdGFyL1wiPi9saXRlc3Rhci88L2E-PC9jb2RlPlxuICAgIFwiXCJcIlxuXG5cbmFwcC5tb3VudChcIi9saXRlc3RhclwiLCBsaXRlc3Rhcl9hcHApXG4iLCJsaXRlLnB5IjoiZnJvbSBsaXRlc3RhciBpbXBvcnQgTGl0ZXN0YXIsIGdldFxuaW1wb3J0IGxpdGVzdGFyXG5cbkBnZXQoXCIvXCIpXG5hc3luYyBkZWYgaGVsbG9fd29ybGQoKSAtPiBzdHI6XG4gICAgcmV0dXJuIFwiSGVsbG8sIGZyb20gbGl0ZXN0YXIhXCJcblxuXG5hcHAgPSBMaXRlc3Rhcihyb3V0ZV9oYW5kbGVycz1baGVsbG9fd29ybGRdKVxuIn0">here</a> with a FastAPI app that mounts a Litestar app under a subpath. </p>
+<p>The server's implementation can be very flexible, <a href="https://uvicorn.dev/">uvicorn</a> and <a href="https://hypercorn.readthedocs.io/en/latest/">hypercorn</a> are both Python implementation where <a href="https://github.com/emmett-framework/granian">granian</a> is written in rust. </p>
+<p>In theory there's no reason why we can't write an implementation using Pyodide, but instead of connecting to a port in the operating system, we can mock something in the browser. </p>
+<p><img alt="Pyodide ASGI" src="./images/mermaid1.png"></p>
+<h3>Browser Emulation</h3>
+<p>Having worked out the basics of the Pyodide "server" the next step is to display the contents returned by the server. This is necessary as it's part of a standard FastAPI workflow: </p>
+<ul>
+<li>write some FastAPI code.</li>
+<li>run the code with a server like Uvicorn.</li>
+<li>check the server by calling the endpoint in your browser.</li>
+</ul>
+<p>Without a clean way to visualise the output, it's always going to feel a little awkward. </p>
+<p>Emulating a browser means taking html which may contain linked javascript and css loading everything and rendering it. This all needs to take place without leaking into the parent browser session, that is, we don't want the emulated browser to crash out current tab.</p>
+<p>Luckily this is exactly what <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe">iframe</a> does and we can pass the html as <a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement/srcdoc"><code>srcDoc</code></a>. </p>
+<h4>The hard part ...</h4>
+<p>We've figured out how to render the responses however we're only just getting started. </p>
+<p>The rendered html page can contain elements that make further requests to the server. These can be relative anchor links:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;/other-endpoint&quot;</span><span class="p">&gt;</span>go to next<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+</code></pre></div>
+
+<p>Or some non-get requests via javascript or form submission. Without changing anything, these requests will not be able to go to the ASGI server, breaking the "immersion".</p>
+<p>If we want everything to work as a browser would, we'd need to load some javascript first that patches all of these requests. This is done by injecting some scripts in the html that register javascript event handlers to intercept these events. The iframe has the ability to them securely send a message to the parent via <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage"><code>postMessage</code></a></p>
+<h3>Everything put together</h3>
+<p><img alt="Full architecture" src="./images/mermaid2.png"></p>
+<p>This is roughly what the full architecture looks like, the rest is mind numbing javascript implementation you can check out <a href="https://github.com/Jamie-Chang/webasgi">here</a>.</p>
+<h3>Why?</h3>
+<p>So why did we do all this?</p>
+<p>Being able to run more things in the browser dramatically lowers the barrier to entry. A functional app can be created iterated and shared in the browser. </p>
+<p>My long term goal for this is to:</p>
+<p>a. discuss more advanced patterns in these web app frameworks
+b. encourage adoptions of new frameworks that solve some of my headaches with frameworks like fastapi.</p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/changs.co.uk/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
