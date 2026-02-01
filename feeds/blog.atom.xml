@@ -1,19 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2026-02-01T00:00:00+00:00</updated><entry><title>Replacing tox with UV</title><link href="https://blog.changs.co.uk/replacing-tox-with-uv.html" rel="alternate"></link><published>2026-02-01T00:00:00+00:00</published><updated>2026-02-01T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-01:/replacing-tox-with-uv.html</id><summary type="html">&lt;p&gt;Recently I've been updating some of my libraries to Python 3.10+ after Python 3.9 has finally reached end of life.&lt;/p&gt;
-&lt;blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:7w4a4uncvgnzucylyosrfmm2/app.bsky.feed.post/3m4jmi5pl7s2d" data-bluesky-cid="bafyreihfz4h6q555jetztj2o4e5a2kbq7k6qkrjrttv2l3lpz5df4isrpm" data-bluesky-embed-color-mode="system"&gt;&lt;p lang="en"&gt;The final release of Python 3.9 is out!
-
-discuss.python.org/t/the-final-...
-
-May you all enjoy using the features added in Python 3.10 if that …&lt;/p&gt;&lt;/blockquote&gt;</summary><content type="html">&lt;p&gt;Recently I've been updating some of my libraries to Python 3.10+ after Python 3.9 has finally reached end of life.&lt;/p&gt;
-&lt;blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:7w4a4uncvgnzucylyosrfmm2/app.bsky.feed.post/3m4jmi5pl7s2d" data-bluesky-cid="bafyreihfz4h6q555jetztj2o4e5a2kbq7k6qkrjrttv2l3lpz5df4isrpm" data-bluesky-embed-color-mode="system"&gt;&lt;p lang="en"&gt;The final release of Python 3.9 is out!
-
-discuss.python.org/t/the-final-...
-
-May you all enjoy using the features added in Python 3.10 if that&amp;#x27;s now your oldest version. 😁
-
-docs.python.org/3/whatsnew/3...&lt;br&gt;&lt;br&gt;&lt;a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2/post/3m4jmi5pl7s2d?ref_src=embed"&gt;[image or embed]&lt;/a&gt;&lt;/p&gt;&amp;mdash; Brett Cannon (&lt;a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2?ref_src=embed"&gt;@snarky.ca&lt;/a&gt;) &lt;a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2/post/3m4jmi5pl7s2d?ref_src=embed"&gt;31 October 2025 at 23:20&lt;/a&gt;&lt;/blockquote&gt;
-&lt;script async src="https://embed.bsky.app/static/embed.js" charset="utf-8"&gt;&lt;/script&gt;
-
+&lt;p&gt;The upgrade to Python 3.10 is a relatively simple one, but I thought it be a good idea to run tests on different versions of Python.&lt;/p&gt;
+&lt;h3&gt;Existing …&lt;/h3&gt;</summary><content type="html">&lt;p&gt;Recently I've been updating some of my libraries to Python 3.10+ after Python 3.9 has finally reached end of life.&lt;/p&gt;
 &lt;p&gt;The upgrade to Python 3.10 is a relatively simple one, but I thought it be a good idea to run tests on different versions of Python.&lt;/p&gt;
 &lt;h3&gt;Existing Tooling&lt;/h3&gt;
 &lt;p&gt;&lt;a href="https://tox.wiki/en/4.34.1/user_guide.html"&gt;tox&lt;/a&gt; is a common tool for this use case, it allows you to define environments declaratively. &lt;/p&gt;
