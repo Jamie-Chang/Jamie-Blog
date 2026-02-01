@@ -1,5 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2026-01-26T00:00:00+00:00</updated><entry><title>Webasgi - Run python web apps in a browser</title><link href="https://blog.changs.co.uk/webasgi-run-python-web-apps-in-a-browser.html" rel="alternate"></link><published>2026-01-26T00:00:00+00:00</published><updated>2026-01-26T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-01-26:/webasgi-run-python-web-apps-in-a-browser.html</id><summary type="html">&lt;p&gt;I recently published a project &lt;a href="https://jamie-chang.github.io/webasgi/"&gt;webasgi&lt;/a&gt; a static site allows you run &lt;a href="https://fastapi.tiangolo.com/"&gt;FastAPI&lt;/a&gt; and other &lt;a href="https://asgi.readthedocs.io/en/latest/"&gt;asgi&lt;/a&gt; apps (such as &lt;a href="https://litestar.dev/"&gt;litestar&lt;/a&gt;) right in the browser.&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2026-02-01T00:00:00+00:00</updated><entry><title>Replacing tox with UV</title><link href="https://blog.changs.co.uk/replacing-tox-with-uv.html" rel="alternate"></link><published>2026-02-01T00:00:00+00:00</published><updated>2026-02-01T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-01:/replacing-tox-with-uv.html</id><summary type="html">&lt;p&gt;Recently I've been updating some of my libraries to Python 3.10+ after Python 3.9 has finally reached end of life.&lt;/p&gt;
+&lt;blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:7w4a4uncvgnzucylyosrfmm2/app.bsky.feed.post/3m4jmi5pl7s2d" data-bluesky-cid="bafyreihfz4h6q555jetztj2o4e5a2kbq7k6qkrjrttv2l3lpz5df4isrpm" data-bluesky-embed-color-mode="system"&gt;&lt;p lang="en"&gt;The final release of Python 3.9 is out!
+
+discuss.python.org/t/the-final-...
+
+May you all enjoy using the features added in Python 3.10 if that …&lt;/p&gt;&lt;/blockquote&gt;</summary><content type="html">&lt;p&gt;Recently I've been updating some of my libraries to Python 3.10+ after Python 3.9 has finally reached end of life.&lt;/p&gt;
+&lt;blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:7w4a4uncvgnzucylyosrfmm2/app.bsky.feed.post/3m4jmi5pl7s2d" data-bluesky-cid="bafyreihfz4h6q555jetztj2o4e5a2kbq7k6qkrjrttv2l3lpz5df4isrpm" data-bluesky-embed-color-mode="system"&gt;&lt;p lang="en"&gt;The final release of Python 3.9 is out!
+
+discuss.python.org/t/the-final-...
+
+May you all enjoy using the features added in Python 3.10 if that&amp;#x27;s now your oldest version. 😁
+
+docs.python.org/3/whatsnew/3...&lt;br&gt;&lt;br&gt;&lt;a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2/post/3m4jmi5pl7s2d?ref_src=embed"&gt;[image or embed]&lt;/a&gt;&lt;/p&gt;&amp;mdash; Brett Cannon (&lt;a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2?ref_src=embed"&gt;@snarky.ca&lt;/a&gt;) &lt;a href="https://bsky.app/profile/did:plc:7w4a4uncvgnzucylyosrfmm2/post/3m4jmi5pl7s2d?ref_src=embed"&gt;31 October 2025 at 23:20&lt;/a&gt;&lt;/blockquote&gt;
+&lt;script async src="https://embed.bsky.app/static/embed.js" charset="utf-8"&gt;&lt;/script&gt;
+
+&lt;p&gt;The upgrade to Python 3.10 is a relatively simple one, but I thought it be a good idea to run tests on different versions of Python.&lt;/p&gt;
+&lt;h3&gt;Existing Tooling&lt;/h3&gt;
+&lt;p&gt;&lt;a href="https://tox.wiki/en/4.34.1/user_guide.html"&gt;tox&lt;/a&gt; is a common tool for this use case, it allows you to define environments declaratively. &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;requires&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;tox&amp;gt;=4&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;span class="n"&gt;env_list&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;3.14&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;3.13&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;3.12&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;3.11&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;3.10&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+
+&lt;span class="k"&gt;[env_run_base]&lt;/span&gt;
+&lt;span class="n"&gt;description&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;run unit tests&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;deps&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;pytest&amp;gt;=8&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;pytest-sugar&amp;quot;&lt;/span&gt;
+&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;span class="n"&gt;commands&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;[[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;pytest&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;replace&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;posargs&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;default&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;tests&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;extend&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="kc"&gt;true&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;}]]&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Similarly &lt;a href="https://nox.thea.codes/en/stable/"&gt;nox&lt;/a&gt; let's you do the same but in a more imperative way.&lt;/p&gt;
+&lt;h3&gt;uv to rule them all&lt;/h3&gt;
+&lt;p&gt;The thing is, tox and nox requires learning and using a new set of tools, whilst that's completely fine &lt;code&gt;uv&lt;/code&gt; has spoiled us with the convenience of using a single tool.&lt;/p&gt;
+&lt;p&gt;There's already a lot that can be replaced by &lt;code&gt;uv&lt;/code&gt;, for example:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;python&lt;span class="w"&gt; &lt;/span&gt;-m&lt;span class="w"&gt; &lt;/span&gt;venv
+uv&lt;span class="w"&gt; &lt;/span&gt;venv
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;pip&lt;span class="w"&gt; &lt;/span&gt;install&lt;span class="w"&gt; &lt;/span&gt;...
+uv&lt;span class="w"&gt; &lt;/span&gt;pip&lt;span class="w"&gt; &lt;/span&gt;install&lt;span class="w"&gt; &lt;/span&gt;...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;pyenv&lt;span class="w"&gt; &lt;/span&gt;install&lt;span class="w"&gt; &lt;/span&gt;...
+uv&lt;span class="w"&gt; &lt;/span&gt;python&lt;span class="w"&gt; &lt;/span&gt;install&lt;span class="w"&gt; &lt;/span&gt;...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;I read an &lt;a href="https://til.simonwillison.net/python/uv-tests"&gt;article&lt;/a&gt; from Simon Willison where he already worked out how to test a package with different Python versions with the &lt;a href="https://docs.astral.sh/uv/reference/cli/#uv-run--python"&gt;&lt;code&gt;-p&lt;/code&gt; flag&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;-p&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;.10&lt;span class="w"&gt; &lt;/span&gt;pytest
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This is pretty much job done here! But we can go a bit further ...&lt;/p&gt;
+&lt;h4&gt;Extras&lt;/h4&gt;
+&lt;p&gt;You can specify any extras and dependency groups via &lt;code&gt;--extra&lt;/code&gt; and &lt;code&gt;--group&lt;/code&gt; respectively:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;-p&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;.10&lt;span class="w"&gt; &lt;/span&gt;--extra&lt;span class="w"&gt; &lt;/span&gt;cli&lt;span class="w"&gt; &lt;/span&gt;pytest
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;-p&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;.10&lt;span class="w"&gt; &lt;/span&gt;--group&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nb"&gt;test&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;pytest
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h4&gt;Overriding Package Versions&lt;/h4&gt;
+&lt;p&gt;A common use of &lt;code&gt;tox&lt;/code&gt; is to test over different package versions, for example, if a package needs to support both &lt;code&gt;pydantic==1.*.*&lt;/code&gt; and  &lt;code&gt;pydantic==2.*.*&lt;/code&gt;. We can also do this in uv with the &lt;code&gt;--with&lt;/code&gt; or &lt;code&gt;-w&lt;/code&gt; options:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;-w&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;pydantic==1.*.*&amp;#39;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;pytest
+uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;-w&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;pydantic==2.*.*&amp;#39;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;pytest
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This also works for a set of deps in a &lt;code&gt;requirements.txt&lt;/code&gt; file:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;--with-requirements&lt;span class="w"&gt; &lt;/span&gt;requirements-production.txt&lt;span class="w"&gt; &lt;/span&gt;pytest
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Simon's article also mentions using &lt;code&gt;--with-editable&lt;/code&gt; to test with the local version of the code, which can come in handy:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;--with&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;pydantic==1.*.*&amp;#39;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;--with-editable&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;mylocal-package&amp;#39;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;pytest
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h4&gt;Using an isolated venv&lt;/h4&gt;
+&lt;p&gt;Simon also mentions using an isolated venv:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;run&lt;span class="w"&gt; &lt;/span&gt;--with&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;pydantic==1.*.*&amp;#39;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;--isolated&lt;span class="w"&gt; &lt;/span&gt;pytest
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;to avoid your test venv contaminating your development venv or vice versa.&lt;/p&gt;
+&lt;p&gt;I found this most useful when I needed to run tests in parallel, something like:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;parallel&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;uv run -p {} --isolated pytest&amp;quot;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;:::&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;.&lt;span class="o"&gt;{&lt;/span&gt;&lt;span class="m"&gt;10&lt;/span&gt;..14&lt;span class="o"&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This is a quick proof of concept but you can probably write a more robust bash or python script.&lt;/p&gt;
+&lt;h3&gt;Conclusion&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;tox&lt;/code&gt; still remains useful especially with something like &lt;a href="https://github.com/tox-dev/tox-uv"&gt;tox-uv&lt;/a&gt;. But if you're using uv anyway it may be useful to learn all the options mentioned above.&lt;/p&gt;
+&lt;p&gt;I've already had a lot of success using &lt;code&gt;uv&lt;/code&gt; to quickly debug issues caused by version incompatibilities in pandas, something that just takes a bit more time to setup with tools like &lt;code&gt;tox&lt;/code&gt;.&lt;/p&gt;</content><category term="Blog"></category><category term="Python"></category><category term="UV"></category><category term="Tutorial"></category></entry><entry><title>Webasgi - Run python web apps in a browser</title><link href="https://blog.changs.co.uk/webasgi-run-python-web-apps-in-a-browser.html" rel="alternate"></link><published>2026-01-26T00:00:00+00:00</published><updated>2026-01-26T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-01-26:/webasgi-run-python-web-apps-in-a-browser.html</id><summary type="html">&lt;p&gt;I recently published a project &lt;a href="https://jamie-chang.github.io/webasgi/"&gt;webasgi&lt;/a&gt; a static site allows you run &lt;a href="https://fastapi.tiangolo.com/"&gt;FastAPI&lt;/a&gt; and other &lt;a href="https://asgi.readthedocs.io/en/latest/"&gt;asgi&lt;/a&gt; apps (such as &lt;a href="https://litestar.dev/"&gt;litestar&lt;/a&gt;) right in the browser.&lt;/p&gt;
 &lt;p&gt;&lt;img alt="webasgi" src="https://blog.changs.co.uk/images/webasgi.png"&gt;&lt;/p&gt;
 &lt;p&gt;As you can imagine, Python web apps are not designed to run statically in the browser, and this project has been particularly challenging to me, in …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I recently published a project &lt;a href="https://jamie-chang.github.io/webasgi/"&gt;webasgi&lt;/a&gt; a static site allows you run &lt;a href="https://fastapi.tiangolo.com/"&gt;FastAPI&lt;/a&gt; and other &lt;a href="https://asgi.readthedocs.io/en/latest/"&gt;asgi&lt;/a&gt; apps (such as &lt;a href="https://litestar.dev/"&gt;litestar&lt;/a&gt;) right in the browser.&lt;/p&gt;
 &lt;p&gt;&lt;img alt="webasgi" src="https://blog.changs.co.uk/images/webasgi.png"&gt;&lt;/p&gt;
