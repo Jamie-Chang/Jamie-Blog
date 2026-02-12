@@ -20,7 +20,38 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../replacing-tox-with-uv.html">Replacing tox with UV</a></h1>
+                        <h1 class="entry-title"><a href="../counting-down-chinese-new-year-with-marimo.html">Counting down Chinese New Year with Marimo</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-02-12T00:00:00+00:00">
+                Published: Thu 12 February 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>I've been on vacation in China leading up the lunar new year and I'd rather not spend all my time researching some heavy topic. However, I thought I might instead spend a few minutes combining my previous posts on <a href="../trying-out-marimo-notebooks.html">marimo notebooks</a> and the <a href="../my-chinese-birthdays-time-keeping-is-hard.html">Lunar calendar</a>. </p>
+<p><iframe
+  src="https://marimo.app/l/p5a0ep?embed=true&show-chrome=false"
+  width="100%"
+  height="700"
+  sandbox="allow-scripts allow-same-origin"
+></iframe>
+</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../replacing-tox-with-uv.html" rel="bookmark"
+                               title="Permalink to Replacing tox with UV">Replacing tox with UV</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-02-01T00:00:00+00:00">
                 Published: Sun 01 February 2026
@@ -31,84 +62,12 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
 <p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/uv.html">UV</a> <a href="../tag/tutorial.html">Tutorial</a> </p>        
-</footer><!-- /.post-info --><p>Recently I've been updating some of my libraries to Python 3.10+ after Python 3.9 has finally reached end of life.</p>
+</footer><!-- /.post-info -->                        <p>Recently I've been updating some of my libraries to Python 3.10+ after Python 3.9 has finally reached end of life.</p>
 <p>The upgrade to Python 3.10 is a relatively simple one, but I thought it be a good idea to run tests on different versions of Python.</p>
-<h3>Existing Tooling</h3>
-<p><a href="https://tox.wiki/en/4.34.1/user_guide.html">tox</a> is a common tool for this use case, it allows you to define environments declaratively. </p>
-<div class="highlight"><pre><span></span><code><span class="n">requires</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tox&gt;=4&quot;</span><span class="p">]</span>
-<span class="n">env_list</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;3.14&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;3.13&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;3.12&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;3.11&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;3.10&quot;</span><span class="p">]</span>
-
-<span class="k">[env_run_base]</span>
-<span class="n">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;run unit tests&quot;</span>
-<span class="n">deps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s2">&quot;pytest&gt;=8&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">&quot;pytest-sugar&quot;</span>
-<span class="p">]</span>
-<span class="n">commands</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[[</span><span class="s2">&quot;pytest&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">replace</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;posargs&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">default</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tests&quot;</span><span class="p">],</span><span class="w"> </span><span class="n">extend</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}]]</span>
-</code></pre></div>
-
-<p>Similarly <a href="https://nox.thea.codes/en/stable/">nox</a> let's you do the same but in a more imperative way.</p>
-<h3>uv to rule them all</h3>
-<p>The thing is, tox and nox requires learning and using a new set of tools, whilst that's completely fine <code>uv</code> has spoiled us with the convenience of using a single tool.</p>
-<p>There's already a lot that can be replaced by <code>uv</code>, for example:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>venv
-uv<span class="w"> </span>venv
-</code></pre></div>
-
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>...
-uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>...
-</code></pre></div>
-
-<div class="highlight"><pre><span></span><code>pyenv<span class="w"> </span>install<span class="w"> </span>...
-uv<span class="w"> </span>python<span class="w"> </span>install<span class="w"> </span>...
-</code></pre></div>
-
-<p>I read an <a href="https://til.simonwillison.net/python/uv-tests">article</a> from Simon Willison where he already worked out how to test a package with different Python versions with the <a href="https://docs.astral.sh/uv/reference/cli/#uv-run--python"><code>-p</code> flag</a>.</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">3</span>.10<span class="w"> </span>pytest
-</code></pre></div>
-
-<p>This is pretty much job done here! But we can go a bit further ...</p>
-<h4>Extras</h4>
-<p>You can specify any extras and dependency groups via <code>--extra</code> and <code>--group</code> respectively:</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">3</span>.10<span class="w"> </span>--extra<span class="w"> </span>cli<span class="w"> </span>pytest
-</code></pre></div>
-
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">3</span>.10<span class="w"> </span>--group<span class="w"> </span><span class="nb">test</span><span class="w"> </span>pytest
-</code></pre></div>
-
-<h4>Overriding Package Versions</h4>
-<p>A common use of <code>tox</code> is to test over different package versions, for example, if a package needs to support both <code>pydantic==1.*.*</code> and  <code>pydantic==2.*.*</code>. We can also do this in uv with the <code>--with</code> or <code>-w</code> options:</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>-w<span class="w"> </span><span class="s1">&#39;pydantic==1.*.*&#39;</span><span class="w"> </span>pytest
-uv<span class="w"> </span>run<span class="w"> </span>-w<span class="w"> </span><span class="s1">&#39;pydantic==2.*.*&#39;</span><span class="w"> </span>pytest
-</code></pre></div>
-
-<p>This also works for a set of deps in a <code>requirements.txt</code> file:</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--with-requirements<span class="w"> </span>requirements-production.txt<span class="w"> </span>pytest
-</code></pre></div>
-
-<p>Simon's article also mentions using <code>--with-editable</code> to test with the local version of the code, which can come in handy:</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--with<span class="w"> </span><span class="s1">&#39;pydantic==1.*.*&#39;</span><span class="w"> </span>--with-editable<span class="w"> </span><span class="s1">&#39;mylocal-package&#39;</span><span class="w"> </span>pytest
-</code></pre></div>
-
-<h4>Using an isolated venv</h4>
-<p>Simon also mentions using an isolated venv:</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--with<span class="w"> </span><span class="s1">&#39;pydantic==1.*.*&#39;</span><span class="w"> </span>--isolated<span class="w"> </span>pytest
-</code></pre></div>
-
-<p>to avoid your test venv contaminating your development venv or vice versa.</p>
-<p>I found this most useful when I needed to run tests in parallel, something like:</p>
-<div class="highlight"><pre><span></span><code>parallel<span class="w"> </span><span class="s2">&quot;uv run -p {} --isolated pytest&quot;</span><span class="w"> </span>:::<span class="w"> </span><span class="m">3</span>.<span class="o">{</span><span class="m">10</span>..14<span class="o">}</span>
-</code></pre></div>
-
-<p>This is a quick proof of concept but you can probably write a more robust bash or python script.</p>
-<h3>Conclusion</h3>
-<p><code>tox</code> still remains useful especially with something like <a href="https://github.com/tox-dev/tox-uv">tox-uv</a>. But if you're using uv anyway it may be useful to learn all the options mentioned above.</p>
-<p>I've already had a lot of success using <code>uv</code> to quickly debug issues caused by version incompatibilities in pandas, something that just takes a bit more time to setup with tools like <code>tox</code>.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<h3>Existing …</h3>
+                        <a class="readmore" href="../replacing-tox-with-uv.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -177,35 +136,6 @@ uv<span class="w"> </span>run<span class="w"> </span>-w<span class="w"> </span><
 <p>I recently came across an <a href="https://hackeryarn.com/post/async-python-benchmarks/">article</a> benchmarking Python performances in web frameworks, comparing asyncio and sync performance. </p>
 <p>The author sets out to measure performance of <a href="https://fastapi.tiangolo.com/">FastAPI</a>/<a href="https://www.djangoproject.com/">Django</a> web servers running with postgresql comparing async and non-async workloads. The methodology is pretty reasonable, the following is …</p>
                         <a class="readmore" href="../asyncio-is-neither-fast-nor-slow.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../counting-down-chinese-new-year-with-marimo.html" rel="bookmark"
-                               title="Permalink to Counting down Chinese New Year with Marimo">Counting down Chinese New Year with Marimo</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-01-12T00:00:00+00:00">
-                Published: Mon 12 January 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I've been on vacation in China leading up the lunar new year and I'd rather not spend all my time researching some heavy topic. However, I thought I might instead spend a few minutes combining my previous posts on <a href="../trying-out-marimo-notebooks.html">marimo notebooks</a> and the <a href="{filename}/lunar-calendar">Lunar calendar</a>. </p>
-<p><iframe
-  src="https://marimo.app/l/p5a0ep?embed=true&show-chrome=false"
-  width="100%"
-  height="700"
-  sandbox="allow-scripts allow-same-origin"
-></iframe>
-</p>
-                        <a class="readmore" href="../counting-down-chinese-new-year-with-marimo.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
 
