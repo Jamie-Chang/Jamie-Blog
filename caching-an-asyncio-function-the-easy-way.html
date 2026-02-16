@@ -84,7 +84,8 @@ I recently had to add some caching to an asyncio function. Let's say something l
 </p>
 <h3>Closing thoughts</h3>
 <p>Whilst there are off-the-shelf solutions (e.g. <a href="https://pypi.org/project/aiocache/">aiocache</a>) for this problem, I find that they are missing the simplicity I crave from the functools version. This is probably a signal that we're missing this utility in the standard library.</p>
-<p>My solution composes asyncio primitives in a simple way, it's easy enough that you can plausibly reimplement this yourself, in lieu of an official version, I believe this is currently the most 'standard' way to achieve asyncio caching. </p>
+<p>My solution composes asyncio primitives in a simple way, it's easy enough that you can plausibly reimplement this yourself, in lieu of an official version, I believe this is currently the most 'standard' way to achieve <code>asyncio</code> caching. </p>
+<p>Finally, though you don't need to understand the difference between a <code>coroutine</code> object and a <code>Task</code> or even a <code>Future</code> object, it helps when you're looking to implement <code>asyncio</code> functionality. </p>
       </div><!-- /.entry-content -->
 
     </article>
