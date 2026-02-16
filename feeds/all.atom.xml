@@ -16,7 +16,7 @@ I recently had to add some caching to an asyncio function. Let's say something l
 &lt;p&gt;Of course naturally we want to use &lt;a href="https://docs.python.org/3/library/functools.html#functools.cache"&gt;functools.cache&lt;/a&gt;, but past experience have taught me that it doesn't work out of the box. &lt;/p&gt;
 &lt;p&gt;Generally the decorators won't work in both sync and async contexts. This is due to the fact that an async function returns immediately when invoked, and is only actually executed when we &lt;code&gt;await&lt;/code&gt; whatever was returned.&lt;/p&gt;
 &lt;p&gt;&lt;iframe
-  src="https://marimo.app/l/rqpl12?embed=true&amp;show-chrome=false"
+  src="https://marimo.app/l/4wydkq?embed=true&amp;show-chrome=false"
   width="100%"
   height="700"
   sandbox="allow-scripts allow-same-origin"
