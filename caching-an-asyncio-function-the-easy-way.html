@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Caching an Asyncio Function the Easy Way</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
+                                <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
+                        <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="If you've used asyncio for some time you've probably noticed a few things that work differently to the synchronous counter parts. I recently had..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="./">Jamie's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./caching-an-asyncio-function-the-easy-way.html" rel="bookmark"
+             title="Permalink to Caching an Asyncio Function the Easy Way">Caching an Asyncio Function the Easy Way</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2026-02-16T00:00:00+00:00">
+                Published: Mon 16 February 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>If you've used <a href="https://docs.python.org/3/library/asyncio.html">asyncio</a> for some time you've probably noticed a few things that work differently to the synchronous counter parts.
+<img alt="How to cache asyncio functions" src="./images/caching-asyncio.png">
+I recently had to add some caching to an asyncio function. Let's say something like:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">get_user</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">User</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>Of course naturally we want to use <a href="https://docs.python.org/3/library/functools.html#functools.cache">functools.cache</a>, but past experience have taught me that it doesn't work out of the box. </p>
+<p>Generally the decorators won't work in both sync and async contexts. This is due to the fact that an async function returns immediately when invoked, and is only actually executed when we <code>await</code> whatever was returned.</p>
+<p><iframe
+  src="https://marimo.app/l/rqpl12?embed=true&show-chrome=false"
+  width="100%"
+  height="700"
+  sandbox="allow-scripts allow-same-origin"
+></iframe>
+</p>
+<p>But what actually happens here? What's being cached? How does it work?</p>
+<p>Invoking <code>function()</code> returns a <a href="https://docs.python.org/3/library/asyncio-task.html#coroutines">coroutine</a> object which was cached. The object track the state of execution of the async code, <code>await</code> will advance the state, it can therefore not be awaited more than once. </p>
+<p>There are other objects that are awaitable, unlike coroutines, <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.Task">asyncio.Task</a> tracks the result of the coroutine irrespective of the coroutine's state.</p>
+<p><iframe
+  src="https://marimo.app/l/fsespx?embed=true&show-chrome=false"
+  width="100%"
+  height="700"
+  sandbox="allow-scripts allow-same-origin"
+></iframe>
+</p>
+<p>As shown, this can be awaited as many times as you want, which is exactly what we need here. We can create a simple wrapper around a coroutine function:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">convert_to_task</span><span class="p">[</span><span class="o">**</span><span class="n">P</span><span class="p">,</span> <span class="n">R</span><span class="p">](</span><span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">Coroutine</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">R</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="p">[</span><span class="n">R</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrap a coroutine function to make it a task which is cacheable.&quot;&quot;&quot;</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="p">[</span><span class="n">R</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">_fn</span>
+</code></pre></div>
+
+<p>We can now compose <code>convert_to_task</code> with <code>functools.cache</code> to make an async function cacheable:</p>
+<p><iframe
+  src="https://marimo.app/l/dzij57?embed=true&show-chrome=false"
+  width="100%"
+  height="700"
+  sandbox="allow-scripts allow-same-origin"
+></iframe>
+</p>
+<h3>Closing thoughts</h3>
+<p>Whilst there are off-the-shelf solutions (e.g. <a href="https://pypi.org/project/aiocache/">aiocache</a>) for this problem, I find that they are missing the simplicity I crave from the functools version. This is probably a signal that we're missing this utility in the standard library.</p>
+<p>My solution composes asyncio primitives in a simple way, it's easy enough that you can plausibly reimplement this yourself, in lieu of an official version, I believe this is currently the most 'standard' way to achieve asyncio caching. </p>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                                <div class="social">
+                                        <h2>social</h2>
+                                        <ul>
+                                                        <li><a href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                                                        <li><a href="https://github.com/Jamie-Chang/">Github</a></li>
+                                                        <li><a href="https://www.linkedin.com/in/jamie-chang-4423ba125/">LinkedIn</a></li>
+                                                        <li><a href="https://bsky.app/profile/changs.co.uk/">Bluesky</a></li>
+                                        </ul>
+                                </div><!-- /.social -->
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

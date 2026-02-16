@@ -1,5 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2026-02-12T00:00:00+00:00</updated><entry><title>Counting down Chinese New Year with Marimo</title><link href="https://blog.changs.co.uk/counting-down-chinese-new-year-with-marimo.html" rel="alternate"></link><published>2026-02-12T00:00:00+00:00</published><updated>2026-02-12T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-12:/counting-down-chinese-new-year-with-marimo.html</id><content type="html">&lt;p&gt;I've been on vacation in China leading up the lunar new year and I'd rather not spend all my time researching some heavy topic. However, I thought I might instead spend a few minutes combining my previous posts on &lt;a href="https://blog.changs.co.uk/trying-out-marimo-notebooks.html"&gt;marimo notebooks&lt;/a&gt; and the &lt;a href="https://blog.changs.co.uk/my-chinese-birthdays-time-keeping-is-hard.html"&gt;Lunar calendar&lt;/a&gt;. &lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2026-02-16T00:00:00+00:00</updated><entry><title>Caching an Asyncio Function the Easy Way</title><link href="https://blog.changs.co.uk/caching-an-asyncio-function-the-easy-way.html" rel="alternate"></link><published>2026-02-16T00:00:00+00:00</published><updated>2026-02-16T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-16:/caching-an-asyncio-function-the-easy-way.html</id><summary type="html">&lt;p&gt;If you've used &lt;a href="https://docs.python.org/3/library/asyncio.html"&gt;asyncio&lt;/a&gt; for some time you've probably noticed a few things that work differently to the synchronous counter parts.
+&lt;img alt="How to cache asyncio functions" src="https://blog.changs.co.uk/images/caching-asyncio.png"&gt;
+I recently had to add some caching to an asyncio function. Let's say something like:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;get_user&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;user_id&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;UUID&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;User&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Of course naturally we want to use &lt;a href="https://docs.python.org/3/library/functools.html#functools.cache"&gt;functools …&lt;/a&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;If you've used &lt;a href="https://docs.python.org/3/library/asyncio.html"&gt;asyncio&lt;/a&gt; for some time you've probably noticed a few things that work differently to the synchronous counter parts.
+&lt;img alt="How to cache asyncio functions" src="https://blog.changs.co.uk/images/caching-asyncio.png"&gt;
+I recently had to add some caching to an asyncio function. Let's say something like:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;get_user&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;user_id&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;UUID&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;User&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Of course naturally we want to use &lt;a href="https://docs.python.org/3/library/functools.html#functools.cache"&gt;functools.cache&lt;/a&gt;, but past experience have taught me that it doesn't work out of the box. &lt;/p&gt;
+&lt;p&gt;Generally the decorators won't work in both sync and async contexts. This is due to the fact that an async function returns immediately when invoked, and is only actually executed when we &lt;code&gt;await&lt;/code&gt; whatever was returned.&lt;/p&gt;
+&lt;p&gt;&lt;iframe
+  src="https://marimo.app/l/rqpl12?embed=true&amp;show-chrome=false"
+  width="100%"
+  height="700"
+  sandbox="allow-scripts allow-same-origin"
+&gt;&lt;/iframe&gt;
+&lt;/p&gt;
+&lt;p&gt;But what actually happens here? What's being cached? How does it work?&lt;/p&gt;
+&lt;p&gt;Invoking &lt;code&gt;function()&lt;/code&gt; returns a &lt;a href="https://docs.python.org/3/library/asyncio-task.html#coroutines"&gt;coroutine&lt;/a&gt; object which was cached. The object track the state of execution of the async code, &lt;code&gt;await&lt;/code&gt; will advance the state, it can therefore not be awaited more than once. &lt;/p&gt;
+&lt;p&gt;There are other objects that are awaitable, unlike coroutines, &lt;a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.Task"&gt;asyncio.Task&lt;/a&gt; tracks the result of the coroutine irrespective of the coroutine's state.&lt;/p&gt;
+&lt;p&gt;&lt;iframe
+  src="https://marimo.app/l/fsespx?embed=true&amp;show-chrome=false"
+  width="100%"
+  height="700"
+  sandbox="allow-scripts allow-same-origin"
+&gt;&lt;/iframe&gt;
+&lt;/p&gt;
+&lt;p&gt;As shown, this can be awaited as many times as you want, which is exactly what we need here. We can create a simple wrapper around a coroutine function:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;convert_to_task&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;P&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;R&lt;/span&gt;&lt;span class="p"&gt;](&lt;/span&gt;&lt;span class="n"&gt;fn&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Callable&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;P&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Coroutine&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Any&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Any&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;R&lt;/span&gt;&lt;span class="p"&gt;]])&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Callable&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;P&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;asyncio&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;Task&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;R&lt;/span&gt;&lt;span class="p"&gt;]]:&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="sd"&gt;&amp;quot;&amp;quot;&amp;quot;Wrap a coroutine function to make it a task which is cacheable.&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+
+    &lt;span class="nd"&gt;@wraps&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;fn&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;_fn&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;P&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;P&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;asyncio&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;Task&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;R&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;asyncio&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create_task&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;fn&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;_fn&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We can now compose &lt;code&gt;convert_to_task&lt;/code&gt; with &lt;code&gt;functools.cache&lt;/code&gt; to make an async function cacheable:&lt;/p&gt;
+&lt;p&gt;&lt;iframe
+  src="https://marimo.app/l/dzij57?embed=true&amp;show-chrome=false"
+  width="100%"
+  height="700"
+  sandbox="allow-scripts allow-same-origin"
+&gt;&lt;/iframe&gt;
+&lt;/p&gt;
+&lt;h3&gt;Closing thoughts&lt;/h3&gt;
+&lt;p&gt;Whilst there are off-the-shelf solutions (e.g. &lt;a href="https://pypi.org/project/aiocache/"&gt;aiocache&lt;/a&gt;) for this problem, I find that they are missing the simplicity I crave from the functools version. This is probably a signal that we're missing this utility in the standard library.&lt;/p&gt;
+&lt;p&gt;My solution composes asyncio primitives in a simple way, it's easy enough that you can plausibly reimplement this yourself, in lieu of an official version, I believe this is currently the most 'standard' way to achieve asyncio caching. &lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>Counting down Chinese New Year with Marimo</title><link href="https://blog.changs.co.uk/counting-down-chinese-new-year-with-marimo.html" rel="alternate"></link><published>2026-02-12T00:00:00+00:00</published><updated>2026-02-12T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-12:/counting-down-chinese-new-year-with-marimo.html</id><content type="html">&lt;p&gt;I've been on vacation in China leading up the lunar new year and I'd rather not spend all my time researching some heavy topic. However, I thought I might instead spend a few minutes combining my previous posts on &lt;a href="https://blog.changs.co.uk/trying-out-marimo-notebooks.html"&gt;marimo notebooks&lt;/a&gt; and the &lt;a href="https://blog.changs.co.uk/my-chinese-birthdays-time-keeping-is-hard.html"&gt;Lunar calendar&lt;/a&gt;. &lt;/p&gt;
 &lt;p&gt;&lt;iframe
   src="https://marimo.app/l/ciegc2?embed=true&amp;show-chrome=false"
   width="100%"
