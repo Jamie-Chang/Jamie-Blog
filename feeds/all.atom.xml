@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/all.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2026-02-17T00:00:00+00:00</updated><entry><title>Datetime Arithmetic in Python</title><link href="https://blog.changs.co.uk/datetime-arithmetic-in-python.html" rel="alternate"></link><published>2026-02-17T00:00:00+00:00</published><updated>2026-02-17T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-17:/datetime-arithmetic-in-python.html</id><summary type="html">&lt;p&gt;Working with &lt;code&gt;datetime&lt;/code&gt; is hard and error prone, but Python actually provides the right tools with &lt;code&gt;timedelta&lt;/code&gt; to work with them. &lt;/p&gt;
 &lt;p&gt;It's a shame that most developers are not making the best use of it. 
-&lt;img alt="timedelta and divmod" src="https://blog.changs.co.uk/images/timedelta.png"&gt;
-Let's first catch up what the basic operations are:&lt;/p&gt;
+&lt;img alt="timedelta and divmod" src="https://blog.changs.co.uk/images/timedelta.png"&gt;&lt;/p&gt;
+&lt;p&gt;Let's first catch up what the basic operations are:&lt;/p&gt;
 &lt;p&gt;&lt;iframe
   src="https://marimo.app/l/woai81?embed=true&amp;show-chrome=false"
   width="100%"
@@ -12,8 +12,8 @@ Let's first catch up what the basic operations are:&lt;/p&gt;
 &lt;/p&gt;
 &lt;p&gt;Now, let's look at the more …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Working with &lt;code&gt;datetime&lt;/code&gt; is hard and error prone, but Python actually provides the right tools with &lt;code&gt;timedelta&lt;/code&gt; to work with them. &lt;/p&gt;
 &lt;p&gt;It's a shame that most developers are not making the best use of it. 
-&lt;img alt="timedelta and divmod" src="https://blog.changs.co.uk/images/timedelta.png"&gt;
-Let's first catch up what the basic operations are:&lt;/p&gt;
+&lt;img alt="timedelta and divmod" src="https://blog.changs.co.uk/images/timedelta.png"&gt;&lt;/p&gt;
+&lt;p&gt;Let's first catch up what the basic operations are:&lt;/p&gt;
 &lt;p&gt;&lt;iframe
   src="https://marimo.app/l/woai81?embed=true&amp;show-chrome=false"
   width="100%"
@@ -23,9 +23,9 @@ Let's first catch up what the basic operations are:&lt;/p&gt;
 &lt;/p&gt;
 &lt;p&gt;Now, let's look at the more advanced features you should be using:&lt;/p&gt;
 &lt;p&gt;&lt;iframe
-  src="https://marimo.app/l/tq3ytx?embed=true&amp;show-chrome=false"
+  src="https://marimo.app/l/fuok2c?embed=true&amp;show-chrome=false"
   width="100%"
-  height="500"
+  height="700"
   sandbox="allow-scripts allow-same-origin"
 &gt;&lt;/iframe&gt;
 &lt;/p&gt;</content><category term="Blog"></category></entry><entry><title>Caching an Asyncio Function the Easy Way</title><link href="https://blog.changs.co.uk/caching-an-asyncio-function-the-easy-way.html" rel="alternate"></link><published>2026-02-16T00:00:00+00:00</published><updated>2026-02-16T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-16:/caching-an-asyncio-function-the-easy-way.html</id><summary type="html">&lt;p&gt;If you've used &lt;a href="https://docs.python.org/3/library/asyncio.html"&gt;asyncio&lt;/a&gt; for some time you've probably noticed a few things that work differently to the synchronous counter parts.
