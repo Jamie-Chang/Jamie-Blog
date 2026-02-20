@@ -22,8 +22,8 @@
                     <article>
                         <h1 class="entry-title"><a href="../free-threading-is-slowing-getting-there.html">Free-threading is slowing getting there</a></h1>
 <footer class="post-info">
-        <abbr class="published" title="2026-02-21T00:00:00+00:00">
-                Published: Sat 21 February 2026
+        <abbr class="published" title="2026-02-20T00:00:00+00:00">
+                Published: Fri 20 February 2026
         </abbr>
 
                 <address class="vcard author">
@@ -53,8 +53,9 @@
 <p>Unlike on the pre-released versions, the stable releases of 3.14 actually see massive improvements. We still observe extra reference count contention as we scale up the workers, but it is a lot lower than 3.13. </p>
 <p>The latest alpha of 3.15 sees even more improvements as reference count contention appears to be all but eliminated. Bringing the performance on par with an isolated memory space provided by subinterpreters.</p>
 <p>It is clear from the graph that improvements are being made incrementally, but what change caused the massive boost of performance we see from 3.13 to 3.14? </p>
-<p>This may have come from <a href="https://github.com/python/cpython/issues/120024">deferred reference counting</a>. The idea is delay updating the ref count on an object, therefore avoiding some contention. Unfortunately that's the extent of my understanding. </p>
-<p>What we can conclude is that, for shared access of builtin data-structures, the performance has improved significantly over the past 2 years. There are still many sharp edges that I think gets in the way of broad adoption, which I will address in the next few posts. I hope that with the hard work of the CPython devs we can get to a place where free-threading feels natural.</p>                    </article>
+<p>This may have come from <a href="https://github.com/python/cpython/issues/120024">deferred reference counting</a>. The idea is to delay updating the ref count on an object, therefore avoiding some contention. Unfortunately that's the extent of my current understanding. </p>
+<p>What we can conclude is that, for shared access of builtin data-structures, the performance has improved significantly over the past 2 years. Though there are still some sharp edges which I believe gets in the way of broader adoption, something I will address in the next few posts. </p>
+<p>In any case I hope that with the hard work of the CPython devs we can get to a place where free-threading feels natural and approachable.</p>                    </article>
                 </aside><!-- /#featured -->
                     <section id="content" class="body">
                         <h1>Other articles</h1>
