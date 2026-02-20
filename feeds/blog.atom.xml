@@ -1,5 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2026-02-17T00:00:00+00:00</updated><entry><title>Datetime Arithmetic in Python</title><link href="https://blog.changs.co.uk/datetime-arithmetic-in-python.html" rel="alternate"></link><published>2026-02-17T00:00:00+00:00</published><updated>2026-02-17T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-17:/datetime-arithmetic-in-python.html</id><summary type="html">&lt;p&gt;Working with &lt;code&gt;datetime&lt;/code&gt; is hard and error prone, but Python actually provides the right tools with &lt;code&gt;timedelta&lt;/code&gt; to work with them. &lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2026-02-21T00:00:00+00:00</updated><entry><title>Free-threading is slowing getting there</title><link href="https://blog.changs.co.uk/free-threading-is-slowing-getting-there.html" rel="alternate"></link><published>2026-02-21T00:00:00+00:00</published><updated>2026-02-21T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-21:/free-threading-is-slowing-getting-there.html</id><summary type="html">&lt;p&gt;I posted a lot about free threading in the past year:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/how-free-are-threads-in-python-now.html"&gt;How free are threads in Python now?&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="{filename}/free-threading-3-14"&gt;Python 3.14: State of free threading&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Over all I had 3 issues with free-threading:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Reference count contention hurts performance on even immutable objects.&lt;/li&gt;
+&lt;li&gt;Often benign code abstractions can hurt multi-threading performance …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;I posted a lot about free threading in the past year:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://blog.changs.co.uk/how-free-are-threads-in-python-now.html"&gt;How free are threads in Python now?&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="{filename}/free-threading-3-14"&gt;Python 3.14: State of free threading&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Over all I had 3 issues with free-threading:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Reference count contention hurts performance on even immutable objects.&lt;/li&gt;
+&lt;li&gt;Often benign code abstractions can hurt multi-threading performance.&lt;/li&gt;
+&lt;li&gt;No good profiling support to identify the issues.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Recently I decided to test free-threading performance again, mainly to test the latest 3.15 alpha, but the results surprised me.&lt;/p&gt;
+&lt;p&gt;&lt;iframe
+  src="https://marimo.app/l/q9g49o?embed=true&amp;show-chrome=false"
+  width="100%"
+  height="400"
+  sandbox="allow-scripts allow-same-origin"
+&gt;&lt;/iframe&gt;
+&lt;/p&gt;
+&lt;p&gt;Unlike on the pre-released versions, the stable releases of 3.14 actually see massive improvements. We still observe extra reference count contention as we scale up the workers, but it is a lot lower than 3.13. &lt;/p&gt;
+&lt;p&gt;The latest alpha of 3.15 sees even more improvements as reference count contention appears to be all but eliminated. Bringing the performance on par with an isolated memory space provided by subinterpreters.&lt;/p&gt;
+&lt;p&gt;It is clear from the graph that improvements are being made incrementally, but what change caused the massive boost of performance we see from 3.13 to 3.14? &lt;/p&gt;
+&lt;p&gt;This may have come from &lt;a href="https://github.com/python/cpython/issues/120024"&gt;deferred reference counting&lt;/a&gt;. The idea is delay updating the ref count on an object, therefore avoiding some contention. Unfortunately that's the extent of my understanding. &lt;/p&gt;
+&lt;p&gt;What we can conclude is that, for shared access of builtin data-structures, the performance has improved significantly over the past 2 years. There are still many sharp edges that I think gets in the way of broad adoption, which I will address in the next few posts. I hope that with the hard work of the CPython devs we can get to a place where free-threading feels natural.&lt;/p&gt;</content><category term="Blog"></category><category term="Python"></category><category term="πthon"></category><category term="Python3.14"></category><category term="Free-threading"></category></entry><entry><title>Datetime Arithmetic in Python</title><link href="https://blog.changs.co.uk/datetime-arithmetic-in-python.html" rel="alternate"></link><published>2026-02-17T00:00:00+00:00</published><updated>2026-02-17T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-17:/datetime-arithmetic-in-python.html</id><summary type="html">&lt;p&gt;Working with &lt;code&gt;datetime&lt;/code&gt; is hard and error prone, but Python actually provides the right tools with &lt;code&gt;timedelta&lt;/code&gt; to work with them. &lt;/p&gt;
 &lt;p&gt;It's a shame that most developers are not making the best use of it. 
 &lt;img alt="timedelta and divmod" src="https://blog.changs.co.uk/images/timedelta.png"&gt;&lt;/p&gt;
 &lt;h3&gt;Basic Arithmetic&lt;/h3&gt;

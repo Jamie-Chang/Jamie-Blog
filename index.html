@@ -20,7 +20,54 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./datetime-arithmetic-in-python.html">Datetime Arithmetic in Python</a></h1>
+                        <h1 class="entry-title"><a href="./free-threading-is-slowing-getting-there.html">Free-threading is slowing getting there</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-02-21T00:00:00+00:00">
+                Published: Sat 21 February 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/pthon.html">πthon</a> <a href="./tag/python314.html">Python3.14</a> <a href="./tag/free-threading.html">Free-threading</a> </p>        
+</footer><!-- /.post-info --><p>I posted a lot about free threading in the past year:</p>
+<ul>
+<li><a href="./how-free-are-threads-in-python-now.html">How free are threads in Python now?</a></li>
+<li><a href="{filename}/free-threading-3-14">Python 3.14: State of free threading</a></li>
+</ul>
+<p>Over all I had 3 issues with free-threading:</p>
+<ul>
+<li>Reference count contention hurts performance on even immutable objects.</li>
+<li>Often benign code abstractions can hurt multi-threading performance.</li>
+<li>No good profiling support to identify the issues.</li>
+</ul>
+<p>Recently I decided to test free-threading performance again, mainly to test the latest 3.15 alpha, but the results surprised me.</p>
+<p><iframe
+  src="https://marimo.app/l/q9g49o?embed=true&show-chrome=false"
+  width="100%"
+  height="400"
+  sandbox="allow-scripts allow-same-origin"
+></iframe>
+</p>
+<p>Unlike on the pre-released versions, the stable releases of 3.14 actually see massive improvements. We still observe extra reference count contention as we scale up the workers, but it is a lot lower than 3.13. </p>
+<p>The latest alpha of 3.15 sees even more improvements as reference count contention appears to be all but eliminated. Bringing the performance on par with an isolated memory space provided by subinterpreters.</p>
+<p>It is clear from the graph that improvements are being made incrementally, but what change caused the massive boost of performance we see from 3.13 to 3.14? </p>
+<p>This may have come from <a href="https://github.com/python/cpython/issues/120024">deferred reference counting</a>. The idea is delay updating the ref count on an object, therefore avoiding some contention. Unfortunately that's the extent of my understanding. </p>
+<p>What we can conclude is that, for shared access of builtin data-structures, the performance has improved significantly over the past 2 years. There are still many sharp edges that I think gets in the way of broad adoption, which I will address in the next few posts. I hope that with the hard work of the CPython devs we can get to a place where free-threading feels natural.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./datetime-arithmetic-in-python.html" rel="bookmark"
+                               title="Permalink to Datetime Arithmetic in Python">Datetime Arithmetic in Python</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-02-17T00:00:00+00:00">
                 Published: Tue 17 February 2026
@@ -31,7 +78,7 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
         
-</footer><!-- /.post-info --><p>Working with <code>datetime</code> is hard and error prone, but Python actually provides the right tools with <code>timedelta</code> to work with them. </p>
+</footer><!-- /.post-info -->                        <p>Working with <code>datetime</code> is hard and error prone, but Python actually provides the right tools with <code>timedelta</code> to work with them. </p>
 <p>It's a shame that most developers are not making the best use of it. 
 <img alt="timedelta and divmod" src="./images/timedelta.png"></p>
 <h3>Basic Arithmetic</h3>
@@ -44,22 +91,10 @@
 ></iframe>
 </p>
 <h3>Advanced Arithmetic</h3>
-<p>Now, let's look at the more advanced features you should be using:</p>
-<p><iframe
-  src="https://marimo.app/l/hhrq6j?embed=true&show-chrome=false"
-  width="100%"
-  height="700"
-  sandbox="allow-scripts allow-same-origin"
-></iframe>
-</p>
-<h2>Closing Thoughts</h2>
-<p>I think it's evident that many develops are unaware of these techniques, I checked on ChatGPT and other LLMs and I get a variety of different methods. Almost none of which takes advantage of the techniques here. </p>
-<p>This also mirrors my own experience and I really hope more developers take advantage of this.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>Now, let's …</p>
+                        <a class="readmore" href="./datetime-arithmetic-in-python.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -261,31 +296,6 @@ I recently had to add some caching to an asyncio function. Let's say something l
         
 </footer><!-- /.post-info -->                        <p>As we approach the holiday seasons, we get to "enjoy" another 12 days of <a href="https://adventofcode.com/">Advent of Code</a>. Every year I try to do something a little different, last year I had a lot of fun solving it in Ocaml, prior years I've tried the latest Python features. This year I've …</p>
                         <a class="readmore" href="./trying-out-marimo-notebooks.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./fixing-lazy-imports-generating-static-types-dynamically.html" rel="bookmark"
-                               title="Permalink to Fixing lazy imports: Generating Static Types Dynamically">Fixing lazy imports: Generating Static Types Dynamically</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-10-29T00:00:00+00:00">
-                Published: Wed 29 October 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>So I've just released a package called <a href="https://pypi.org/project/lazy-helper/">lazy-helper</a>. This comes as lazy loading has been a hot topic once again due to the proposal <a href="https://peps.python.org/pep-0810/">PEP-810</a>.</p>
-<p>Using my package we can define lazy loaded dependencies nicely:</p>
-<p><img alt="Defining a lazy module" src="./images/lazypy.png"></p>
-<p>Coincidentally Brian Okken has recently written a <a href="https://pythontest.com/polite-lazy-imports-python-packages/">blog post</a> covering the topic of lazy loading …</p>
-                        <a class="readmore" href="./fixing-lazy-imports-generating-static-types-dynamically.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->
