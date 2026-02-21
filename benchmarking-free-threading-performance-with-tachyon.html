@@ -4,35 +4,41 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog - Free-threading</title>
-                        <link rel="stylesheet" href="../theme/css/main.css" />
+                        <title>Benchmarking Free-threading Performance with Tachyon</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="Despite optimisations we explored in my previous post, there are still many obstructions to achieving free-threading performance. One specific..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="../">Jamie's Blog</a></h1>
+                        <h1><a href="./">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li><a href="../category/blog.html">Blog</a></li>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./benchmarking-free-threading-performance-with-tachyon.html" rel="bookmark"
+             title="Permalink to Benchmarking Free-threading Performance with Tachyon">Benchmarking Free-threading Performance with Tachyon</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="../benchmarking-free-threading-performance-with-tachyon.html">Benchmarking Free-threading Performance with Tachyon</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-02-21T00:00:00+00:00">
                 Published: Sat 21 February 2026
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/python315.html">Python3.15</a> <a href="../tag/free-threading.html">Free-threading</a> </p>        
-</footer><!-- /.post-info --><p>Despite optimisations we explored in my <a href="../free-threading-is-slowly-getting-there.html">previous post</a>, there are still many obstructions to achieving free-threading performance. </p>
-<p>One specific issue is that: often benign code abstractions can hurt multi-threading performance. This is something we explored a while ago in <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a>:</p>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/python315.html">Python3.15</a> <a href="./tag/free-threading.html">Free-threading</a> </p>        
+</footer><!-- /.post-info -->        <p>Despite optimisations we explored in my <a href="./free-threading-is-slowly-getting-there.html">previous post</a>, there are still many obstructions to achieving free-threading performance. </p>
+<p>One specific issue is that: often benign code abstractions can hurt multi-threading performance. This is something we explored a while ago in <a href="./how-free-are-threads-in-python-now.html">How free are threads in Python now?</a>:</p>
 <p>The following code end up being a bottleneck, as we had to lock the grid object each time we call <code>__getitem__</code>. This turns out to be many times slower than accessing the underlying tuples directly. And the result is true in even the latest version of Python 3.15.0a6t (what a mouthful!)</p>
 <div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Grid</span><span class="p">:</span>
     <span class="n">tiles</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
@@ -65,7 +71,7 @@
 <li>We're producing a flamegraph in this case, but there're many other options available.</li>
 <li><code>-a</code> is required to profile all threads, only the main thread is profiled by default.</li>
 </ul>
-<p><img alt="Benchmark result of unoptimised code" src="../images/unoptimised-bench.png"></p>
+<p><img alt="Benchmark result of unoptimised code" src="./images/unoptimised-bench.png"></p>
 <p>We can see that the flame graph shows big columns of red, the red colour signals a hot path, where the code spends the most amount of time. </p>
 <p>In particular 75% of the time is spend on the line that accesses grid via <code>__getitem__</code>:</p>
 <div class="highlight"><pre><span></span><code>    <span class="k">if</span> <span class="n">grid</span><span class="p">[</span><span class="n">curr</span><span class="p">]</span> <span class="ow">or</span> <span class="n">curr</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
@@ -78,70 +84,15 @@
 </code></pre></div>
 
 <p>The results are as follows:</p>
-<p><img alt="Benchmark result of optimised code" src="../images/optimised-bench.png"></p>
+<p><img alt="Benchmark result of optimised code" src="./images/optimised-bench.png"></p>
 <p>The new line, is now blue (cold path) and only takes up 5.32% of execution time. Indicating the bottleneck has now been eliminated. </p>
 <h3>Closing Thoughts</h3>
 <p>There's a lot more tachyon has to offer, and it's not only useful for free-threading. As for free-threading performance, I find it still falling short of expectations from a pure Python user's perspective. </p>
-<p>What benchmarking provides is a path for normal developers to take advantage of free-threading and reason about performance. I think with this, we can expose and address more of these performance traps!</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>What benchmarking provides is a path for normal developers to take advantage of free-threading and reason about performance. I think with this, we can expose and address more of these performance traps!</p>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../free-threading-is-slowly-getting-there.html" rel="bookmark"
-                               title="Permalink to Free-threading is slowly getting there">Free-threading is slowly getting there</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-02-20T00:00:00+00:00">
-                Published: Fri 20 February 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/free-threading.html">Free-threading</a> </p>        
-</footer><!-- /.post-info -->                        <p>I posted a lot about free threading in the past year:</p>
-<ul>
-<li><a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a></li>
-<li><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
-</ul>
-<p>Over all I had 3 issues with free-threading:</p>
-<ul>
-<li>Reference count contention hurts performance on even immutable objects.</li>
-<li>Often benign code abstractions can hurt multi-threading performance …</li></ul>
-                        <a class="readmore" href="../free-threading-is-slowly-getting-there.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-314-state-of-free-threading.html" rel="bookmark"
-                               title="Permalink to Python 3.14: State of free threading">Python 3.14: State of free threading</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-05-26T00:00:00+01:00">
-                Published: Mon 26 May 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/free-threading.html">Free-threading</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->                        <p>In my posts earlier this year I talked about the parallelism performance on 3.13 free-threaded builds. In particular I looked at solving an advent of code <a href="https://adventofcode.com/2024/day/6">problem</a>. In <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> I discovered significant performance penalties for using free-threading and a lack of tooling available …</p>
-                        <a class="readmore" href="../python-314-state-of-free-threading.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>

@@ -20,7 +20,82 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./free-threading-is-slowly-getting-there.html">Free-threading is slowly getting there</a></h1>
+                        <h1 class="entry-title"><a href="./benchmarking-free-threading-performance-with-tachyon.html">Benchmarking Free-threading Performance with Tachyon</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-02-21T00:00:00+00:00">
+                Published: Sat 21 February 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/python315.html">Python3.15</a> <a href="./tag/free-threading.html">Free-threading</a> </p>        
+</footer><!-- /.post-info --><p>Despite optimisations we explored in my <a href="./free-threading-is-slowly-getting-there.html">previous post</a>, there are still many obstructions to achieving free-threading performance. </p>
+<p>One specific issue is that: often benign code abstractions can hurt multi-threading performance. This is something we explored a while ago in <a href="./how-free-are-threads-in-python-now.html">How free are threads in Python now?</a>:</p>
+<p>The following code end up being a bottleneck, as we had to lock the grid object each time we call <code>__getitem__</code>. This turns out to be many times slower than accessing the underlying tuples directly. And the result is true in even the latest version of Python 3.15.0a6t (what a mouthful!)</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Grid</span><span class="p">:</span>
+    <span class="n">tiles</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+    <span class="o">...</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">Pair</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tiles</span><span class="p">[</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">key</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+</code></pre></div>
+
+<p>Python is a multi-discipline language but OOP is certainly encouraged, so it's the abstraction I made here is considered 'Pythonic' by normal standards. This creates a disconnect where the best practices would differ based on whether the code is expected to run in a thread or not. </p>
+<p>This suggest that Python is missing some optimisations to facilitate abstraction without loss of multithreading performance. </p>
+<p>Worst still, there were no real way to debug performance issues like this, profilers didn't really support free-threading, and the process just involved a lot of guess work.</p>
+<h3>Enter Tachyon</h3>
+<p>Thankfully, this is all about to change in 3.15 with the introduction of <a href="https://docs.python.org/3.15/library/profiling.sampling.html">Tachyon</a> a sampling profiler.</p>
+<p>The new profiler sports a host of features: </p>
+<ul>
+<li>Low overhead</li>
+<li>Remotely attachable</li>
+<li>Supports many different output formats</li>
+<li>Async aware</li>
+</ul>
+<p>But most importantly, native support for multiple threads. I ran my original <a href="https://github.com/Jamie-Chang/advent2024-python/blob/main/d6.py#L79-L80">abstracted version</a> of my code with the profiler:</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>-E<span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">3</span>.15.0a6t<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>profiling.sampling<span class="w"> </span>run<span class="w"> </span>-a<span class="w"> </span>--flamegraph<span class="w"> </span>-o<span class="w"> </span>profile.html<span class="w"> </span>-r<span class="w"> </span>20khz<span class="w"> </span>d6.py
+</code></pre></div>
+
+<p>Noting the following: </p>
+<ul>
+<li>sudo is needed on MacOS</li>
+<li>Since the profiler is a sampling profiler, we can specify a sampling rate of 20kHz (20,000 times a second)</li>
+<li>We're producing a flamegraph in this case, but there're many other options available.</li>
+<li><code>-a</code> is required to profile all threads, only the main thread is profiled by default.</li>
+</ul>
+<p><img alt="Benchmark result of unoptimised code" src="./images/unoptimised-bench.png"></p>
+<p>We can see that the flame graph shows big columns of red, the red colour signals a hot path, where the code spends the most amount of time. </p>
+<p>In particular 75% of the time is spend on the line that accesses grid via <code>__getitem__</code>:</p>
+<div class="highlight"><pre><span></span><code>    <span class="k">if</span> <span class="n">grid</span><span class="p">[</span><span class="n">curr</span><span class="p">]</span> <span class="ow">or</span> <span class="n">curr</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
+</code></pre></div>
+
+<p>Generally some hot paths are expected, but this single line taking up such a large proportion of time is unexpected. This gives us a good indication of where the problem might lie.</p>
+<h3>Verifying the fix</h3>
+<p>Now we already know the fix, we bypass the <code>__getitem__</code> call and access the underlying tuples directly:</p>
+<div class="highlight"><pre><span></span><code>    <span class="k">if</span> <span class="n">tiles</span><span class="p">[</span><span class="n">r</span><span class="p">][</span><span class="n">c</span><span class="p">]</span> <span class="ow">or</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
+</code></pre></div>
+
+<p>The results are as follows:</p>
+<p><img alt="Benchmark result of optimised code" src="./images/optimised-bench.png"></p>
+<p>The new line, is now blue (cold path) and only takes up 5.32% of execution time. Indicating the bottleneck has now been eliminated. </p>
+<h3>Closing Thoughts</h3>
+<p>There's a lot more tachyon has to offer, and it's not only useful for free-threading. As for free-threading performance, I find it still falling short of expectations from a pure Python user's perspective. </p>
+<p>What benchmarking provides is a path for normal developers to take advantage of free-threading and reason about performance. I think with this, we can expose and address more of these performance traps!</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./free-threading-is-slowly-getting-there.html" rel="bookmark"
+                               title="Permalink to Free-threading is slowly getting there">Free-threading is slowly getting there</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-02-20T00:00:00+00:00">
                 Published: Fri 20 February 2026
@@ -31,7 +106,7 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
 <p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/pthon.html">πthon</a> <a href="./tag/python314.html">Python3.14</a> <a href="./tag/free-threading.html">Free-threading</a> </p>        
-</footer><!-- /.post-info --><p>I posted a lot about free threading in the past year:</p>
+</footer><!-- /.post-info -->                        <p>I posted a lot about free threading in the past year:</p>
 <ul>
 <li><a href="./how-free-are-threads-in-python-now.html">How free are threads in Python now?</a></li>
 <li><a href="./python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
@@ -39,28 +114,10 @@
 <p>Over all I had 3 issues with free-threading:</p>
 <ul>
 <li>Reference count contention hurts performance on even immutable objects.</li>
-<li>Often benign code abstractions can hurt multi-threading performance.</li>
-<li>No good profiling support to identify the issues.</li>
-</ul>
-<p>Recently I decided to test free-threading performance again, mainly to test the latest 3.15 alpha, but the results surprised me.</p>
-<p><iframe
-  src="https://marimo.app/l/q9g49o?embed=true&show-chrome=false"
-  width="100%"
-  height="700"
-  sandbox="allow-scripts allow-same-origin"
-></iframe>
-</p>
-<p>Unlike on the pre-released versions, the stable releases of 3.14 actually see massive improvements. We still observe extra reference count contention as we scale up the workers, but it is a lot lower than 3.13. </p>
-<p>The latest alpha of 3.15 sees even more improvements as reference count contention appears to be all but eliminated. Bringing the performance on par with an isolated memory space provided by subinterpreters.</p>
-<p>It is clear from the graph that improvements are being made incrementally, but what change caused the massive boost of performance we see from 3.13 to 3.14? </p>
-<p>This may have come from <a href="https://github.com/python/cpython/issues/120024">deferred reference counting</a>. The idea is to delay updating the ref count on an object, therefore avoiding some contention. Unfortunately that's the extent of my current understanding. </p>
-<p>What we can conclude is that, for shared access of builtin data-structures, the performance has improved significantly over the past 2 years. Though there are still some sharp edges which I believe gets in the way of broader adoption, something I will address in the next few posts. </p>
-<p>In any case I hope that with the hard work of the CPython devs we can get to a place where free-threading feels natural and approachable.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<li>Often benign code abstractions can hurt multi-threading performance …</li></ul>
+                        <a class="readmore" href="./free-threading-is-slowly-getting-there.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -275,28 +332,6 @@ I recently had to add some caching to an asyncio function. Let's say something l
 </ul>
 <p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding …</p>
                         <a class="readmore" href="./i-was-wrong-about-subinterpreters.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./trying-out-marimo-notebooks.html" rel="bookmark"
-                               title="Permalink to Trying out marimo notebooks">Trying out marimo notebooks</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-12-03T00:00:00+00:00">
-                Published: Wed 03 December 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>As we approach the holiday seasons, we get to "enjoy" another 12 days of <a href="https://adventofcode.com/">Advent of Code</a>. Every year I try to do something a little different, last year I had a lot of fun solving it in Ocaml, prior years I've tried the latest Python features. This year I've …</p>
-                        <a class="readmore" href="./trying-out-marimo-notebooks.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->
