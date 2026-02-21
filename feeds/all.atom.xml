@@ -13,7 +13,7 @@
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;Python is a multi-discipline language but OOP is certainly encouraged, so it's the abstraction I made here is considered 'Pythonic' by normal standards. This creates a disconnect where the best practices would differ based on whether the code is expected to run in a thread or not. &lt;/p&gt;
-&lt;p&gt;This suggest that Python is missing some optimisations to facilitate abstraction without loss of multithreading performance. &lt;/p&gt;
+&lt;p&gt;This suggests that Python is missing some optimisations to facilitate abstraction without loss of multithreading performance. &lt;/p&gt;
 &lt;p&gt;Worst still, there were no real way to debug performance issues like this, profilers didn't really support free-threading, and the process just involved a lot of guess work.&lt;/p&gt;
 &lt;h3&gt;Enter Tachyon&lt;/h3&gt;
 &lt;p&gt;Thankfully, this is all about to change in 3.15 with the introduction of &lt;a href="https://docs.python.org/3.15/library/profiling.sampling.html"&gt;Tachyon&lt;/a&gt; a sampling profiler.&lt;/p&gt;
@@ -51,8 +51,8 @@
 &lt;p&gt;&lt;img alt="Benchmark result of optimised code" src="https://blog.changs.co.uk/images/optimised-bench.png"&gt;&lt;/p&gt;
 &lt;p&gt;The new line, is now blue (cold path) and only takes up 5.32% of execution time. Indicating the bottleneck has now been eliminated. &lt;/p&gt;
 &lt;h3&gt;Closing Thoughts&lt;/h3&gt;
-&lt;p&gt;There's a lot more tachyon has to offer, and it's not only useful for free-threading. As for free-threading performance, I find it still falling short of expectations from a pure Python user's perspective. &lt;/p&gt;
-&lt;p&gt;What benchmarking provides is a path for normal developers to take advantage of free-threading and reason about performance. I think with this, we can expose and address more of these performance traps!&lt;/p&gt;</content><category term="Blog"></category><category term="Python"></category><category term="Python3.15"></category><category term="Free-threading"></category></entry><entry><title>Free-threading is slowly getting there</title><link href="https://blog.changs.co.uk/free-threading-is-slowly-getting-there.html" rel="alternate"></link><published>2026-02-20T00:00:00+00:00</published><updated>2026-02-20T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-20:/free-threading-is-slowly-getting-there.html</id><summary type="html">&lt;p&gt;I posted a lot about free threading in the past year:&lt;/p&gt;
+&lt;p&gt;There's a lot more tachyon has to offer, and it's not only useful for free-threading, for example, I would love to try using it on an asyncio program. &lt;/p&gt;
+&lt;p&gt;What benchmarking provides is a path for normal developers to take advantage of free-threading and reason about performance. I think with this, we can expose and address more of these performance traps, and perhaps free-threading can become more natural for pure Python developers.&lt;/p&gt;</content><category term="Blog"></category><category term="Python"></category><category term="Python3.15"></category><category term="Free-threading"></category></entry><entry><title>Free-threading is slowly getting there</title><link href="https://blog.changs.co.uk/free-threading-is-slowly-getting-there.html" rel="alternate"></link><published>2026-02-20T00:00:00+00:00</published><updated>2026-02-20T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-02-20:/free-threading-is-slowly-getting-there.html</id><summary type="html">&lt;p&gt;I posted a lot about free threading in the past year:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/how-free-are-threads-in-python-now.html"&gt;How free are threads in Python now?&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://blog.changs.co.uk/python-314-state-of-free-threading.html"&gt;Python 3.14: State of free threading&lt;/a&gt;&lt;/li&gt;
