@@ -20,7 +20,193 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../benchmarking-free-threading-performance-with-tachyon.html">Benchmarking Free-threading Performance with Tachyon</a></h1>
+                        <h1 class="entry-title"><a href="../dont-make-python-code-decisions-based-on-whitespace.html">Don't make Python code decisions based on whitespace</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-03-14T00:00:00+00:00">
+                Published: Sat 14 March 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+        
+</footer><!-- /.post-info --><p>I recently saw Trey Hunner's take <a href="https://www.pythonmorsels.com/switch-case-in-python/">blog post</a> on 'switch case' like statements in Python. He makes a lot of good points and it's definitely worth a read.</p>
+<p>What I want to talk about is his last point</p>
+<blockquote>
+<p>Using a dictionary instead of switch-case: Sometimes you can replace long if statements with dictionaries</p>
+</blockquote>
+<p>This is the idea of replacing something like: </p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">get_status_message</span><span class="p">(</span><span class="n">code</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;OK&quot;</span>
+    <span class="k">elif</span> <span class="n">code</span> <span class="o">==</span> <span class="mi">201</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Created&quot;</span>
+    <span class="k">elif</span> <span class="n">code</span> <span class="o">==</span> <span class="mi">400</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Bad Request&quot;</span>
+    <span class="k">elif</span> <span class="n">code</span> <span class="o">==</span> <span class="mi">401</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Unauthorized&quot;</span>
+    <span class="k">elif</span> <span class="n">code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Not Found&quot;</span>
+    <span class="k">elif</span> <span class="n">code</span> <span class="o">==</span> <span class="mi">500</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Internal Server Error&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Unknown Status&quot;</span>
+</code></pre></div>
+
+<p>with a dictionary mapping:</p>
+<div class="highlight"><pre><span></span><code><span class="n">STATUS_MESSAGES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">200</span><span class="p">:</span> <span class="s2">&quot;OK&quot;</span><span class="p">,</span>
+    <span class="mi">201</span><span class="p">:</span> <span class="s2">&quot;Created&quot;</span><span class="p">,</span>
+    <span class="mi">400</span><span class="p">:</span> <span class="s2">&quot;Bad Request&quot;</span><span class="p">,</span>
+    <span class="mi">401</span><span class="p">:</span> <span class="s2">&quot;Unauthorized&quot;</span><span class="p">,</span>
+    <span class="mi">404</span><span class="p">:</span> <span class="s2">&quot;Not Found&quot;</span><span class="p">,</span>
+    <span class="mi">500</span><span class="p">:</span> <span class="s2">&quot;Internal Server Error&quot;</span>
+<span class="p">}</span>
+
+<span class="k">def</span> <span class="nf">get_status_message</span><span class="p">(</span><span class="n">code</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">STATUS_MESSAGES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+        <span class="n">code</span><span class="p">,</span>
+        <span class="s2">&quot;Unknown Status&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div>
+
+<p>The author argues that in this case <code>get_status_message</code> is acting more like a mapping so a dictionary is a better and more compact fit. </p>
+<p>People often claim that this pattern is more 'pythonic', but I think it's very subjective.  For one thing, Python is not a language that values 'compactness', if we did we would just write the <code>if</code> and <code>elif</code> branches in one line like this:</p>
+<div class="highlight"><pre><span></span><code>    <span class="k">if</span>   <span class="n">code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span> <span class="k">return</span> <span class="s2">&quot;OK&quot;</span>
+    <span class="k">elif</span> <span class="n">code</span> <span class="o">==</span> <span class="mi">201</span><span class="p">:</span> <span class="k">return</span> <span class="s2">&quot;Created&quot;</span>
+    <span class="k">elif</span> <span class="n">code</span> <span class="o">==</span> <span class="mi">400</span><span class="p">:</span> <span class="k">return</span> <span class="s2">&quot;Bad Request&quot;</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>Whilst I would use the dictionary mapping pattern from time to time, I just don't think there's anything wrong with the <code>if</code> ... <code>elif</code> ... or an equivalent <code>match</code> ... <code>case</code> solution:</p>
+<div class="highlight"><pre><span></span><code>    <span class="k">match</span> <span class="n">code</span><span class="p">:</span>
+        <span class="k">case</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;OK&quot;</span>
+        <span class="k">case</span> <span class="mi">201</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;Created&quot;</span>
+        <span class="k">case</span> <span class="mi">400</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;Bad Request&quot;</span>
+        <span class="o">...</span>
+</code></pre></div>
+
+<p>Which I feel is pretty clean too despite the amount of white spaces.</p>
+<blockquote>
+<p>Whitespace is not trying to hurt you, please don't let the spacing influence your decisions!</p>
+</blockquote>
+<h2>Where you don't want dictionaries</h2>
+<p>For sure the dictionary example above is pretty darn clean. But there are places where using a dictionary is detrimental.</p>
+<h3>Exhaustiveness</h3>
+<p>Let's say instead you are mapping an enum, or a finite set of literal values. And you want to map each value. For example:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Status</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="n">SUCCESS</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">FAILURE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">IN_PROGRESS</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+
+<span class="n">STATUS_COLOR_MAP</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">SUCCESS</span><span class="p">:</span> <span class="s2">&quot;green&quot;</span><span class="p">,</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">FAILURE</span><span class="p">:</span> <span class="s2">&quot;red&quot;</span><span class="p">,</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">IN_PROGRESS</span><span class="p">:</span> <span class="s2">&quot;yellow&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>But wait, what if we add a new <code>Status.ABANDONED</code> to the enum? Well, you'll need to update the mapping or you risk getting an error.</p>
+<p>We can actually rewrite it like so: </p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">assert_never</span>
+
+
+<span class="k">def</span> <span class="nf">map_status_to_color</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="n">Status</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">match</span> <span class="n">status</span><span class="p">:</span>
+        <span class="k">case</span> <span class="n">Status</span><span class="o">.</span><span class="n">SUCCESS</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;green&quot;</span>
+        <span class="k">case</span> <span class="n">Status</span><span class="o">.</span><span class="n">FAILURE</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;red&quot;</span>
+        <span class="k">case</span> <span class="n">Status</span><span class="o">.</span><span class="n">IN_PROGRESS</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;yellow&quot;</span>
+        <span class="k">case</span> <span class="n">other</span><span class="p">:</span>
+            <span class="n">assert_never</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+</code></pre></div>
+
+<blockquote>
+<p>Note: we can write pretty much the same with an if ... else statement. </p>
+</blockquote>
+<p>The key here is the <code>assert_never(other)</code>. This line will raise an <code>AssertionError</code> at runtime but also creates a static typing error. </p>
+<p>How this works is as we go through the different branches, the possible value of status reduces. This is called 'type narrowing': </p>
+<div class="highlight"><pre><span></span><code><span class="k">case</span> <span class="n">Status</span><span class="o">.</span><span class="n">SUCCESS</span><span class="p">:</span>  <span class="c1"># Possible: {Status.SUCCESS, Status.FAILURE, Status.IN_PROGRESS}</span>
+    <span class="k">return</span> <span class="s2">&quot;green&quot;</span>
+<span class="k">case</span> <span class="n">Status</span><span class="o">.</span><span class="n">FAILURE</span><span class="p">:</span>  <span class="c1"># Possible: {Status.FAILURE, Status.IN_PROGRESS}</span>
+    <span class="k">return</span> <span class="s2">&quot;red&quot;</span>
+<span class="k">case</span> <span class="n">Status</span><span class="o">.</span><span class="n">IN_PROGRESS</span><span class="p">:</span>  <span class="c1"># Possible: {Status.IN_PROGRESS}</span>
+    <span class="k">return</span> <span class="s2">&quot;yellow&quot;</span>
+<span class="k">case</span> <span class="n">other</span><span class="p">:</span>  <span class="c1"># Possible: {} aka. the Never type</span>
+    <span class="n">assert_never</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The final catch-all case has no more possible type / value left, so we call it the <a href="https://docs.python.org/3/library/typing.html#typing.Never"><code>Never</code> type</a>. <a href="https://docs.python.org/3/library/typing.html#typing.assert_never">assert_never</a> is a function that only accepts the <code>Never</code> type, therefore this would fail if we ever added any more values to the enum. </p>
+<p>You can always use unit tests to test a dictionary's exhaustiveness, but static type checkers tend to get you the feedback a lot quicker and without extra tests. </p>
+<h3>Dictionary dispatch pattern</h3>
+<p>Dictionary dispatch pattern is a special case of the dictionary mapping pattern. It's essentially a form of polymorphism, instead of a value mapping to a value, we map a value to a function. For example:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">handle_save</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;backup.txt&quot;</span><span class="p">,</span>  <span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Saving &#39;</span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">&#39; to </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<span class="k">def</span> <span class="nf">handle_delete</span><span class="p">(</span><span class="n">item_id</span><span class="p">):</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Deleting record: </span><span class="si">{</span><span class="n">item_id</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<span class="k">def</span> <span class="nf">handle_error</span><span class="p">(</span><span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="o">**</span><span class="n">__</span><span class="p">):</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Invalid command.&quot;</span>
+
+<span class="n">dispatch_table</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;save&quot;</span><span class="p">:</span> <span class="n">handle_save</span><span class="p">,</span>
+    <span class="s2">&quot;delete&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">item_id</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="o">**</span><span class="n">__</span><span class="p">:</span> <span class="n">handle_delete</span><span class="p">(</span><span class="n">item_id</span><span class="p">),</span>
+<span class="p">}</span>
+
+<span class="k">def</span> <span class="nf">execute_command</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">action</span> <span class="o">=</span> <span class="n">dispatch_table</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">handle_error</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">action</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The benefit is for developers to create handler function adhering to the same abstraction. </p>
+<p>The disadvantage is that forcing the same abstraction can be too restrictive .</p>
+<p>Notice how we use a lot of <code>*_</code>, <code>**__</code>, this is because every function now needs to be able to handle the same set of arguments. Sometimes <code>partial</code> or <code>lambda</code> is even used to massage the arguments. </p>
+<p>Another issue I have is a constant indirection, when we read this type of code, we are doing a lot of 'hops'. </p>
+<p>Reading <code>execute_command</code> then hopping to the dispatch table, then we have to hop to individual functions. If <code>partial</code>s and <code>lambdas</code> are involved then that's even more hops. </p>
+<p>Let's contrast that to the <code>if</code> ... <code>else</code> ... implementation: </p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">handle_save</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;backup.txt&quot;</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Saving &#39;</span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">&#39; to </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<span class="k">def</span> <span class="nf">handle_delete</span><span class="p">(</span><span class="n">item_id</span><span class="p">):</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Deleting record: </span><span class="si">{</span><span class="n">item_id</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">execute_command</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">item_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">command</span> <span class="o">==</span> <span class="s2">&quot;save&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">handle_save</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">command</span> <span class="o">==</span> <span class="s2">&quot;delete&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">handle_delete</span><span class="p">(</span><span class="n">item_id</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Invalid command.&quot;</span>
+</code></pre></div>
+
+<p>We no longer have to coerce all the function arguments into the same format in this case, allowing us to call the function with concise arguments. </p>
+<p>Of course not all examples are this extreme but I see a lot of unnecessary complexity like this day to day. Some of which started with simple functions and grew out of control. </p>
+<h2>The Point</h2>
+<p>Having gotten so far, I will admit that this all sounds very ranty—apologies. </p>
+<p>I want to stress that where there are multiple ways to do something, the common approach is not always the best approach. When we find ourselves in these situations, don't just look for the 'Pythonic' implementation, and definitely don't go counting whitespace. Instead, think critically about what you’re trying to achieve. If you still can't decide, go with the simplest, low-abstraction approach; you can always revisit it another day</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../benchmarking-free-threading-performance-with-tachyon.html" rel="bookmark"
+                               title="Permalink to Benchmarking Free-threading Performance with Tachyon">Benchmarking Free-threading Performance with Tachyon</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-02-21T00:00:00+00:00">
                 Published: Sat 21 February 2026
@@ -31,63 +217,12 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
 <p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/python315.html">Python3.15</a> <a href="../tag/free-threading.html">Free-threading</a> </p>        
-</footer><!-- /.post-info --><p>Despite optimisations we explored in my <a href="../free-threading-is-slowly-getting-there.html">previous post</a>, there are still many obstructions to achieving free-threading performance. </p>
+</footer><!-- /.post-info -->                        <p>Despite optimisations we explored in my <a href="../free-threading-is-slowly-getting-there.html">previous post</a>, there are still many obstructions to achieving free-threading performance. </p>
 <p>One specific issue is that: often benign code abstractions can hurt multi-threading performance. This is something we explored a while ago in <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a>:</p>
-<p>The following code end up being a bottleneck, as we had to lock the grid object each time we call <code>__getitem__</code>. This turns out to be many times slower than accessing the underlying tuples directly. And the result is true in even the latest version of Python 3.15.0a6t (what a mouthful!)</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Grid</span><span class="p">:</span>
-    <span class="n">tiles</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
-    <span class="o">...</span>
-
-    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">Pair</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tiles</span><span class="p">[</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">key</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
-</code></pre></div>
-
-<p>Python is a multi-discipline language but OOP is certainly encouraged, so it's the abstraction I made here is considered 'Pythonic' by normal standards. This creates a disconnect where the best practices would differ based on whether the code is expected to run in a thread or not. </p>
-<p>This suggests that Python is missing some optimisations to facilitate abstraction without loss of multithreading performance. </p>
-<p>Worst still, there were no real way to debug performance issues like this, profilers didn't really support free-threading, and the process just involved a lot of guess work.</p>
-<h3>Enter Tachyon</h3>
-<p>Thankfully, this is all about to change in 3.15 with the introduction of <a href="https://docs.python.org/3.15/library/profiling.sampling.html">Tachyon</a> a sampling profiler.</p>
-<p>The new profiler sports a host of features: </p>
-<ul>
-<li>Low overhead</li>
-<li>Remotely attachable</li>
-<li>Supports many different output formats</li>
-<li>Async aware</li>
-</ul>
-<p>But most importantly, native support for multiple threads. I ran my original <a href="https://github.com/Jamie-Chang/advent2024-python/blob/main/d6.py#L79-L80">abstracted version</a> of my code with the profiler:</p>
-<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>-E<span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">3</span>.15.0a6t<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>profiling.sampling<span class="w"> </span>run<span class="w"> </span>-a<span class="w"> </span>--flamegraph<span class="w"> </span>-o<span class="w"> </span>profile.html<span class="w"> </span>-r<span class="w"> </span>20khz<span class="w"> </span>d6.py
-</code></pre></div>
-
-<p>Noting the following: </p>
-<ul>
-<li>sudo is needed on MacOS</li>
-<li>Since the profiler is a sampling profiler, we can specify a sampling rate of 20kHz (20,000 times a second)</li>
-<li>We're producing a flamegraph in this case, but there're many other options available.</li>
-<li><code>-a</code> is required to profile all threads, only the main thread is profiled by default.</li>
-</ul>
-<p><img alt="Benchmark result of unoptimised code" src="../images/unoptimised-bench.png"></p>
-<p>We can see that the flame graph shows big columns of red, the red colour signals a hot path, where the code spends the most amount of time. </p>
-<p>In particular 75% of the time is spend on the line that accesses grid via <code>__getitem__</code>:</p>
-<div class="highlight"><pre><span></span><code>    <span class="k">if</span> <span class="n">grid</span><span class="p">[</span><span class="n">curr</span><span class="p">]</span> <span class="ow">or</span> <span class="n">curr</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
-</code></pre></div>
-
-<p>Generally some hot paths are expected, but this single line taking up such a large proportion of time is unexpected. This gives us a good indication of where the problem might lie.</p>
-<h3>Verifying the fix</h3>
-<p>Now we already know the fix, we bypass the <code>__getitem__</code> call and access the underlying tuples directly:</p>
-<div class="highlight"><pre><span></span><code>    <span class="k">if</span> <span class="n">tiles</span><span class="p">[</span><span class="n">r</span><span class="p">][</span><span class="n">c</span><span class="p">]</span> <span class="ow">or</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
-</code></pre></div>
-
-<p>The results are as follows:</p>
-<p><img alt="Benchmark result of optimised code" src="../images/optimised-bench.png"></p>
-<p>The new line, is now blue (cold path) and only takes up 5.32% of execution time. Indicating the bottleneck has now been eliminated. </p>
-<h3>Closing Thoughts</h3>
-<p>There's a lot more tachyon has to offer, and it's not only useful for free-threading, for example, I would love to try using it on an asyncio program. </p>
-<p>What benchmarking provides is a path for normal developers to take advantage of free-threading and reason about performance. I think with this, we can expose and address more of these performance traps, and perhaps free-threading can become more natural for pure Python developers.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>The following code end …</p>
+                        <a class="readmore" href="../benchmarking-free-threading-performance-with-tachyon.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -305,41 +440,12 @@ I recently had to add some caching to an asyncio function. Let's say something l
                         <a class="readmore" href="../asyncio-is-neither-fast-nor-slow.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../i-was-wrong-about-subinterpreters.html" rel="bookmark"
-                               title="Permalink to I was wrong about Subinterpreters">I was wrong about Subinterpreters</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-01-01T00:00:00+00:00">
-                Published: Thu 01 January 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->                        <p><strong><em>... but that's actually a good thing</em></strong></p>
-<p>I've already written a ton about subinterpreters since a year ago:  </p>
-<ul>
-<li><a href="../how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
-<li><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
-<li><a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
-</ul>
-<p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding …</p>
-                        <a class="readmore" href="../i-was-wrong-about-subinterpreters.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
                     </ol><!-- /#posts-list -->
   <nav>
     <ul>
-      <li>Page 1 / 4</li>
+      <li>Page 1 / 5</li>
         <li><a href="../author/jamie-chang2.html">&rang;</a></li>
-        <li><a href="../author/jamie-chang4.html">&Rang;</a></li>
+        <li><a href="../author/jamie-chang5.html">&Rang;</a></li>
     </ul>
   </nav>
                     </section><!-- /#content -->
