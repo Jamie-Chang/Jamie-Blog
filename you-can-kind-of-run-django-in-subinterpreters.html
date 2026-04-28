@@ -4,34 +4,40 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog - Python</title>
-                        <link rel="stylesheet" href="../theme/css/main.css" />
+                        <title>You can (kind of) run Django in subinterpreters</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: Running Python Parallel Applications with Sub..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="../">Jamie's Blog</a></h1>
+                        <h1><a href="./">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li><a href="../category/blog.html">Blog</a></li>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./you-can-kind-of-run-django-in-subinterpreters.html" rel="bookmark"
+             title="Permalink to You can (kind of) run Django in subinterpreters">You can (kind of) run Django in subinterpreters</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="../you-can-kind-of-run-django-in-subinterpreters.html">You can (kind of) run Django in subinterpreters</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-04-26T00:00:00+01:00">
                 Published: Sun 26 April 2026
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info --><p>In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: <a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html">Running Python Parallel Applications with Sub Interpreters</a>. In there, he previewed the ongoing development for subinterpreters and highlighted his attempt to run web applications in a subinterpreter.</p>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/subinterpreters.html">Subinterpreters</a> </p>        
+</footer><!-- /.post-info -->        <p>In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: <a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html">Running Python Parallel Applications with Sub Interpreters</a>. In there, he previewed the ongoing development for subinterpreters and highlighted his attempt to run web applications in a subinterpreter.</p>
 <p>Anthony conclude his post having adapted <a href="https://github.com/pgjones/hypercorn">hypercorn</a> to run with subinterpreters and managing to run FastAPI and Flask applications. He notably couldn't run Django due to the standard library's own <code>datetime</code> module. </p>
 <p>It has now been 2 and half years and a lot has changed. Both <a href="https://docs.python.org/3/library/concurrent.interpreters.html">concurrent.interpreters</a> and <a href="https://docs.python.org/3/howto/free-threading-python.html">free-threading</a> have seen official releases, with subinterpreters especially seeing a lot of changes w.r.t the Python interface. </p>
 <!-- What hasn't changed much is that no one is really running web-application in free-threaded or subinterpreter mode. Though not so long ago Giovanni Barillari the creator of [Granian](https://github.com/emmett-framework/granian) did some benchmarking on free-threaded applications which showed promising results. You can see his blog post [here](https://blog.baro.dev/p/the-future-of-python-web-services-looks-gil-free)
@@ -146,7 +152,7 @@
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;git+https://github.com/Jamie-Chang/hypercorn-subinterpreters&quot;</span>
 </code></pre></div>
 
-<p>You can test this out with a simple ASGI^<a href="../webasgi-run-python-web-apps-in-a-browser.html">*</a>^ webserver, for example:</p>
+<p>You can test this out with a simple ASGI^<a href="./webasgi-run-python-web-apps-in-a-browser.html">*</a>^ webserver, for example:</p>
 <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">app</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="n">receive</span><span class="p">,</span> <span class="n">send</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">scope</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;http&quot;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Only the HTTP protocol is supported&quot;</span><span class="p">)</span>
@@ -173,7 +179,7 @@
 <h2>The Compatibility Landmine</h2>
 <p>It's easy to run a dependency free web app as above, you can even run it in the <a href="https://jamie-chang.github.io/webasgi/?auto=true#code/eyJtYWluLnB5IjoiYXN5bmMgZGVmIGFwcChzY29wZSwgcmVjZWl2ZSwgc2VuZCk6XG4gICAgaWYgc2NvcGVbXCJ0eXBlXCJdICE9IFwiaHR0cFwiOlxuICAgICAgICByYWlzZSBFeGNlcHRpb24oXCJPbmx5IHRoZSBIVFRQIHByb3RvY29sIGlzIHN1cHBvcnRlZFwiKVxuXG4gICAgYXdhaXQgc2VuZCh7XG4gICAgICAgICd0eXBlJzogJ2h0dHAucmVzcG9uc2Uuc3RhcnQnLFxuICAgICAgICAnc3RhdHVzJzogMjAwLFxuICAgICAgICAnaGVhZGVycyc6IFtcbiAgICAgICAgICAgIChiJ2NvbnRlbnQtdHlwZScsIGIndGV4dC9wbGFpbicpLFxuICAgICAgICAgICAgKGInY29udGVudC1sZW5ndGgnLCBiJzUnKSxcbiAgICAgICAgXSxcbiAgICB9KVxuICAgIGF3YWl0IHNlbmQoe1xuICAgICAgICAndHlwZSc6ICdodHRwLnJlc3BvbnNlLmJvZHknLFxuICAgICAgICAnYm9keSc6IGInaGVsbG8nLFxuICAgIH0pIn0">web</a>. </p>
 <p>The bigger question is how well this runs a typical Python web application which would typically use a framework and also connect to a database. </p>
-<p>Luckily, I recently went through the trouble of writing the same app using flask, fastapi and django to run some <a href="../asyncio-is-neither-fast-nor-slow.html">benchmarks</a>. To better simulate a real workload the apps connect to postgres using either a pooled connection or a single connection. </p>
+<p>Luckily, I recently went through the trouble of writing the same app using flask, fastapi and django to run some <a href="./asyncio-is-neither-fast-nor-slow.html">benchmarks</a>. To better simulate a real workload the apps connect to postgres using either a pooled connection or a single connection. </p>
 <p>So here's what worked and what didn't.</p>
 <h3>FastAPI</h3>
 <p>FastAPI is hands down the most popular web framework and is unfortunately the biggest disappointment.</p>
@@ -224,252 +230,11 @@
 <h2>Closing Words</h2>
 <p>I've been a big proponent of sub-interpreters since its inception, I do believe it has a place in Python even with better support for free-threading across the wider industry.</p>
 <p>I was a bit surprised at the incompatibilities, since I always viewed sub-interpreters as being closer to multi-processing. However, I think it's understandable that a new concurrency model was never going to be an easy change and support won't come over night.</p>
-<p>I think it's time for me to roll up my sleeve and learn about C extensions in Python, so that I can better understand this complicated transition process. And perhaps I can help in this transition. </p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>I think it's time for me to roll up my sleeve and learn about C extensions in Python, so that I can better understand this complicated transition process. And perhaps I can help in this transition. </p>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../benchmarking-free-threading-performance-with-tachyon.html" rel="bookmark"
-                               title="Permalink to Benchmarking Free-threading Performance with Tachyon">Benchmarking Free-threading Performance with Tachyon</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-02-21T00:00:00+00:00">
-                Published: Sat 21 February 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/python315.html">Python3.15</a> <a href="../tag/free-threading.html">Free-threading</a> </p>        
-</footer><!-- /.post-info -->                        <p>Despite optimisations we explored in my <a href="../free-threading-is-slowly-getting-there.html">previous post</a>, there are still many obstructions to achieving free-threading performance. </p>
-<p>One specific issue is that: often benign code abstractions can hurt multi-threading performance. This is something we explored a while ago in <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a>:</p>
-<p>The following code end …</p>
-                        <a class="readmore" href="../benchmarking-free-threading-performance-with-tachyon.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../free-threading-is-slowly-getting-there.html" rel="bookmark"
-                               title="Permalink to Free-threading is slowly getting there">Free-threading is slowly getting there</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-02-20T00:00:00+00:00">
-                Published: Fri 20 February 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/free-threading.html">Free-threading</a> </p>        
-</footer><!-- /.post-info -->                        <p>I posted a lot about free threading in the past year:</p>
-<ul>
-<li><a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a></li>
-<li><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
-</ul>
-<p>Over all I had 3 issues with free-threading:</p>
-<ul>
-<li>Reference count contention hurts performance on even immutable objects.</li>
-<li>Often benign code abstractions can hurt multi-threading performance …</li></ul>
-                        <a class="readmore" href="../free-threading-is-slowly-getting-there.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../replacing-tox-with-uv.html" rel="bookmark"
-                               title="Permalink to Replacing tox with UV">Replacing tox with UV</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-02-01T00:00:00+00:00">
-                Published: Sun 01 February 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/uv.html">UV</a> <a href="../tag/tutorial.html">Tutorial</a> </p>        
-</footer><!-- /.post-info -->                        <p>Recently I've been updating some of my libraries to Python 3.10+ after Python 3.9 has finally reached end of life.</p>
-<p>The upgrade to Python 3.10 is a relatively simple one, but I thought it be a good idea to run tests on different versions of Python.</p>
-<h3>Existing …</h3>
-                        <a class="readmore" href="../replacing-tox-with-uv.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../writing-a-sqs-task-framework-from-scratch.html" rel="bookmark"
-                               title="Permalink to Writing a SQS task framework from scratch">Writing a SQS task framework from scratch</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-01-18T00:00:00+00:00">
-                Published: Sun 18 January 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/asyncio.html">Asyncio</a> <a href="../tag/sqs.html">SQS</a> </p>        
-</footer><!-- /.post-info -->                        <p>Recently I've been working on framework to run LLM tasks using AWS's excellent <a href="https://aws.amazon.com/sqs/">SQS</a>. And I made the decision to write my own task framework/library as opposed to using a pre-exiting framework. I thought this would be a great opportunity to discuss the considerations and levels of abstractions involved …</p>
-                        <a class="readmore" href="../writing-a-sqs-task-framework-from-scratch.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../i-was-wrong-about-subinterpreters.html" rel="bookmark"
-                               title="Permalink to I was wrong about Subinterpreters">I was wrong about Subinterpreters</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-01-01T00:00:00+00:00">
-                Published: Thu 01 January 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->                        <p><strong><em>... but that's actually a good thing</em></strong></p>
-<p>I've already written a ton about subinterpreters since a year ago:  </p>
-<ul>
-<li><a href="../how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
-<li><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
-<li><a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
-</ul>
-<p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding …</p>
-                        <a class="readmore" href="../i-was-wrong-about-subinterpreters.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-314-3-asyncio-changes.html" rel="bookmark"
-                               title="Permalink to Python 3.14: 3 Asyncio Changes">Python 3.14: 3 Asyncio Changes</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-10-09T00:00:00+01:00">
-                Published: Thu 09 October 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/asyncio.html">asyncio</a> </p>        
-</footer><!-- /.post-info -->                        <p>Python 3.14 was officially released on October 7th. There are a lot of new features and I've covered some of them before in:</p>
-<ul>
-<li><a href="../python-314-3-smaller-features.html">Python 3.14: 3 smaller features</a></li>
-<li><a href="../t-strings-the-good-and-the-ugly.html">t-strings: the good and the ugly</a></li>
-<li><a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
-</ul>
-<p>What I haven't covered here are any of the asyncio changes …</p>
-                        <a class="readmore" href="../python-314-3-asyncio-changes.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../finally-trying-out-mojo.html" rel="bookmark"
-                               title="Permalink to Finally trying out Mojo 🔥">Finally trying out Mojo 🔥</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-10-02T00:00:00+01:00">
-                Published: Thu 02 October 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/mojo.html">Mojo</a> <a href="../tag/python.html">Python</a> <a href="../tag/advent-of-code.html">Advent of Code</a> </p>        
-</footer><!-- /.post-info -->                        <p><a href="https://www.modular.com/mojo">Mojo</a> has been on my radar for a while. In fact, I heard about it on launch back in May 2023. It was touted as a super set of Python with 10000s of times the performance. It's main focus is on AI related workloads with strong built in support of …</p>
-                        <a class="readmore" href="../finally-trying-out-mojo.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../subinterpreters-and-asyncio.html" rel="bookmark"
-                               title="Permalink to Subinterpreters and Asyncio">Subinterpreters and Asyncio</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-08-05T00:00:00+01:00">
-                Published: Tue 05 August 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->                        <p><a href="https://peps.python.org/pep-0734">PEP-734</a> subinterpreters in the stdlib has officially been included in the Python 3.14 as a very late <a href="https://docs.python.org/3.14/whatsnew/3.14.html#whatsnew314-pep734">addition</a>. subinterpreters now has a new home in the standard library module called <a href="https://docs.python.org/3.14/library/concurrent.interpreters.html">concurrent.interpreters</a>.</p>
-<p>If you've been following my blog posts you'll know that I'm particularly excited about this feature. </p>
-<ul>
-<li><a href="../how-good-are-sub-interpreters-in-python-now.html">How …</a></li></ul>
-                        <a class="readmore" href="../subinterpreters-and-asyncio.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../python-314-3-smaller-features.html" rel="bookmark"
-                               title="Permalink to Python 3.14: 3 smaller features">Python 3.14: 3 smaller features</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-07-11T00:00:00+01:00">
-                Published: Fri 11 July 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> </p>        
-</footer><!-- /.post-info -->                        <p>Python 3.14 is just around the corner and it's jampacked with huge updates:</p>
-<ul>
-<li><a href="../python-314-state-of-free-threading.html">Free threading and multiple interpreters?</a></li>
-<li><a href="../t-strings-the-good-and-the-ugly.html">Template strings</a></li>
-</ul>
-<p>But as with any release, there are many nice smaller and less noticeable features. Features you won't see unless you comb through the entire <a href="https://docs.python.org/3.14/whatsnew/3.14.html">release notes</a>. Luckily I am …</p>
-                        <a class="readmore" href="../python-314-3-smaller-features.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-  <nav>
-    <ul>
-      <li>Page 1 / 2</li>
-        <li><a href="../tag/python2.html">&rang;</a></li>
-        <li><a href="../tag/python2.html">&Rang;</a></li>
-    </ul>
-  </nav>
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>

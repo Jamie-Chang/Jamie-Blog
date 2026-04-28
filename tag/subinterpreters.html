@@ -20,7 +20,224 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../i-was-wrong-about-subinterpreters.html">I was wrong about Subinterpreters</a></h1>
+                        <h1 class="entry-title"><a href="../you-can-kind-of-run-django-in-subinterpreters.html">You can (kind of) run Django in subinterpreters</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-04-26T00:00:00+01:00">
+                Published: Sun 26 April 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
+</footer><!-- /.post-info --><p>In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: <a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html">Running Python Parallel Applications with Sub Interpreters</a>. In there, he previewed the ongoing development for subinterpreters and highlighted his attempt to run web applications in a subinterpreter.</p>
+<p>Anthony conclude his post having adapted <a href="https://github.com/pgjones/hypercorn">hypercorn</a> to run with subinterpreters and managing to run FastAPI and Flask applications. He notably couldn't run Django due to the standard library's own <code>datetime</code> module. </p>
+<p>It has now been 2 and half years and a lot has changed. Both <a href="https://docs.python.org/3/library/concurrent.interpreters.html">concurrent.interpreters</a> and <a href="https://docs.python.org/3/howto/free-threading-python.html">free-threading</a> have seen official releases, with subinterpreters especially seeing a lot of changes w.r.t the Python interface. </p>
+<!-- What hasn't changed much is that no one is really running web-application in free-threaded or subinterpreter mode. Though not so long ago Giovanni Barillari the creator of [Granian](https://github.com/emmett-framework/granian) did some benchmarking on free-threaded applications which showed promising results. You can see his blog post [here](https://blog.baro.dev/p/the-future-of-python-web-services-looks-gil-free)
+ -->
+<h2>Continuing the Work</h2>
+<p>So I decided to give it a try myself. Since enough had changed since Anthony's implementation, I did much of the code changes from scratch.</p>
+<p>This turns out to be surprisingly simple, as we have a much better Python interface for interpreters in in Python 3.14. </p>
+<h3>Sharing Sockets</h3>
+<p>In the original multiprocessing version, hypercorn shares the same set of  sockets between all the worker processes. The processes will all consume this set of sockets thereby distributing requests.</p>
+<p>So we will need to do the same thing here as well. Sockets out of the box can be shared between a parent process and any of its sub-processes but that's not the case for sub-interpreters. </p>
+<p>In my previous <a href="https://blog.changs.co.uk/i-was-wrong-about-subinterpreters.html">blog post</a> I came to realise that we can just rely on pickle to do a lot of the message passing so long as we understand what actual information is being serialised. We can do the same here, in fact, Python lets you to customise what state is passed to the pickle (de)serialiser via <a href="https://docs.python.org/3/library/pickle.html#object.__getstate__"><code>__getstate__</code></a> and <a href="https://docs.python.org/3/library/pickle.html#object.__setstate__"><code>__setstate__</code></a>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Sockets</span><span class="p">:</span>
+    <span class="n">secure_sockets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">]</span>
+    <span class="n">insecure_sockets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">]</span>
+    <span class="n">quic_sockets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prepares the socket for transport.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;secure_sockets&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;fd&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span>
+                    <span class="s2">&quot;family&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">family</span><span class="p">,</span>
+                    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                    <span class="s2">&quot;proto&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">proto</span><span class="p">,</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">sock</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">secure_sockets</span>
+            <span class="p">],</span>
+            <span class="s2">&quot;insecure_sockets&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;fd&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span>
+                    <span class="s2">&quot;family&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">family</span><span class="p">,</span>
+                    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                    <span class="s2">&quot;proto&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">proto</span><span class="p">,</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">sock</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">insecure_sockets</span>
+            <span class="p">],</span>
+            <span class="s2">&quot;quic_sockets&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;fd&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span>
+                    <span class="s2">&quot;family&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">family</span><span class="p">,</span>
+                    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                    <span class="s2">&quot;proto&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">proto</span><span class="p">,</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">sock</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">quic_sockets</span>
+            <span class="p">],</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__setstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reconstructs the socket in the new interpreter.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">socks</span> <span class="ow">in</span> <span class="n">state</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">setattr</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span>
+                <span class="n">key</span><span class="p">,</span>
+                <span class="p">[</span>
+                    <span class="n">socket</span><span class="o">.</span><span class="n">fromfd</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="s2">&quot;fd&quot;</span><span class="p">],</span> <span class="n">raw</span><span class="p">[</span><span class="s2">&quot;family&quot;</span><span class="p">],</span> <span class="n">raw</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">],</span> <span class="n">raw</span><span class="p">[</span><span class="s2">&quot;proto&quot;</span><span class="p">])</span>
+                    <span class="k">for</span> <span class="n">raw</span> <span class="ow">in</span> <span class="n">socks</span>
+                <span class="p">],</span>
+            <span class="p">)</span>
+</code></pre></div>
+
+<p>Simply, this extracts the enough metadata of the socket (e.g. file descriptor number) to pass to the sub-interpreter. The sub-interpreter then calls <a href="https://docs.python.org/3/library/socket.html#socket.fromfd">socket.fromfd</a> to rebuild the socket in the interpreter. </p>
+<p>I believe this is the same way Anthony shares sockets the only difference being that we leverage pickle here to minimise code changes.</p>
+<h3>Calling the Sub-Interpreter</h3>
+<p>When I first started playing around with interpreters I assumed we had to use the <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.exec">exec</a> method, with queues for passing data. </p>
+<p>But over an embarrassingly lengthy period of time, I finally [figured out] that we can just use the higher level function works just as well, or maybe even better. For this I used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.call">Interpreter.call</a>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">run_interp</span><span class="p">[</span><span class="o">**</span><span class="n">P</span><span class="p">](</span><span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">interp</span> <span class="o">=</span> <span class="n">interpreters</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">interp</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">interp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<span class="n">thread</span> <span class="o">=</span> <span class="n">Thread</span><span class="p">(</span>
+    <span class="n">target</span><span class="o">=</span><span class="n">run_interp</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">worker_func</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">sockets</span><span class="p">,</span> <span class="n">shutdown_indicator</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</code></pre></div>
+
+<h3>Stopping the Interpreters</h3>
+<p>Finally, we need to consider how the main interpreter can communicate with the worker interpreters to shutdown. Let's first look at how this is done with processes.</p>
+<p>The main processes passes an <a href="https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Event">Event</a> as an indicator for the subprocess to shutdown. </p>
+<p>The subprocess periodically checks to see if the event is set:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">check_multiprocess_shutdown_event</span><span class="p">(</span>
+    <span class="n">shutdown_event</span><span class="p">:</span> <span class="n">EventType</span><span class="p">,</span> <span class="n">sleep</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">shutdown_event</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+            <span class="k">return</span>
+        <span class="k">await</span> <span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+</code></pre></div>
+
+<p>It's important to note that whilst an event is often <a href="https://docs.python.org/3/library/threading.html#threading.Event.wait">wait</a>ed on to synchronise the timing in sub-processes, in hypercorn, it's just used to conveniently store some global state. The state is effectively polled in the sub-process for changes. </p>
+<p>There is no equivalent to <code>Event</code> for interpreters, but there is a very simple and powerful way to share global mutable state. This is done via directly sharing a <a href="https://docs.python.org/3/library/stdtypes.html#memoryview">memoryview</a>. </p>
+<p>Let's start by creating a <code>memoryview</code> wrapping an array of 1 byte. we'll use the value to indicate whether a shutdown is indicated or not. 0 by default to mean no shutdown and 1 to mean shutdown. </p>
+<div class="highlight"><pre><span></span><code><span class="n">shutdown_indicator</span> <span class="o">=</span> <span class="nb">memoryview</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+
+
+<span class="k">async</span> <span class="k">def</span> <span class="nf">check_multiprocess_shutdown_event</span><span class="p">(</span>
+    <span class="n">shutdown_indicator</span><span class="p">:</span> <span class="nb">memoryview</span><span class="p">[</span><span class="nb">bytes</span><span class="p">],</span> <span class="n">sleep</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">shutdown_indicator</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">return</span>
+        <span class="k">await</span> <span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+</code></pre></div>
+
+<p>This approach leverages the powerful shared memory mechanisms of interpreters without changing the code too much. </p>
+<h2>Testing this out</h2>
+<p>All the code can be found at <a href="https://github.com/Jamie-Chang/hypercorn-subinterpreters">hypercorn-subinterpreters</a>, I plan on tidying this up more before publishing to pypi. </p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;git+https://github.com/Jamie-Chang/hypercorn-subinterpreters&quot;</span>
+</code></pre></div>
+
+<p>You can test this out with a simple ASGI^<a href="../webasgi-run-python-web-apps-in-a-browser.html">*</a>^ webserver, for example:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">app</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="n">receive</span><span class="p">,</span> <span class="n">send</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">scope</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;http&quot;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Only the HTTP protocol is supported&quot;</span><span class="p">)</span>
+
+    <span class="k">await</span> <span class="n">send</span><span class="p">({</span>
+        <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;http.response.start&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span>
+        <span class="s1">&#39;headers&#39;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">(</span><span class="sa">b</span><span class="s1">&#39;content-type&#39;</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;text/plain&#39;</span><span class="p">),</span>
+            <span class="p">(</span><span class="sa">b</span><span class="s1">&#39;content-length&#39;</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;5&#39;</span><span class="p">),</span>
+        <span class="p">],</span>
+    <span class="p">})</span>
+    <span class="k">await</span> <span class="n">send</span><span class="p">({</span>
+        <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;http.response.body&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;body&#39;</span><span class="p">:</span> <span class="sa">b</span><span class="s1">&#39;hello&#39;</span><span class="p">,</span>
+    <span class="p">})</span>
+</code></pre></div>
+
+<p>and then running this with:</p>
+<div class="highlight"><pre><span></span><code>hypercorn<span class="w"> </span>main:app<span class="w"> </span>--workers<span class="w"> </span><span class="m">10</span>
+</code></pre></div>
+
+<p>This worked very well for me, and notably the startup speed was higher than the process version. I'll leave the task of benchmarking to my future self or other parties as performance is not my main focus.</p>
+<h2>The Compatibility Landmine</h2>
+<p>It's easy to run a dependency free web app as above, you can even run it in the <a href="https://jamie-chang.github.io/webasgi/?auto=true#code/eyJtYWluLnB5IjoiYXN5bmMgZGVmIGFwcChzY29wZSwgcmVjZWl2ZSwgc2VuZCk6XG4gICAgaWYgc2NvcGVbXCJ0eXBlXCJdICE9IFwiaHR0cFwiOlxuICAgICAgICByYWlzZSBFeGNlcHRpb24oXCJPbmx5IHRoZSBIVFRQIHByb3RvY29sIGlzIHN1cHBvcnRlZFwiKVxuXG4gICAgYXdhaXQgc2VuZCh7XG4gICAgICAgICd0eXBlJzogJ2h0dHAucmVzcG9uc2Uuc3RhcnQnLFxuICAgICAgICAnc3RhdHVzJzogMjAwLFxuICAgICAgICAnaGVhZGVycyc6IFtcbiAgICAgICAgICAgIChiJ2NvbnRlbnQtdHlwZScsIGIndGV4dC9wbGFpbicpLFxuICAgICAgICAgICAgKGInY29udGVudC1sZW5ndGgnLCBiJzUnKSxcbiAgICAgICAgXSxcbiAgICB9KVxuICAgIGF3YWl0IHNlbmQoe1xuICAgICAgICAndHlwZSc6ICdodHRwLnJlc3BvbnNlLmJvZHknLFxuICAgICAgICAnYm9keSc6IGInaGVsbG8nLFxuICAgIH0pIn0">web</a>. </p>
+<p>The bigger question is how well this runs a typical Python web application which would typically use a framework and also connect to a database. </p>
+<p>Luckily, I recently went through the trouble of writing the same app using flask, fastapi and django to run some <a href="../asyncio-is-neither-fast-nor-slow.html">benchmarks</a>. To better simulate a real workload the apps connect to postgres using either a pooled connection or a single connection. </p>
+<p>So here's what worked and what didn't.</p>
+<h3>FastAPI</h3>
+<p>FastAPI is hands down the most popular web framework and is unfortunately the biggest disappointment.</p>
+<div class="highlight"><pre><span></span><code>ImportError:<span class="w"> </span>module<span class="w"> </span>pydantic_core._pydantic_core<span class="w"> </span>does<span class="w"> </span>not<span class="w"> </span>support<span class="w"> </span>loading<span class="w"> </span><span class="k">in</span><span class="w"> </span>subinterpreters
+</code></pre></div>
+
+<p>The trouble lies with Pydantic, Pydantic v2 (the current version) is written in rust using PyO3. <a href="https://github.com/PyO3/pyo3/issues/3451">PyO3 does not currently support subinterpreters </a>. I'm pretty sure this also applies to other rust-based libraries like <a href="https://pola.rs/">polars</a> </p>
+<h3>Django</h3>
+<p>Django is a much better story. Django itself is mostly pure Python, so it works well on its own. I wasn't expecting it to work with postgres as the postgres driver <a href="https://www.psycopg.org/">psycopg</a> is a native library. However I was pleasantly surprised to find it working. </p>
+<p>There are unfortunately still caveats here, psycopg won't work when used as a <a href="https://www.psycopg.org/psycopg3/docs/advanced/pool.html">connection pool</a>: </p>
+<div class="highlight"><pre><span></span><code>RuntimeError:<span class="w"> </span>daemon<span class="w"> </span>threads<span class="w"> </span>are<span class="w"> </span>disabled<span class="w"> </span><span class="k">in</span><span class="w"> </span>this<span class="w"> </span><span class="o">(</span>sub<span class="o">)</span>interpreter
+</code></pre></div>
+
+<p>In my prior benchmarking post, I discovered that psycopg pools actively manages connections using threads. The threads are daemon threads, meaning they exit when the process exits. The sub-interpreters have a lifetime smaller than processes lifetime, so they cannot create and own daemon threads. </p>
+<h3>Flask with Sqlalchemy</h3>
+<p>Like Django Flask also runs fine, and with flask we can play around with other database library options. <a href="https://www.sqlalchemy.org/">sqlalchemy</a> is the natural choice here. And unlike psycopg, it supports pooling without background threads.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">asgiref.wsgi</span> <span class="kn">import</span> <span class="n">WsgiToAsgi</span>
+<span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">create_engine</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># Flask is wsgi, need to be wrapped</span>
+<span class="n">asgi_app</span> <span class="o">=</span> <span class="n">WsgiToAsgi</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+
+<span class="c1"># sqlalchemy engine is Pooled by default</span>
+<span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DSN&quot;</span><span class="p">))</span>
+
+<span class="o">...</span>
+</code></pre></div>
+
+<h3>Other Compatibility Issues</h3>
+<p>Outside of web applications there are issues in a lot of native code libraries.</p>
+<h4>Data Science</h4>
+<p>One might imagine a good use case for interpreters are data science applications. They tend to be CPU intensive and a lot of exiting code uses multiprocessing for parallelism. Interpreters should be a natural replacement, however most of the core libraries don't support interpreters. These libraries include </p>
+<ul>
+<li>pyarrow</li>
+<li>pandas</li>
+<li>numpy</li>
+<li>polars</li>
+</ul>
+<p>In contrast many libraries have prioritised on free-threading compatibility. And there's even a <a href="https://py-free-threading.github.io/tracking/">tracking page</a> for it. </p>
+<p>My understanding is that whilst the work to support free-threading and sub-interpreters are not the same, they share some similarities. They tend to involve some reorganisation for native memory management. I believe that interpreters support will come given more time, but I'm not too familiar with the development process for this. </p>
+<h4>Serialisation</h4>
+<p>As mentioned before, Pydantic doesn't currently work, but it's not the only serialisation library with this issue. I also noticed problems with <a href="https://github.com/jcrist/msgspec/issues/1026">msgspec</a>. I did test <a href="https://protobuf.dev/getting-started/pythontutorial/">protobuf</a> as well, and thankfully that worked! So there is at least one good serialisation option. </p>
+<h4>Pytest</h4>
+<p>When 3.14 initially came out, I wanted to experiment with running tests in an isolated interpreter. This is also not  <a href="https://github.com/pytest-dev/pytest/issues/13809">supported</a>, but there seem to be some interest in this at least. </p>
+<h2>Closing Words</h2>
+<p>I've been a big proponent of sub-interpreters since its inception, I do believe it has a place in Python even with better support for free-threading across the wider industry.</p>
+<p>I was a bit surprised at the incompatibilities, since I always viewed sub-interpreters as being closer to multi-processing. However, I think it's understandable that a new concurrency model was never going to be an easy change and support won't come over night.</p>
+<p>I think it's time for me to roll up my sleeve and learn about C extensions in Python, so that I can better understand this complicated transition process. And perhaps I can help in this transition. </p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../i-was-wrong-about-subinterpreters.html" rel="bookmark"
+                               title="Permalink to I was wrong about Subinterpreters">I was wrong about Subinterpreters</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-01-01T00:00:00+00:00">
                 Published: Thu 01 January 2026
@@ -31,147 +248,17 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
 <p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info --><p><strong><em>... but that's actually a good thing</em></strong></p>
+</footer><!-- /.post-info -->                        <p><strong><em>... but that's actually a good thing</em></strong></p>
 <p>I've already written a ton about subinterpreters since a year ago:  </p>
 <ul>
 <li><a href="../how-good-are-sub-interpreters-in-python-now.html">How good are sub-interpreters in Python now?</a></li>
 <li><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
 <li><a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a></li>
 </ul>
-<p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding of them. </p>
-<h3>Efficient data sharing between interpreters</h3>
-<p>My first attempt at using it was to solve an <a href="https://adventofcode.com/2024/day/6">Advent of Code</a>. This involved running the same function around 4000 times on the same grid of values. </p>
-<p>The function makes a lot of read only access to the grid, which causes high lock contention in a free-threaded implementation. But with interpreters the performance scaled pretty much perfectly. Here's a chart of the performance differences:</p>
-<p><img alt="interpreters vs threads" src="../images/AoC-day-6.png"></p>
-<p>In the article I claimed:</p>
-<blockquote>
-<p>There are also other ways to execute code I chose not to use like <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a> which don't take advantage of shared objects, or <code>Interpreter.call</code> which places limitations on the function called.</p>
-</blockquote>
-<p>But something didn't sit right with me, why would there not be an easy to use implementation for users?</p>
-<p>So I gave it another look and reimplemented my solution with the standard executor here:</p>
-<div class="highlight"><pre><span></span><code><span class="n">candidates</span> <span class="o">=</span> <span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">start</span><span class="p">)</span>
-<span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">,</span> <span class="n">candidates</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
-</code></pre></div>
-
-<p>... and the results indeed came out a lot slower. Around 4 seconds compared to the 0.6 seconds before (13 threads on my M3 Macbook). </p>
-<p>So that seems to prove my point then? Well not exactly, I tried rewriting my own implementation again like:</p>
-<div class="highlight"><pre><span></span><code>    <span class="n">candidates</span> <span class="o">=</span> <span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span> <span class="k">if</span> <span class="n">node</span> <span class="o">!=</span> <span class="n">start</span><span class="p">)</span>
-    <span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="p">(</span><span class="s2">&quot;implementations.d6&quot;</span><span class="p">,</span> <span class="s2">&quot;solve&quot;</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="n">workers</span><span class="p">)</span>
-    <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">solve</span><span class="p">)</span> <span class="k">if</span> <span class="n">res</span><span class="p">)</span>
-</code></pre></div>
-
-<p>it was just as slow. So what's going on here?</p>
-<p>It turns out that whether using the standard library or hand writing my own executor, we're both using the same 'sharing' mechanism to move the arguments and results in and out of the interpreter.</p>
-<p>But I had assumed that when we shared the grid of type <code>tuple[tuple[bool, ...], ...]</code> we simply share the reference of the object. But this is not actually the case, the <a href="https://docs.python.org/3/library/concurrent.interpreters.html#interp-object-sharing">docs</a> don't go into a lot of detail in actual fact, most objects are copied between interpreters.</p>
-<p>This doesn't explain why my initial implementation was so fast. After rechecking my original code, I found out that I had gotten quite lucky and used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a> to pass the grid to each interpreter at the start. This still perform the copy but only once for each worker, on the other hand, my newer implementations copy grid for each invocation.</p>
-<p>To show this more clearly, we can use <code>memoryview</code> instead. <code>memoryview</code> is one of the few exceptions that do not require copying as it shares mutable data. The way it works is that the <code>memoryview</code> object itself is copied each time but the underlying data is simply referenced. </p>
-<p>Changing the grid to a <code>memoryview</code> backed by a <code>bytearray</code> we get back our performance we expect. See the code below:</p>
-<style type="text/css">
-  .gist-file
-  .gist-data {max-height: 500px;}
-</style>
-
-<script src="https://gist.github.com/Jamie-Chang/8263a304260d717308c6deb72f9f3e91.js"></script>
-
-<h3>Efficient function passing</h3>
-<p>In <a href="../subinterpreters-and-asyncio.html">Subinterpreters and Asyncio</a>, I tried to make subinterpreters work more generally with asyncio and created <a href="https://github.com/Jamie-Chang/aiointerpreters">aiointerpreters</a>.</p>
-<p>Here again I made some incorrect claims:</p>
-<blockquote>
-<p>In order to pass the function itself, the arguments and return values are pickled before they are passed to the interpreters. Which will impact performance and may cancel out a lot of the performance gains over other parallelism mechanisms like free-threading and multi-processing.</p>
-</blockquote>
-<p>Which as we know now, the only way to avoid copying the data is using <code>memoryview</code> or to reduce the amount of copying using something <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.prepare_main"><code>interpreters.prepare_main</code></a>.</p>
-<p>Another thing I got wrong is:</p>
-<blockquote>
-<p>Then there's the problem of loading functions into the interpreters. As far as I can tell, the best way to do so without pickle is to import the functions inside the interpreters. This is likely the mechanism behind <code>call_in_thread</code>.</p>
-</blockquote>
-<p>At the time, I had not realised that pickle works on functions the following <a href="https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled">way</a>:</p>
-<blockquote>
-<p>Note that functions (built-in and user-defined) are pickled by fully qualified name, not by value. This means that only the function name is pickled, along with the name of the containing module and classes. Neither the function’s code, nor any of its function attributes are pickled. Thus the defining module must be importable in the unpickling environment, and the module must contain the named object, otherwise an exception will be raised.</p>
-</blockquote>
-<p>So it was ultimately unnecessary to create a custom function loading mechanism to load the function into the interpreter as pickle was already doing the same thing (oops!).</p>
-<p>This means that there's no discernable performance benefits in my <code>Runner</code> implementation over <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a>.</p>
-<h2>How should we use interpreters then?</h2>
-<p>In short just use <a href="https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.InterpreterPoolExecutor">InterpreterPoolExecutor</a>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-
-    <span class="c1"># or </span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">single_arg</span><span class="p">)</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">single_arg</span><span class="p">)</span>
-    <span class="o">...</span>
-</code></pre></div>
-
-<p>Results can be accessed easily via <a href="https://docs.python.org/3/library/concurrent.futures.html#future-objects">futures</a>. The standard lib also provides some basic way to synchronise futures via <a href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.wait">wait</a> or <a href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.as_completed">as_completed</a></p>
-<h3>Asyncio</h3>
-<p>What if you need more complex synchronisation? We can run Executors in asyncio using <a href="https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor">loop.run_in_executor(...)</a>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
-    <span class="k">await</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_in_executor</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">argument</span><span class="p">)</span>
-</code></pre></div>
-
-<p>here's an example using the excellent <code>asyncio.TaskGroup</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">to_coro</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">aw</span><span class="p">:</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
-    <span class="k">return</span> <span class="k">await</span> <span class="n">aw</span>
-
-<span class="k">with</span> <span class="n">InterpreterPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
-    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">):</span>
-            <span class="c1"># NOTE: a task must be created from a coroutine, run_in_executor returns an `asyncio.Future`</span>
-            <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span>
-                <span class="n">to_coro</span><span class="p">(</span>
-                    <span class="n">loop</span><span class="o">.</span><span class="n">run_in_executor</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">argument</span><span class="p">)</span>
-                <span class="p">)</span>
-            <span class="p">)</span>
-</code></pre></div>
-
-<h2>What about <code>aiointerpreters</code>?</h2>
-<p>I'm hoping by this point, I've successfully convinced you that <code>aiointerpreters</code> is redundant and the standard library functionality is enough.</p>
-<p>I can now safely say that I'm wrong about the out of the box usability of <code>InterpreterPoolExecutor</code>. That being said I don't feel too silly making those mistakes. </p>
-<p>With subinterpreters still a very new and niche feature, there are still a lot of sharp edges. One thing that led to my confusions is that there are not many resources on how it works, there are some difference between the information from the <a href="https://pypi.org/project/interpreters-pep-734">PEP</a> and the final implementation. So I do hope the details I share here can save people some time. </p>
-<p>As for aiointerpreters, going forward the focus will be more on enhancing the features the standard library offers rather than completely reinventing the wheel (again). This process is already underway ... </p>
-<h3>InterpreterThreadPoolExecutor</h3>
-<p>As I've been going through the code in the <a href="https://github.com/python/cpython/blob/main/Lib/concurrent/futures/interpreter.py">standard library</a> I've discovered that the current executor implementation is written on top of <code>ThreadPoolExecutor</code>. Once a task is given to a thread it then get's sent to an interpreter within the thread.</p>
-<p>This gives us an opportunity to create a hybrid executor that can dispatch to an interpreter conditionally. I created <code>InterpreterThreadExecutor</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">aiointerpreters.executors</span> <span class="kn">import</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">,</span> <span class="n">interpreter</span>
-
-
-<span class="k">with</span> <span class="n">InterpreterThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">interpreter</span><span class="p">(</span><span class="n">cpu_bound</span><span class="p">),</span> <span class="p">(</span><span class="n">argument</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">)))</span>
-    <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">io_bound</span><span class="p">,</span> <span class="p">(</span><span class="n">argument</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">)))</span>
-</code></pre></div>
-
-<p>When the user want to request a dedicated interpreter they simply need to wrap the function in the <code>interpreter</code> decorator.</p>
-<p>I think this makes a lot of sense as threads and interpreters both have their trade offs. Interpreters are isolated and allow parallel memory access but passing arguments needs a lot more care and could be slower. On the other hand, threads (GIL enabled) cannot run cpu bound code in parallel.</p>
-<p>We could create 2 thread pools but I think it's a lot easier and resource efficient to maintain a single thread pool.</p>
-<p>This is particularly useful for <a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread">asyncio.to_thread()</a>:</p>
-<p>We can set the default executor at a loop level:</p>
-<div class="highlight"><pre><span></span><code><span class="n">asyncio</span><span class="o">.</span><span class="n">get_running_loop</span><span class="p">()</span><span class="o">.</span><span class="n">set_default_executor</span><span class="p">(</span><span class="n">InterpreterThreadPoolExecutor</span><span class="p">())</span>
-</code></pre></div>
-
-<p>And then whenever we call <code>to_thread</code> the correct executor will be chosen based on what the user specified.</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
-    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">interpreter</span><span class="p">(</span><span class="n">cpu_bound</span><span class="p">),</span> <span class="n">argument</span><span class="p">))</span>
-    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">io_bound</span><span class="p">,</span> <span class="n">argument</span><span class="p">))</span>
-</code></pre></div>
-
-<h3>More complex Executors and Runner</h3>
-<p>Whilst the default <code>aiointerpreters.runner.Runner</code> is a little redundant now, it doesn't mean there are no need for making custom versions of <code>Executor</code> or <code>Runner</code>. There is no one size fits all solution to concurrency and parallelism, so there's plenty of opportunity to create different versions of Executor that behave differently and solve different problems that the user face. </p>
-<p>I'm currently working on a <a href="https://github.com/Jamie-Chang/aiointerpreters/pull/8">Runner</a> that distributes async tasks to coroutines running in separate interpreters similar to <a href="https://github.com/omnilib/aiomultiprocess">aiomultiprocess</a>.</p>
-<p>There's also opportunity to take advantage of <code>prepare_main</code> in an executor to reduce the number of copying required. </p>
-<p>Finally, running an executor and integrating it with <code>asyncio</code> is not always straightforward, and I'm sure there's some interesting abstractions that can be created on this front. </p>
-<h2>Closing words</h2>
-<p>Apologies if this all reads like a massive dump of information, I've realised how tricky the subject of concurrency is and I found that it's important here to provide the most accurate details. </p>
-<p>True parallelism in Python is nascent and there simply isn't an obvious way to do things right now and maybe there never will be. With that comes some difficulty in knowing what do do. The most crucial thing here is to get your hands dirty and try different things for yourself and slowly a clearer understanding will form.</p>
-<blockquote>
-<p>p.s. If you're more interested in free-threading, please look at <a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a> and <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a> my opinions on it have largely remained unchanged.</p>
-</blockquote>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>Recently I had some time to dig a bit deeper into subinterpreters and check my understanding …</p>
+                        <a class="readmore" href="../i-was-wrong-about-subinterpreters.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>

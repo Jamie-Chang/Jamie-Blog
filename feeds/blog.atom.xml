@@ -1,5 +1,199 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2026-03-14T00:00:00+00:00</updated><entry><title>Don't make Python code decisions based on whitespace</title><link href="https://blog.changs.co.uk/dont-make-python-code-decisions-based-on-whitespace.html" rel="alternate"></link><published>2026-03-14T00:00:00+00:00</published><updated>2026-03-14T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-03-14:/dont-make-python-code-decisions-based-on-whitespace.html</id><summary type="html">&lt;p&gt;I recently saw Trey Hunner's take &lt;a href="https://www.pythonmorsels.com/switch-case-in-python/"&gt;blog post&lt;/a&gt; on 'switch case' like statements in Python. He makes a lot of good points and it's definitely worth a read.&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Jamie's Blog - Blog</title><link href="https://blog.changs.co.uk/" rel="alternate"></link><link href="https://blog.changs.co.uk/feeds/blog.atom.xml" rel="self"></link><id>https://blog.changs.co.uk/</id><updated>2026-04-26T00:00:00+01:00</updated><entry><title>You can (kind of) run Django in subinterpreters</title><link href="https://blog.changs.co.uk/you-can-kind-of-run-django-in-subinterpreters.html" rel="alternate"></link><published>2026-04-26T00:00:00+01:00</published><updated>2026-04-26T00:00:00+01:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-04-26:/you-can-kind-of-run-django-in-subinterpreters.html</id><summary type="html">&lt;p&gt;In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: &lt;a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html"&gt;Running Python Parallel Applications with Sub Interpreters&lt;/a&gt;. In there, he previewed the ongoing development for subinterpreters and highlighted his attempt to run web applications in a subinterpreter.&lt;/p&gt;
+&lt;p&gt;Anthony conclude his post having adapted &lt;a href="https://github.com/pgjones/hypercorn"&gt;hypercorn&lt;/a&gt; to …&lt;/p&gt;</summary><content type="html">&lt;p&gt;In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: &lt;a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html"&gt;Running Python Parallel Applications with Sub Interpreters&lt;/a&gt;. In there, he previewed the ongoing development for subinterpreters and highlighted his attempt to run web applications in a subinterpreter.&lt;/p&gt;
+&lt;p&gt;Anthony conclude his post having adapted &lt;a href="https://github.com/pgjones/hypercorn"&gt;hypercorn&lt;/a&gt; to run with subinterpreters and managing to run FastAPI and Flask applications. He notably couldn't run Django due to the standard library's own &lt;code&gt;datetime&lt;/code&gt; module. &lt;/p&gt;
+&lt;p&gt;It has now been 2 and half years and a lot has changed. Both &lt;a href="https://docs.python.org/3/library/concurrent.interpreters.html"&gt;concurrent.interpreters&lt;/a&gt; and &lt;a href="https://docs.python.org/3/howto/free-threading-python.html"&gt;free-threading&lt;/a&gt; have seen official releases, with subinterpreters especially seeing a lot of changes w.r.t the Python interface. &lt;/p&gt;
+&lt;!-- What hasn't changed much is that no one is really running web-application in free-threaded or subinterpreter mode. Though not so long ago Giovanni Barillari the creator of [Granian](https://github.com/emmett-framework/granian) did some benchmarking on free-threaded applications which showed promising results. You can see his blog post [here](https://blog.baro.dev/p/the-future-of-python-web-services-looks-gil-free)
+ --&gt;
+&lt;h2&gt;Continuing the Work&lt;/h2&gt;
+&lt;p&gt;So I decided to give it a try myself. Since enough had changed since Anthony's implementation, I did much of the code changes from scratch.&lt;/p&gt;
+&lt;p&gt;This turns out to be surprisingly simple, as we have a much better Python interface for interpreters in in Python 3.14. &lt;/p&gt;
+&lt;h3&gt;Sharing Sockets&lt;/h3&gt;
+&lt;p&gt;In the original multiprocessing version, hypercorn shares the same set of  sockets between all the worker processes. The processes will all consume this set of sockets thereby distributing requests.&lt;/p&gt;
+&lt;p&gt;So we will need to do the same thing here as well. Sockets out of the box can be shared between a parent process and any of its sub-processes but that's not the case for sub-interpreters. &lt;/p&gt;
+&lt;p&gt;In my previous &lt;a href="https://blog.changs.co.uk/i-was-wrong-about-subinterpreters.html"&gt;blog post&lt;/a&gt; I came to realise that we can just rely on pickle to do a lot of the message passing so long as we understand what actual information is being serialised. We can do the same here, in fact, Python lets you to customise what state is passed to the pickle (de)serialiser via &lt;a href="https://docs.python.org/3/library/pickle.html#object.__getstate__"&gt;&lt;code&gt;__getstate__&lt;/code&gt;&lt;/a&gt; and &lt;a href="https://docs.python.org/3/library/pickle.html#object.__setstate__"&gt;&lt;code&gt;__setstate__&lt;/code&gt;&lt;/a&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;Sockets&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="n"&gt;secure_sockets&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;list&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;socket&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;socket&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+    &lt;span class="n"&gt;insecure_sockets&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;list&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;socket&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;socket&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+    &lt;span class="n"&gt;quic_sockets&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;list&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;socket&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;socket&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;__getstate__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="sd"&gt;&amp;quot;&amp;quot;&amp;quot;Prepares the socket for transport.&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+        &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+            &lt;span class="s2"&gt;&amp;quot;secure_sockets&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;
+                &lt;span class="p"&gt;{&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;fd&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;fileno&lt;/span&gt;&lt;span class="p"&gt;(),&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;family&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;family&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;type&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;type&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;proto&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;proto&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                &lt;span class="p"&gt;}&lt;/span&gt;
+                &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;secure_sockets&lt;/span&gt;
+            &lt;span class="p"&gt;],&lt;/span&gt;
+            &lt;span class="s2"&gt;&amp;quot;insecure_sockets&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;
+                &lt;span class="p"&gt;{&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;fd&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;fileno&lt;/span&gt;&lt;span class="p"&gt;(),&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;family&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;family&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;type&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;type&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;proto&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;proto&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                &lt;span class="p"&gt;}&lt;/span&gt;
+                &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;insecure_sockets&lt;/span&gt;
+            &lt;span class="p"&gt;],&lt;/span&gt;
+            &lt;span class="s2"&gt;&amp;quot;quic_sockets&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;
+                &lt;span class="p"&gt;{&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;fd&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;fileno&lt;/span&gt;&lt;span class="p"&gt;(),&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;family&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;family&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;type&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;type&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                    &lt;span class="s2"&gt;&amp;quot;proto&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;proto&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                &lt;span class="p"&gt;}&lt;/span&gt;
+                &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;sock&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;quic_sockets&lt;/span&gt;
+            &lt;span class="p"&gt;],&lt;/span&gt;
+        &lt;span class="p"&gt;}&lt;/span&gt;
+
+    &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;__setstate__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="sd"&gt;&amp;quot;&amp;quot;&amp;quot;Reconstructs the socket in the new interpreter.&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt;
+        &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;key&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;socks&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;items&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+            &lt;span class="nb"&gt;setattr&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+                &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                &lt;span class="n"&gt;key&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+                &lt;span class="p"&gt;[&lt;/span&gt;
+                    &lt;span class="n"&gt;socket&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;fromfd&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;raw&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;fd&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;raw&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;family&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;raw&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;type&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;raw&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;proto&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+                    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;raw&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;socks&lt;/span&gt;
+                &lt;span class="p"&gt;],&lt;/span&gt;
+            &lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Simply, this extracts the enough metadata of the socket (e.g. file descriptor number) to pass to the sub-interpreter. The sub-interpreter then calls &lt;a href="https://docs.python.org/3/library/socket.html#socket.fromfd"&gt;socket.fromfd&lt;/a&gt; to rebuild the socket in the interpreter. &lt;/p&gt;
+&lt;p&gt;I believe this is the same way Anthony shares sockets the only difference being that we leverage pickle here to minimise code changes.&lt;/p&gt;
+&lt;h3&gt;Calling the Sub-Interpreter&lt;/h3&gt;
+&lt;p&gt;When I first started playing around with interpreters I assumed we had to use the &lt;a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.exec"&gt;exec&lt;/a&gt; method, with queues for passing data. &lt;/p&gt;
+&lt;p&gt;But over an embarrassingly lengthy period of time, I finally [figured out] that we can just use the higher level function works just as well, or maybe even better. For this I used &lt;a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.call"&gt;Interpreter.call&lt;/a&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;run_interp&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;P&lt;/span&gt;&lt;span class="p"&gt;](&lt;/span&gt;&lt;span class="n"&gt;fn&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Callable&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;P&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Any&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;P&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;P&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="n"&gt;interp&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;interpreters&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;create&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+    &lt;span class="k"&gt;try&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;interp&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;call&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;fn&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;kwargs&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;finally&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;interp&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;close&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+
+&lt;span class="n"&gt;thread&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Thread&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+    &lt;span class="n"&gt;target&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;run_interp&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;worker_func&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;sockets&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;shutdown_indicator&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;thread&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;start&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3&gt;Stopping the Interpreters&lt;/h3&gt;
+&lt;p&gt;Finally, we need to consider how the main interpreter can communicate with the worker interpreters to shutdown. Let's first look at how this is done with processes.&lt;/p&gt;
+&lt;p&gt;The main processes passes an &lt;a href="https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Event"&gt;Event&lt;/a&gt; as an indicator for the subprocess to shutdown. &lt;/p&gt;
+&lt;p&gt;The subprocess periodically checks to see if the event is set:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;check_multiprocess_shutdown_event&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+    &lt;span class="n"&gt;shutdown_event&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;EventType&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;sleep&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Callable&lt;/span&gt;&lt;span class="p"&gt;[[&lt;/span&gt;&lt;span class="nb"&gt;float&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;Awaitable&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Any&lt;/span&gt;&lt;span class="p"&gt;]]&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="k"&gt;while&lt;/span&gt; &lt;span class="kc"&gt;True&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;shutdown_event&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;is_set&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+            &lt;span class="k"&gt;return&lt;/span&gt;
+        &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="n"&gt;sleep&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mf"&gt;0.1&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;It's important to note that whilst an event is often &lt;a href="https://docs.python.org/3/library/threading.html#threading.Event.wait"&gt;wait&lt;/a&gt;ed on to synchronise the timing in sub-processes, in hypercorn, it's just used to conveniently store some global state. The state is effectively polled in the sub-process for changes. &lt;/p&gt;
+&lt;p&gt;There is no equivalent to &lt;code&gt;Event&lt;/code&gt; for interpreters, but there is a very simple and powerful way to share global mutable state. This is done via directly sharing a &lt;a href="https://docs.python.org/3/library/stdtypes.html#memoryview"&gt;memoryview&lt;/a&gt;. &lt;/p&gt;
+&lt;p&gt;Let's start by creating a &lt;code&gt;memoryview&lt;/code&gt; wrapping an array of 1 byte. we'll use the value to indicate whether a shutdown is indicated or not. 0 by default to mean no shutdown and 1 to mean shutdown. &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="n"&gt;shutdown_indicator&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="nb"&gt;memoryview&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;array&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;B&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;]))&lt;/span&gt;
+
+
+&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;check_multiprocess_shutdown_event&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+    &lt;span class="n"&gt;shutdown_indicator&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;memoryview&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nb"&gt;bytes&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;sleep&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Callable&lt;/span&gt;&lt;span class="p"&gt;[[&lt;/span&gt;&lt;span class="nb"&gt;float&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;Awaitable&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Any&lt;/span&gt;&lt;span class="p"&gt;]]&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;-&amp;gt;&lt;/span&gt; &lt;span class="kc"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="k"&gt;while&lt;/span&gt; &lt;span class="kc"&gt;True&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;shutdown_indicator&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;]:&lt;/span&gt;
+            &lt;span class="k"&gt;return&lt;/span&gt;
+        &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="n"&gt;sleep&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mf"&gt;0.1&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This approach leverages the powerful shared memory mechanisms of interpreters without changing the code too much. &lt;/p&gt;
+&lt;h2&gt;Testing this out&lt;/h2&gt;
+&lt;p&gt;All the code can be found at &lt;a href="https://github.com/Jamie-Chang/hypercorn-subinterpreters"&gt;hypercorn-subinterpreters&lt;/a&gt;, I plan on tidying this up more before publishing to pypi. &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;uv&lt;span class="w"&gt; &lt;/span&gt;add&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;git+https://github.com/Jamie-Chang/hypercorn-subinterpreters&amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;You can test this out with a simple ASGI^&lt;a href="https://blog.changs.co.uk/webasgi-run-python-web-apps-in-a-browser.html"&gt;*&lt;/a&gt;^ webserver, for example:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="k"&gt;async&lt;/span&gt; &lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;app&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;scope&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;receive&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;send&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;scope&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;type&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;!=&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;http&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;raise&lt;/span&gt; &lt;span class="ne"&gt;Exception&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;Only the HTTP protocol is supported&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+    &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="n"&gt;send&lt;/span&gt;&lt;span class="p"&gt;({&lt;/span&gt;
+        &lt;span class="s1"&gt;&amp;#39;type&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;http.response.start&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="s1"&gt;&amp;#39;status&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;200&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="s1"&gt;&amp;#39;headers&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;
+            &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;content-type&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;text/plain&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt;
+            &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;content-length&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;5&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt;
+        &lt;span class="p"&gt;],&lt;/span&gt;
+    &lt;span class="p"&gt;})&lt;/span&gt;
+    &lt;span class="k"&gt;await&lt;/span&gt; &lt;span class="n"&gt;send&lt;/span&gt;&lt;span class="p"&gt;({&lt;/span&gt;
+        &lt;span class="s1"&gt;&amp;#39;type&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;http.response.body&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="s1"&gt;&amp;#39;body&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;hello&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="p"&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;and then running this with:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;hypercorn&lt;span class="w"&gt; &lt;/span&gt;main:app&lt;span class="w"&gt; &lt;/span&gt;--workers&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;10&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This worked very well for me, and notably the startup speed was higher than the process version. I'll leave the task of benchmarking to my future self or other parties as performance is not my main focus.&lt;/p&gt;
+&lt;h2&gt;The Compatibility Landmine&lt;/h2&gt;
+&lt;p&gt;It's easy to run a dependency free web app as above, you can even run it in the &lt;a href="https://jamie-chang.github.io/webasgi/?auto=true#code/eyJtYWluLnB5IjoiYXN5bmMgZGVmIGFwcChzY29wZSwgcmVjZWl2ZSwgc2VuZCk6XG4gICAgaWYgc2NvcGVbXCJ0eXBlXCJdICE9IFwiaHR0cFwiOlxuICAgICAgICByYWlzZSBFeGNlcHRpb24oXCJPbmx5IHRoZSBIVFRQIHByb3RvY29sIGlzIHN1cHBvcnRlZFwiKVxuXG4gICAgYXdhaXQgc2VuZCh7XG4gICAgICAgICd0eXBlJzogJ2h0dHAucmVzcG9uc2Uuc3RhcnQnLFxuICAgICAgICAnc3RhdHVzJzogMjAwLFxuICAgICAgICAnaGVhZGVycyc6IFtcbiAgICAgICAgICAgIChiJ2NvbnRlbnQtdHlwZScsIGIndGV4dC9wbGFpbicpLFxuICAgICAgICAgICAgKGInY29udGVudC1sZW5ndGgnLCBiJzUnKSxcbiAgICAgICAgXSxcbiAgICB9KVxuICAgIGF3YWl0IHNlbmQoe1xuICAgICAgICAndHlwZSc6ICdodHRwLnJlc3BvbnNlLmJvZHknLFxuICAgICAgICAnYm9keSc6IGInaGVsbG8nLFxuICAgIH0pIn0"&gt;web&lt;/a&gt;. &lt;/p&gt;
+&lt;p&gt;The bigger question is how well this runs a typical Python web application which would typically use a framework and also connect to a database. &lt;/p&gt;
+&lt;p&gt;Luckily, I recently went through the trouble of writing the same app using flask, fastapi and django to run some &lt;a href="https://blog.changs.co.uk/asyncio-is-neither-fast-nor-slow.html"&gt;benchmarks&lt;/a&gt;. To better simulate a real workload the apps connect to postgres using either a pooled connection or a single connection. &lt;/p&gt;
+&lt;p&gt;So here's what worked and what didn't.&lt;/p&gt;
+&lt;h3&gt;FastAPI&lt;/h3&gt;
+&lt;p&gt;FastAPI is hands down the most popular web framework and is unfortunately the biggest disappointment.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;ImportError:&lt;span class="w"&gt; &lt;/span&gt;module&lt;span class="w"&gt; &lt;/span&gt;pydantic_core._pydantic_core&lt;span class="w"&gt; &lt;/span&gt;does&lt;span class="w"&gt; &lt;/span&gt;not&lt;span class="w"&gt; &lt;/span&gt;support&lt;span class="w"&gt; &lt;/span&gt;loading&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;in&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;subinterpreters
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The trouble lies with Pydantic, Pydantic v2 (the current version) is written in rust using PyO3. &lt;a href="https://github.com/PyO3/pyo3/issues/3451"&gt;PyO3 does not currently support subinterpreters &lt;/a&gt;. I'm pretty sure this also applies to other rust-based libraries like &lt;a href="https://pola.rs/"&gt;polars&lt;/a&gt; &lt;/p&gt;
+&lt;h3&gt;Django&lt;/h3&gt;
+&lt;p&gt;Django is a much better story. Django itself is mostly pure Python, so it works well on its own. I wasn't expecting it to work with postgres as the postgres driver &lt;a href="https://www.psycopg.org/"&gt;psycopg&lt;/a&gt; is a native library. However I was pleasantly surprised to find it working. &lt;/p&gt;
+&lt;p&gt;There are unfortunately still caveats here, psycopg won't work when used as a &lt;a href="https://www.psycopg.org/psycopg3/docs/advanced/pool.html"&gt;connection pool&lt;/a&gt;: &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;RuntimeError:&lt;span class="w"&gt; &lt;/span&gt;daemon&lt;span class="w"&gt; &lt;/span&gt;threads&lt;span class="w"&gt; &lt;/span&gt;are&lt;span class="w"&gt; &lt;/span&gt;disabled&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;in&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;this&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;(&lt;/span&gt;sub&lt;span class="o"&gt;)&lt;/span&gt;interpreter
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;In my prior benchmarking post, I discovered that psycopg pools actively manages connections using threads. The threads are daemon threads, meaning they exit when the process exits. The sub-interpreters have a lifetime smaller than processes lifetime, so they cannot create and own daemon threads. &lt;/p&gt;
+&lt;h3&gt;Flask with Sqlalchemy&lt;/h3&gt;
+&lt;p&gt;Like Django Flask also runs fine, and with flask we can play around with other database library options. &lt;a href="https://www.sqlalchemy.org/"&gt;sqlalchemy&lt;/a&gt; is the natural choice here. And unlike psycopg, it supports pooling without background threads.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;asgiref.wsgi&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;WsgiToAsgi&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;flask&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;Flask&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;sqlalchemy&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;create_engine&lt;/span&gt;
+
+&lt;span class="n"&gt;app&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Flask&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="vm"&gt;__name__&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="c1"&gt;# Flask is wsgi, need to be wrapped&lt;/span&gt;
+&lt;span class="n"&gt;asgi_app&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;WsgiToAsgi&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;app&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="c1"&gt;# sqlalchemy engine is Pooled by default&lt;/span&gt;
+&lt;span class="n"&gt;engine&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;create_engine&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;os&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;getenv&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;DSN&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+
+&lt;span class="o"&gt;...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3&gt;Other Compatibility Issues&lt;/h3&gt;
+&lt;p&gt;Outside of web applications there are issues in a lot of native code libraries.&lt;/p&gt;
+&lt;h4&gt;Data Science&lt;/h4&gt;
+&lt;p&gt;One might imagine a good use case for interpreters are data science applications. They tend to be CPU intensive and a lot of exiting code uses multiprocessing for parallelism. Interpreters should be a natural replacement, however most of the core libraries don't support interpreters. These libraries include &lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;pyarrow&lt;/li&gt;
+&lt;li&gt;pandas&lt;/li&gt;
+&lt;li&gt;numpy&lt;/li&gt;
+&lt;li&gt;polars&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In contrast many libraries have prioritised on free-threading compatibility. And there's even a &lt;a href="https://py-free-threading.github.io/tracking/"&gt;tracking page&lt;/a&gt; for it. &lt;/p&gt;
+&lt;p&gt;My understanding is that whilst the work to support free-threading and sub-interpreters are not the same, they share some similarities. They tend to involve some reorganisation for native memory management. I believe that interpreters support will come given more time, but I'm not too familiar with the development process for this. &lt;/p&gt;
+&lt;h4&gt;Serialisation&lt;/h4&gt;
+&lt;p&gt;As mentioned before, Pydantic doesn't currently work, but it's not the only serialisation library with this issue. I also noticed problems with &lt;a href="https://github.com/jcrist/msgspec/issues/1026"&gt;msgspec&lt;/a&gt;. I did test &lt;a href="https://protobuf.dev/getting-started/pythontutorial/"&gt;protobuf&lt;/a&gt; as well, and thankfully that worked! So there is at least one good serialisation option. &lt;/p&gt;
+&lt;h4&gt;Pytest&lt;/h4&gt;
+&lt;p&gt;When 3.14 initially came out, I wanted to experiment with running tests in an isolated interpreter. This is also not  &lt;a href="https://github.com/pytest-dev/pytest/issues/13809"&gt;supported&lt;/a&gt;, but there seem to be some interest in this at least. &lt;/p&gt;
+&lt;h2&gt;Closing Words&lt;/h2&gt;
+&lt;p&gt;I've been a big proponent of sub-interpreters since its inception, I do believe it has a place in Python even with better support for free-threading across the wider industry.&lt;/p&gt;
+&lt;p&gt;I was a bit surprised at the incompatibilities, since I always viewed sub-interpreters as being closer to multi-processing. However, I think it's understandable that a new concurrency model was never going to be an easy change and support won't come over night.&lt;/p&gt;
+&lt;p&gt;I think it's time for me to roll up my sleeve and learn about C extensions in Python, so that I can better understand this complicated transition process. And perhaps I can help in this transition. &lt;/p&gt;</content><category term="Blog"></category><category term="Python"></category><category term="Subinterpreters"></category></entry><entry><title>Don't make Python code decisions based on whitespace</title><link href="https://blog.changs.co.uk/dont-make-python-code-decisions-based-on-whitespace.html" rel="alternate"></link><published>2026-03-14T00:00:00+00:00</published><updated>2026-03-14T00:00:00+00:00</updated><author><name>Jamie Chang</name></author><id>tag:blog.changs.co.uk,2026-03-14:/dont-make-python-code-decisions-based-on-whitespace.html</id><summary type="html">&lt;p&gt;I recently saw Trey Hunner's take &lt;a href="https://www.pythonmorsels.com/switch-case-in-python/"&gt;blog post&lt;/a&gt; on 'switch case' like statements in Python. He makes a lot of good points and it's definitely worth a read.&lt;/p&gt;
 &lt;p&gt;What I want to talk about is his last point&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;Using a dictionary instead of switch-case: Sometimes you can replace long if …&lt;/p&gt;&lt;/blockquote&gt;</summary><content type="html">&lt;p&gt;I recently saw Trey Hunner's take &lt;a href="https://www.pythonmorsels.com/switch-case-in-python/"&gt;blog post&lt;/a&gt; on 'switch case' like statements in Python. He makes a lot of good points and it's definitely worth a read.&lt;/p&gt;
