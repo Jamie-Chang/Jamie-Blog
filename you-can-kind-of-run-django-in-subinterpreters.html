@@ -37,18 +37,17 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
 <p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->        <p>In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: <a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html">Running Python Parallel Applications with Sub Interpreters</a>. In there, he previewed the ongoing development for subinterpreters and highlighted his attempt to run web applications in a subinterpreter.</p>
-<p>Anthony conclude his post having adapted <a href="https://github.com/pgjones/hypercorn">hypercorn</a> to run with subinterpreters and managing to run FastAPI and Flask applications. He notably couldn't run Django due to the standard library's own <code>datetime</code> module. </p>
-<p>It has now been 2 and half years and a lot has changed. Both <a href="https://docs.python.org/3/library/concurrent.interpreters.html">concurrent.interpreters</a> and <a href="https://docs.python.org/3/howto/free-threading-python.html">free-threading</a> have seen official releases, with subinterpreters especially seeing a lot of changes w.r.t the Python interface. </p>
-<!-- What hasn't changed much is that no one is really running web-application in free-threaded or subinterpreter mode. Though not so long ago Giovanni Barillari the creator of [Granian](https://github.com/emmett-framework/granian) did some benchmarking on free-threaded applications which showed promising results. You can see his blog post [here](https://blog.baro.dev/p/the-future-of-python-web-services-looks-gil-free)
- -->
+</footer><!-- /.post-info -->        <p>In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: <a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html">Running Python Parallel Applications with Sub Interpreters</a>, where he previewed the ongoing development for subinterpreters and highlighted his attempt to run web applications in a subinterpreter.</p>
+<p>Anthony concluded his post having adapted <a href="https://github.com/pgjones/hypercorn">hypercorn</a> to run with subinterpreters and managing to run FastAPI and Flask applications. He notably couldn't run Django due to the standard library's own <code>datetime</code> module. </p>
+<p>It has now been 2 and half years and a lot has changed. Both <a href="https://docs.python.org/3/library/concurrent.interpreters.html">concurrent.interpreters</a> and <a href="https://docs.python.org/3/howto/free-threading-python.html">free-threading</a> have seen official releases, with subinterpreters especially seeing a lot of changes with respect to the Python interface. </p>
 <h2>Continuing the Work</h2>
-<p>So I decided to give it a try myself. Since enough had changed since Anthony's implementation, I did much of the code changes from scratch.</p>
-<p>This turns out to be surprisingly simple, as we have a much better Python interface for interpreters in in Python 3.14. </p>
+<p>So I decided to give it a try myself and I started from scratch given all the changes in Python.</p>
+<p>I've not used hypercorn prior to this but it's very similar to uvicorn, which I'm familiar with. Hypercorn runs an asyncio worker in multiple processes, it should in be a straightforward swap from processes to interpreters. </p>
+<p>And it did actually turn out pretty simple. In particular, I was able to avoid a lot of the headaches Anthony had as there's been substantial quality of life changes in the interface. It also helps that I've had an (unhealthy) obsession with subinterpreters lately. </p>
 <h3>Sharing Sockets</h3>
-<p>In the original multiprocessing version, hypercorn shares the same set of  sockets between all the worker processes. The processes will all consume this set of sockets thereby distributing requests.</p>
-<p>So we will need to do the same thing here as well. Sockets out of the box can be shared between a parent process and any of its sub-processes but that's not the case for sub-interpreters. </p>
-<p>In my previous <a href="https://blog.changs.co.uk/i-was-wrong-about-subinterpreters.html">blog post</a> I came to realise that we can just rely on pickle to do a lot of the message passing so long as we understand what actual information is being serialised. We can do the same here, in fact, Python lets you to customise what state is passed to the pickle (de)serialiser via <a href="https://docs.python.org/3/library/pickle.html#object.__getstate__"><code>__getstate__</code></a> and <a href="https://docs.python.org/3/library/pickle.html#object.__setstate__"><code>__setstate__</code></a>:</p>
+<p>Hypercorn shares the same set of sockets between all the worker processes. The processes will all consume this set of sockets thereby distributing requests. Socket's are shareable by design between a parent process and any sub-processes, but that's not the case for sub-interpreters.</p>
+<p>In my previous <a href="https://blog.changs.co.uk/i-was-wrong-about-subinterpreters.html">blog post</a> I came to realise that we can just rely on pickle to share objects between interpreters. We will utilise this mechanism here.</p>
+<p>Python lets you to customise what state is passed to the pickle (de)serialiser via <a href="https://docs.python.org/3/library/pickle.html#object.__getstate__"><code>__getstate__</code></a> and <a href="https://docs.python.org/3/library/pickle.html#object.__setstate__"><code>__setstate__</code></a>. So we just need to decern what data is needed to be shared, and how we reconstruct the object.</p>
 <div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Sockets</span><span class="p">:</span>
     <span class="n">secure_sockets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">]</span>
     <span class="n">insecure_sockets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">]</span>
@@ -100,10 +99,10 @@
 </code></pre></div>
 
 <p>Simply, this extracts the enough metadata of the socket (e.g. file descriptor number) to pass to the sub-interpreter. The sub-interpreter then calls <a href="https://docs.python.org/3/library/socket.html#socket.fromfd">socket.fromfd</a> to rebuild the socket in the interpreter. </p>
-<p>I believe this is the same way Anthony shares sockets the only difference being that we leverage pickle here to minimise code changes.</p>
+<p>This is pretty clean, <code>Sockets</code> is an existing class in hypercorn, by making it pickleable we've avoided having to change the interface.</p>
 <h3>Calling the Sub-Interpreter</h3>
 <p>When I first started playing around with interpreters I assumed we had to use the <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.exec">exec</a> method, with queues for passing data. </p>
-<p>But over an embarrassingly lengthy period of time, I finally [figured out] that we can just use the higher level function works just as well, or maybe even better. For this I used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.call">Interpreter.call</a>:</p>
+<p>But over an embarrassingly lengthy period of time, I finally <a href="./i-was-wrong-about-subinterpreters.html">figured out</a> that the higher level function works just as well, or maybe even better. For this I used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.call">Interpreter.call</a> wrapped inside a thread:</p>
 <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">run_interp</span><span class="p">[</span><span class="o">**</span><span class="n">P</span><span class="p">](</span><span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">interp</span> <span class="o">=</span> <span class="n">interpreters</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
     <span class="k">try</span><span class="p">:</span>
@@ -118,8 +117,10 @@
 <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 </code></pre></div>
 
+<p>It's also possible to use <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.call_in_thread">Interpreter.call_in_thread</a>, but I preferred having the lifetime of the interpreter entirely managed within the thread.</p>
 <h3>Stopping the Interpreters</h3>
-<p>Finally, we need to consider how the main interpreter can communicate with the worker interpreters to shutdown. Let's first look at how this is done with processes.</p>
+<p>Finally we need to consider how the main interpreter can communicate with the worker interpreters to shutdown gracefully.</p>
+<p>Let's first look at how this is done with processes...</p>
 <p>The main processes passes an <a href="https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Event">Event</a> as an indicator for the subprocess to shutdown. </p>
 <p>The subprocess periodically checks to see if the event is set:</p>
 <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">check_multiprocess_shutdown_event</span><span class="p">(</span>
@@ -131,9 +132,11 @@
         <span class="k">await</span> <span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
 </code></pre></div>
 
-<p>It's important to note that whilst an event is often <a href="https://docs.python.org/3/library/threading.html#threading.Event.wait">wait</a>ed on to synchronise the timing in sub-processes, in hypercorn, it's just used to conveniently store some global state. The state is effectively polled in the sub-process for changes. </p>
-<p>There is no equivalent to <code>Event</code> for interpreters, but there is a very simple and powerful way to share global mutable state. This is done via directly sharing a <a href="https://docs.python.org/3/library/stdtypes.html#memoryview">memoryview</a>. </p>
-<p>Let's start by creating a <code>memoryview</code> wrapping an array of 1 byte. we'll use the value to indicate whether a shutdown is indicated or not. 0 by default to mean no shutdown and 1 to mean shutdown. </p>
+<p>It's important to note that whilst event is most commonly <a href="https://docs.python.org/3/library/threading.html#threading.Event.wait">wait</a>ed on to synchronise the timing in sub-processes. In this case, the event is just used to conveniently store some global state.</p>
+<p>The coroutine runs in the background of each worker polling the state with 100ms intervals.  </p>
+<p>There is no equivalent to <code>Event</code> for interpreters, synchronisation is achieved by waiting on Queues. Since we only need a way to share state, there is a very simple and powerful interpreter mechanism for it: sharing the <a href="https://docs.python.org/3/library/stdtypes.html#memoryview">memoryview</a>. </p>
+<p>Where most objects are shared by copying (pickled). A <code>memoryview</code> object is shared by 'reference', which means changes to it are reflected in a different interpreter.  </p>
+<p>We will start by creating a <code>memoryview</code> wrapping an array of 1 byte. we'll use the value to indicate whether a shutdown is indicated or not. 0 by default to mean no shutdown and 1 to mean shutdown. </p>
 <div class="highlight"><pre><span></span><code><span class="n">shutdown_indicator</span> <span class="o">=</span> <span class="nb">memoryview</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
 
 
@@ -146,13 +149,13 @@
         <span class="k">await</span> <span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
 </code></pre></div>
 
-<p>This approach leverages the powerful shared memory mechanisms of interpreters without changing the code too much. </p>
+<p>As shown, the change in code is minimal. The performance is  more likely to be better than events, as the state sharing mechanism is simpler. </p>
 <h2>Testing this out</h2>
 <p>All the code can be found at <a href="https://github.com/Jamie-Chang/hypercorn-subinterpreters">hypercorn-subinterpreters</a>, I plan on tidying this up more before publishing to pypi. </p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;git+https://github.com/Jamie-Chang/hypercorn-subinterpreters&quot;</span>
 </code></pre></div>
 
-<p>You can test this out with a simple ASGI^<a href="./webasgi-run-python-web-apps-in-a-browser.html">*</a>^ webserver, for example:</p>
+<p>You can test this out with a simple ASGI<a href="./webasgi-run-python-web-apps-in-a-browser.html">*</a> webserver, for example:</p>
 <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">app</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="n">receive</span><span class="p">,</span> <span class="n">send</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">scope</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;http&quot;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Only the HTTP protocol is supported&quot;</span><span class="p">)</span>
@@ -175,27 +178,30 @@
 <div class="highlight"><pre><span></span><code>hypercorn<span class="w"> </span>main:app<span class="w"> </span>--workers<span class="w"> </span><span class="m">10</span>
 </code></pre></div>
 
-<p>This worked very well for me, and notably the startup speed was higher than the process version. I'll leave the task of benchmarking to my future self or other parties as performance is not my main focus.</p>
+<p>After a http to localhost, we can see the expected response of 'hello'. </p>
+<p>Compared to the standard version, subinterpreters start up much faster and also avoids issues like zombie processes. But it's not without flaws.</p>
 <h2>The Compatibility Landmine</h2>
-<p>It's easy to run a dependency free web app as above, you can even run it in the <a href="https://jamie-chang.github.io/webasgi/?auto=true#code/eyJtYWluLnB5IjoiYXN5bmMgZGVmIGFwcChzY29wZSwgcmVjZWl2ZSwgc2VuZCk6XG4gICAgaWYgc2NvcGVbXCJ0eXBlXCJdICE9IFwiaHR0cFwiOlxuICAgICAgICByYWlzZSBFeGNlcHRpb24oXCJPbmx5IHRoZSBIVFRQIHByb3RvY29sIGlzIHN1cHBvcnRlZFwiKVxuXG4gICAgYXdhaXQgc2VuZCh7XG4gICAgICAgICd0eXBlJzogJ2h0dHAucmVzcG9uc2Uuc3RhcnQnLFxuICAgICAgICAnc3RhdHVzJzogMjAwLFxuICAgICAgICAnaGVhZGVycyc6IFtcbiAgICAgICAgICAgIChiJ2NvbnRlbnQtdHlwZScsIGIndGV4dC9wbGFpbicpLFxuICAgICAgICAgICAgKGInY29udGVudC1sZW5ndGgnLCBiJzUnKSxcbiAgICAgICAgXSxcbiAgICB9KVxuICAgIGF3YWl0IHNlbmQoe1xuICAgICAgICAndHlwZSc6ICdodHRwLnJlc3BvbnNlLmJvZHknLFxuICAgICAgICAnYm9keSc6IGInaGVsbG8nLFxuICAgIH0pIn0">web</a>. </p>
-<p>The bigger question is how well this runs a typical Python web application which would typically use a framework and also connect to a database. </p>
-<p>Luckily, I recently went through the trouble of writing the same app using flask, fastapi and django to run some <a href="./asyncio-is-neither-fast-nor-slow.html">benchmarks</a>. To better simulate a real workload the apps connect to postgres using either a pooled connection or a single connection. </p>
+<p>The web app above is as simple as it gets, you can even run it on the <a href="https://jamie-chang.github.io/webasgi/?auto=true#code/eyJtYWluLnB5IjoiYXN5bmMgZGVmIGFwcChzY29wZSwgcmVjZWl2ZSwgc2VuZCk6XG4gICAgaWYgc2NvcGVbXCJ0eXBlXCJdICE9IFwiaHR0cFwiOlxuICAgICAgICByYWlzZSBFeGNlcHRpb24oXCJPbmx5IHRoZSBIVFRQIHByb3RvY29sIGlzIHN1cHBvcnRlZFwiKVxuXG4gICAgYXdhaXQgc2VuZCh7XG4gICAgICAgICd0eXBlJzogJ2h0dHAucmVzcG9uc2Uuc3RhcnQnLFxuICAgICAgICAnc3RhdHVzJzogMjAwLFxuICAgICAgICAnaGVhZGVycyc6IFtcbiAgICAgICAgICAgIChiJ2NvbnRlbnQtdHlwZScsIGIndGV4dC9wbGFpbicpLFxuICAgICAgICAgICAgKGInY29udGVudC1sZW5ndGgnLCBiJzUnKSxcbiAgICAgICAgXSxcbiAgICB9KVxuICAgIGF3YWl0IHNlbmQoe1xuICAgICAgICAndHlwZSc6ICdodHRwLnJlc3BvbnNlLmJvZHknLFxuICAgICAgICAnYm9keSc6IGInaGVsbG8nLFxuICAgIH0pIn0">web</a>. </p>
+<p>I want to instead look at how well hypercorn-subinterpreters will run a web application framework including database drivers.</p>
+<p>Luckily, I recently went through the trouble of writing a bunch of web apps using flask, fastapi and django to run some <a href="./asyncio-is-neither-fast-nor-slow.html">benchmarks</a>. The apps connect to a local postgres, so they are representative of a real web app.</p>
 <p>So here's what worked and what didn't.</p>
 <h3>FastAPI</h3>
 <p>FastAPI is hands down the most popular web framework and is unfortunately the biggest disappointment.</p>
 <div class="highlight"><pre><span></span><code>ImportError:<span class="w"> </span>module<span class="w"> </span>pydantic_core._pydantic_core<span class="w"> </span>does<span class="w"> </span>not<span class="w"> </span>support<span class="w"> </span>loading<span class="w"> </span><span class="k">in</span><span class="w"> </span>subinterpreters
 </code></pre></div>
 
-<p>The trouble lies with Pydantic, Pydantic v2 (the current version) is written in rust using PyO3. <a href="https://github.com/PyO3/pyo3/issues/3451">PyO3 does not currently support subinterpreters </a>. I'm pretty sure this also applies to other rust-based libraries like <a href="https://pola.rs/">polars</a> </p>
+<p>The problem is with pydantic. When Anthony tested his version, Pydantic v1 was written in pure Python and Pydantic 2 wasn't out yet. Now pydantic v2 is written in rust using PyO3 and <a href="https://github.com/PyO3/pyo3/issues/3451">PyO3 does not currently support subinterpreters </a>. PyO3 provides the rust to python bindings, and is used for almost all rust based libraries.</p>
+<p>This is a shame, rust-base libraries are only getting more popular in Python, so hopefully this will be resolved soon.</p>
 <h3>Django</h3>
-<p>Django is a much better story. Django itself is mostly pure Python, so it works well on its own. I wasn't expecting it to work with postgres as the postgres driver <a href="https://www.psycopg.org/">psycopg</a> is a native library. However I was pleasantly surprised to find it working. </p>
+<p>Django is a much better story. Django itself is mostly pure Python, so it works well running as an asgi application. </p>
+<p>I wasn't expecting it to work with <a href="https://www.psycopg.org/">postgres (psycopg)</a> as it contains native code. However I was pleasantly surprised to find it working. </p>
 <p>There are unfortunately still caveats here, psycopg won't work when used as a <a href="https://www.psycopg.org/psycopg3/docs/advanced/pool.html">connection pool</a>: </p>
 <div class="highlight"><pre><span></span><code>RuntimeError:<span class="w"> </span>daemon<span class="w"> </span>threads<span class="w"> </span>are<span class="w"> </span>disabled<span class="w"> </span><span class="k">in</span><span class="w"> </span>this<span class="w"> </span><span class="o">(</span>sub<span class="o">)</span>interpreter
 </code></pre></div>
 
 <p>In my prior benchmarking post, I discovered that psycopg pools actively manages connections using threads. The threads are daemon threads, meaning they exit when the process exits. The sub-interpreters have a lifetime smaller than processes lifetime, so they cannot create and own daemon threads. </p>
 <h3>Flask with Sqlalchemy</h3>
-<p>Like Django Flask also runs fine, and with flask we can play around with other database library options. <a href="https://www.sqlalchemy.org/">sqlalchemy</a> is the natural choice here. And unlike psycopg, it supports pooling without background threads.</p>
+<p>Like Django, Flask also runs fine, and with flask we have more flexibility of database libraries. <a href="https://www.sqlalchemy.org/">sqlalchemy</a> is the natural choice here. And unlike psycopg-pool, it supports pooling without background threads.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">asgiref.wsgi</span> <span class="kn">import</span> <span class="n">WsgiToAsgi</span>
 <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">create_engine</span>
@@ -221,16 +227,17 @@
 <li>numpy</li>
 <li>polars</li>
 </ul>
-<p>In contrast many libraries have prioritised on free-threading compatibility. And there's even a <a href="https://py-free-threading.github.io/tracking/">tracking page</a> for it. </p>
+<p>In contrast most of these libraries have prioritised on free-threading compatibility. You can see their progress in the <a href="https://py-free-threading.github.io/tracking/">tracking page</a>. </p>
 <p>My understanding is that whilst the work to support free-threading and sub-interpreters are not the same, they share some similarities. They tend to involve some reorganisation for native memory management. I believe that interpreters support will come given more time, but I'm not too familiar with the development process for this. </p>
 <h4>Serialisation</h4>
-<p>As mentioned before, Pydantic doesn't currently work, but it's not the only serialisation library with this issue. I also noticed problems with <a href="https://github.com/jcrist/msgspec/issues/1026">msgspec</a>. I did test <a href="https://protobuf.dev/getting-started/pythontutorial/">protobuf</a> as well, and thankfully that worked! So there is at least one good serialisation option. </p>
+<p>As mentioned before, Pydantic doesn't currently work, but it's not the only serialisation library with this issue. I also noticed problems with <a href="https://github.com/jcrist/msgspec/issues/1026">msgspec</a>. Though <a href="https://protobuf.dev/getting-started/pythontutorial/">protobuf</a> provided some much needed good news! In my testing it worked out of the box.</p>
 <h4>Pytest</h4>
-<p>When 3.14 initially came out, I wanted to experiment with running tests in an isolated interpreter. This is also not  <a href="https://github.com/pytest-dev/pytest/issues/13809">supported</a>, but there seem to be some interest in this at least. </p>
+<p>When 3.14 initially came out, I wanted to experiment with running tests in an isolated interpreter. This would not only allow for better parallelism but also shield against unwanted side effects. </p>
+<p>Unfortunately this is also not <a href="https://github.com/pytest-dev/pytest/issues/13809">supported</a>, but there seem to be some interest in this at least. </p>
 <h2>Closing Words</h2>
 <p>I've been a big proponent of sub-interpreters since its inception, I do believe it has a place in Python even with better support for free-threading across the wider industry.</p>
-<p>I was a bit surprised at the incompatibilities, since I always viewed sub-interpreters as being closer to multi-processing. However, I think it's understandable that a new concurrency model was never going to be an easy change and support won't come over night.</p>
-<p>I think it's time for me to roll up my sleeve and learn about C extensions in Python, so that I can better understand this complicated transition process. And perhaps I can help in this transition. </p>
+<p>The incompatibilities were a little surprising, I've always viewed sub-interpreters and multi-processing as analogs of each other. So it's easy to assume things work the same. However, I've come to understand that changing concurrency models breaks some fundamental assumptions about Python and will require non-trivial changes.</p>
+<p>I think it's a good idea for myself and others who are interested to get our hands dirty. It's clearly a difficult job to maintain these native libraries in Python so it'll be good for more people to understand and maybe even aid in their development. </p>
       </div><!-- /.entry-content -->
 
     </article>
