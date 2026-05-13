@@ -4,35 +4,41 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Jamie's Blog - Jamie Chang</title>
-                        <link rel="stylesheet" href="../theme/css/main.css" />
+                        <title>Python 3.15: features that didn't make the headlines</title>
+                        <link rel="stylesheet" href="./theme/css/main.css" />
                                 <link href="https://blog.changs.co.uk/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Jamie's Blog Atom Feed" />
                         <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0358c4be608641c1ad90cd87801da29b"}'></script><!-- End Cloudflare Web Analytics -->
+    <meta name="description" content="It's that time of the year again, a new version of Python is just around the corner. With the Python 3.15.0b1 feature freeze, we know what's..." />
         </head>
 
         <body id="index" class="home">
                 <header id="banner" class="body">
-                        <h1><a href="../">Jamie's Blog</a></h1>
+                        <h1><a href="./">Jamie's Blog</a></h1>
                         <nav><ul>
-                                                <li><a href="../category/blog.html">Blog</a></li>
+                                                <li class="active"><a href="./category/blog.html">Blog</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="./python-315-features-that-didnt-make-the-headlines.html" rel="bookmark"
+             title="Permalink to Python 3.15: features that didn't make the headlines">Python 3.15: features that didn't make the headlines</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="../python-315-features-that-didnt-make-the-headlines.html">Python 3.15: features that didn't make the headlines</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-05-13T00:00:00+01:00">
                 Published: Wed 13 May 2026
         </abbr>
 
                 <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
                 </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/python315.html">Python3.15</a> </p>        
-</footer><!-- /.post-info --><p>It's that time of the year again, a new version of Python is just around the corner. With the <a href="https://docs.python.org/3.15/whatsnew/3.15.html">Python 3.15.0b1</a> feature freeze, we know what's coming to Python later this year. There are so many big features coming including <a href="https://docs.python.org/3.15/whatsnew/3.15.html#whatsnew315-lazy-imports">lazy imports</a> and the <a href="https://docs.python.org/3.15/whatsnew/3.15.html#whatsnew315-sampling-profiler">tachyon profiler</a> which I <a href="../benchmarking-free-threading-performance-with-tachyon.html">previously covered</a>.</p>
-<p>Last year, I really enjoyed <a href="../python-314-3-smaller-features.html">investigating</a> the smaller features of Python 3.14. I found that many of those features were just as interesting as the big PEPs and deserve a lot more attention. This year the situation is no different.</p>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/python315.html">Python3.15</a> </p>        
+</footer><!-- /.post-info -->        <p>It's that time of the year again, a new version of Python is just around the corner. With the <a href="https://docs.python.org/3.15/whatsnew/3.15.html">Python 3.15.0b1</a> feature freeze, we know what's coming to Python later this year. There are so many big features coming including <a href="https://docs.python.org/3.15/whatsnew/3.15.html#whatsnew315-lazy-imports">lazy imports</a> and the <a href="https://docs.python.org/3.15/whatsnew/3.15.html#whatsnew315-sampling-profiler">tachyon profiler</a> which I <a href="./benchmarking-free-threading-performance-with-tachyon.html">previously covered</a>.</p>
+<p>Last year, I really enjoyed <a href="./python-314-3-smaller-features.html">investigating</a> the smaller features of Python 3.14. I found that many of those features were just as interesting as the big PEPs and deserve a lot more attention. This year the situation is no different.</p>
 <h2>Asyncio Taskgroup Cancellation</h2>
 <p>There are not many Asyncio changes in this releases. The main feature to come out here is the ability to cancel a <code>TaskGroup</code> gracefully.</p>
 <p><a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.TaskGroup">TaskGroup</a> is a form of <a href="https://en.wikipedia.org/wiki/Structured_concurrency">structured concurrency</a>, it enables developers to create multiple concurrent tasks in a clean way. </p>
@@ -186,264 +192,11 @@ Counter(a=3, b=2)
 <p>With the addition of <a href="https://peps.python.org/pep-0814/">frozendict</a> in 3.15, we now have the ability to represent all the json types (array, boolean, float, null, string, object) in immutable (hashable) forms. </p>
 <p>A change has been made to <a href="https://docs.python.org/3.15/library/json.html#json.load">json.load</a> and <a href="https://docs.python.org/3.15/library/json.html#json.loads">json.loads</a> to add <code>array_hook</code> parameter that compliments the <code>object_hook</code> parameter. This now allows us to parse json objects directly into this form:</p>
 <div class="highlight"><pre><span></span><code><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="s1">&#39;{&quot;a&quot;: [1, 2, 3, 4]}&#39;</span><span class="p">,</span> <span class="n">array_hook</span><span class="o">=</span><span class="nb">tuple</span><span class="p">,</span> <span class="n">object_hook</span><span class="o">=</span><span class="n">frozendict</span><span class="p">)</span> <span class="o">==</span> <span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)})</span>
-</code></pre></div>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../you-can-kind-of-run-django-in-subinterpreters.html" rel="bookmark"
-                               title="Permalink to You can (kind of) run Django in subinterpreters">You can (kind of) run Django in subinterpreters</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-04-26T00:00:00+01:00">
-                Published: Sun 26 April 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info -->                        <p>In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: <a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html">Running Python Parallel Applications with Sub Interpreters</a>, where he previewed the ongoing development for subinterpreters and highlighted his attempt to run web applications in a subinterpreter.</p>
-<p>Anthony concluded his post having adapted <a href="https://github.com/pgjones/hypercorn">hypercorn</a> to run …</p>
-                        <a class="readmore" href="../you-can-kind-of-run-django-in-subinterpreters.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../dont-make-python-code-decisions-based-on-whitespace.html" rel="bookmark"
-                               title="Permalink to Don't make Python code decisions based on whitespace">Don't make Python code decisions based on whitespace</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-03-14T00:00:00+00:00">
-                Published: Sat 14 March 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I recently saw Trey Hunner's take <a href="https://www.pythonmorsels.com/switch-case-in-python/">blog post</a> on 'switch case' like statements in Python. He makes a lot of good points and it's definitely worth a read.</p>
-<p>What I want to talk about is his last point</p>
-<blockquote>
-<p>Using a dictionary instead of switch-case: Sometimes you can replace long if …</p></blockquote>
-                        <a class="readmore" href="../dont-make-python-code-decisions-based-on-whitespace.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../benchmarking-free-threading-performance-with-tachyon.html" rel="bookmark"
-                               title="Permalink to Benchmarking Free-threading Performance with Tachyon">Benchmarking Free-threading Performance with Tachyon</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-02-21T00:00:00+00:00">
-                Published: Sat 21 February 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/python315.html">Python3.15</a> <a href="../tag/free-threading.html">Free-threading</a> </p>        
-</footer><!-- /.post-info -->                        <p>Despite optimisations we explored in my <a href="../free-threading-is-slowly-getting-there.html">previous post</a>, there are still many obstructions to achieving free-threading performance. </p>
-<p>One specific issue is that: often benign code abstractions can hurt multi-threading performance. This is something we explored a while ago in <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a>:</p>
-<p>The following code end …</p>
-                        <a class="readmore" href="../benchmarking-free-threading-performance-with-tachyon.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../free-threading-is-slowly-getting-there.html" rel="bookmark"
-                               title="Permalink to Free-threading is slowly getting there">Free-threading is slowly getting there</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-02-20T00:00:00+00:00">
-                Published: Fri 20 February 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/pthon.html">πthon</a> <a href="../tag/python314.html">Python3.14</a> <a href="../tag/free-threading.html">Free-threading</a> </p>        
-</footer><!-- /.post-info -->                        <p>I posted a lot about free threading in the past year:</p>
-<ul>
-<li><a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a></li>
-<li><a href="../python-314-state-of-free-threading.html">Python 3.14: State of free threading</a></li>
-</ul>
-<p>Over all I had 3 issues with free-threading:</p>
-<ul>
-<li>Reference count contention hurts performance on even immutable objects.</li>
-<li>Often benign code abstractions can hurt multi-threading performance …</li></ul>
-                        <a class="readmore" href="../free-threading-is-slowly-getting-there.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../datetime-arithmetic-in-python.html" rel="bookmark"
-                               title="Permalink to Datetime Arithmetic in Python">Datetime Arithmetic in Python</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-02-17T00:00:00+00:00">
-                Published: Tue 17 February 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Working with <code>datetime</code> is hard and error prone, but Python actually provides the right tools with <code>timedelta</code> to work with them. </p>
-<p>It's a shame that most developers are not making the best use of it. 
-<img alt="timedelta and divmod" src="../images/timedelta.png"></p>
-<h3>Basic Arithmetic</h3>
-<p>Let's first catch up what the basic operations are:</p>
-<p><iframe
-  src="https://marimo.app/l/i7pct8?embed=true&show-chrome=false"
-  width="100%"
-  height="500"
-  sandbox="allow-scripts allow-same-origin"
-></iframe>
-</p>
-<h3>Advanced Arithmetic</h3>
-<p>Now, let's …</p>
-                        <a class="readmore" href="../datetime-arithmetic-in-python.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../caching-an-asyncio-function-the-easy-way.html" rel="bookmark"
-                               title="Permalink to Caching an Asyncio Function the Easy Way">Caching an Asyncio Function the Easy Way</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-02-16T00:00:00+00:00">
-                Published: Mon 16 February 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>If you've used <a href="https://docs.python.org/3/library/asyncio.html">asyncio</a> for some time you've probably noticed a few things that work differently to the synchronous counter parts.
-<img alt="How to cache asyncio functions" src="../images/caching-asyncio.png">
-I recently had to add some caching to an asyncio function. Let's say something like:</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">get_user</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="n">UUID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">User</span><span class="p">:</span>
-    <span class="o">...</span>
 </code></pre></div>
+      </div><!-- /.entry-content -->
 
-<p>Of course naturally we want to use <a href="https://docs.python.org/3/library/functools.html#functools.cache">functools …</a></p>
-                        <a class="readmore" href="../caching-an-asyncio-function-the-easy-way.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../counting-down-chinese-new-year-with-marimo.html" rel="bookmark"
-                               title="Permalink to Counting down Chinese New Year with Marimo">Counting down Chinese New Year with Marimo</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-02-12T00:00:00+00:00">
-                Published: Thu 12 February 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I've been on vacation in China leading up the lunar new year and I'd rather not spend all my time researching some heavy topic. However, I thought I might instead spend a few minutes combining my previous posts on <a href="../trying-out-marimo-notebooks.html">marimo notebooks</a> and the <a href="../my-chinese-birthdays-time-keeping-is-hard.html">Lunar calendar</a>. </p>
-<p><iframe
-  src="https://marimo.app/l/ciegc2?embed=true&show-chrome=false"
-  width="100%"
-  height="700"
-  sandbox="allow-scripts allow-same-origin"
-></iframe>
-</p>
-                        <a class="readmore" href="../counting-down-chinese-new-year-with-marimo.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../replacing-tox-with-uv.html" rel="bookmark"
-                               title="Permalink to Replacing tox with UV">Replacing tox with UV</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-02-01T00:00:00+00:00">
-                Published: Sun 01 February 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/uv.html">UV</a> <a href="../tag/tutorial.html">Tutorial</a> </p>        
-</footer><!-- /.post-info -->                        <p>Recently I've been updating some of my libraries to Python 3.10+ after Python 3.9 has finally reached end of life.</p>
-<p>The upgrade to Python 3.10 is a relatively simple one, but I thought it be a good idea to run tests on different versions of Python.</p>
-<h3>Existing …</h3>
-                        <a class="readmore" href="../replacing-tox-with-uv.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="../webasgi-run-python-web-apps-in-a-browser.html" rel="bookmark"
-                               title="Permalink to Webasgi - Run python web apps in a browser">Webasgi - Run python web apps in a browser</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-01-26T00:00:00+00:00">
-                Published: Mon 26 January 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="../category/blog.html">Blog</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>I recently published a project <a href="https://jamie-chang.github.io/webasgi/">webasgi</a> a static site allows you run <a href="https://fastapi.tiangolo.com/">FastAPI</a> and other <a href="https://asgi.readthedocs.io/en/latest/">asgi</a> apps (such as <a href="https://litestar.dev/">litestar</a>) right in the browser.</p>
-<p><img alt="webasgi" src="../images/webasgi.png"></p>
-<p>As you can imagine, Python web apps are not designed to run statically in the browser, and this project has been particularly challenging to me, in …</p>
-                        <a class="readmore" href="../webasgi-run-python-web-apps-in-a-browser.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-  <nav>
-    <ul>
-      <li>Page 1 / 5</li>
-        <li><a href="../author/jamie-chang2.html">&rang;</a></li>
-        <li><a href="../author/jamie-chang5.html">&Rang;</a></li>
-    </ul>
-  </nav>
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>

@@ -20,7 +20,186 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="../benchmarking-free-threading-performance-with-tachyon.html">Benchmarking Free-threading Performance with Tachyon</a></h1>
+                        <h1 class="entry-title"><a href="../python-315-features-that-didnt-make-the-headlines.html">Python 3.15: features that didn't make the headlines</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-05-13T00:00:00+01:00">
+                Published: Wed 13 May 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="../author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="../category/blog.html">Blog</a>.</p>
+<p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/python315.html">Python3.15</a> </p>        
+</footer><!-- /.post-info --><p>It's that time of the year again, a new version of Python is just around the corner. With the <a href="https://docs.python.org/3.15/whatsnew/3.15.html">Python 3.15.0b1</a> feature freeze, we know what's coming to Python later this year. There are so many big features coming including <a href="https://docs.python.org/3.15/whatsnew/3.15.html#whatsnew315-lazy-imports">lazy imports</a> and the <a href="https://docs.python.org/3.15/whatsnew/3.15.html#whatsnew315-sampling-profiler">tachyon profiler</a> which I <a href="../benchmarking-free-threading-performance-with-tachyon.html">previously covered</a>.</p>
+<p>Last year, I really enjoyed <a href="../python-314-3-smaller-features.html">investigating</a> the smaller features of Python 3.14. I found that many of those features were just as interesting as the big PEPs and deserve a lot more attention. This year the situation is no different.</p>
+<h2>Asyncio Taskgroup Cancellation</h2>
+<p>There are not many Asyncio changes in this releases. The main feature to come out here is the ability to cancel a <code>TaskGroup</code> gracefully.</p>
+<p><a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.TaskGroup">TaskGroup</a> is a form of <a href="https://en.wikipedia.org/wiki/Structured_concurrency">structured concurrency</a>, it enables developers to create multiple concurrent tasks in a clean way. </p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+    <span class="c1"># Waits for all the tasks to complete</span>
+</code></pre></div>
+
+<p>Suppose we want to wait in the background for a signal of sorts to interrupt the taskgroup's execution, it's seems like something simple to do in asyncio, but in reality it's somewhat awkward to do this.</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Interrupt</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="o">...</span>
+
+
+<span class="k">with</span> <span class="n">suppress</span><span class="p">(</span><span class="n">Interrupt</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+        <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+        <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+        <span class="k">if</span> <span class="k">await</span> <span class="n">wait_for_signal</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">Interrupt</span><span class="p">()</span>
+</code></pre></div>
+
+<p>This works because exceptions raised within a task group cause other tasks to cancel. The custom <code>Interrupt</code> exception is raised as part of a <code>ExceptionGroup</code> which then gets filtered by <a href="https://docs.python.org/3/library/contextlib.html#contextlib.suppress">contextlib.suppress</a>, resulting in a graceful exit. </p>
+<blockquote>
+<p>The way suppress works with ExceptionGroup is yet another overlooked feature from 3.12. This is a change I learnt by accident when researching this article.</p>
+</blockquote>
+<p>The new <a href="https://docs.python.org/3.15/library/asyncio-task.html#asyncio.TaskGroup.cancel">TaskGroup.cancel</a> makes this process a lot easier: </p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+    <span class="k">if</span> <span class="k">await</span> <span class="n">wait_for_signal</span><span class="p">():</span>
+        <span class="n">tg</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+</code></pre></div>
+
+<p>Unlike before it's so simple there's hardly any point in explaining. It simply cancels the group without raising any exceptions.</p>
+<h2>Context Manager Improvements</h2>
+<p>Decorators are surprisingly hard to write, so much so that it's become a go-to interview question. But did you know that context managers can also double up as a decorator?</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">duration</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2"> elapsed </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> seconds&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Here I have a very commonly used context manager to print out the duration spent in the block. Ever since Python 3.3 we could directly use it as a decorator too:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@duration</span><span class="p">(</span><span class="s1">&#39;workload&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">workload</span><span class="p">():</span>
+    <span class="o">...</span>
+
+
+<span class="c1"># Or simple as a wrapper</span>
+
+<span class="n">duration</span><span class="p">(</span><span class="s1">&#39;stuff&#39;</span><span class="p">)(</span><span class="n">other_workload</span><span class="p">)(</span><span class="o">...</span><span class="p">)</span>
+</code></pre></div>
+
+<p>But whilst it's convenient, there are cases where it doesn't work at all: </p>
+<div class="highlight"><pre><span></span><code><span class="nd">@duration</span><span class="p">(</span><span class="s1">&#39;async workload&#39;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">async_workload</span><span class="p">():</span>
+    <span class="o">...</span>
+
+
+<span class="nd">@duration</span><span class="p">(</span><span class="s1">&#39;generator workload&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">workload</span><span class="p">():</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="o">...</span>
+</code></pre></div>
+
+<p>Iterators, async functions and async iterators don't work well here because they have different semantics to standard functions. When you call them they return immediately with a generator object, coroutine function and async generator object respectively. So the decorator completes immediately as opposed to the entire lifecycle what it's wrapping.</p>
+<p>This is an unfortunate problem I've encountered many times, and it's often a problem for normal decorators too. But this has changed in 3.15, now the <code>ContextDecorator</code> will check the type of the function it's wrapping and ensure that the decorator covers the entire lifespan. </p>
+<p>In my opinion, this now makes context managers the best way to create decorators! It avoids some of the common footguns and provides cleaner syntax. I recommend more people start using it this way.</p>
+<h2>Thread Safe Iterators</h2>
+<p>Iterators are one of the foundations of modern Python. The iterator type allows us to separate data sources from data consumers as below, resulting in cleaner abstractions: </p>
+<div class="highlight"><pre><span></span><code><span class="n">lazy</span> <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterator</span>
+
+<span class="k">def</span> <span class="nf">stream_events</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">blocking_get_event</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="n">events</span> <span class="o">=</span> <span class="n">stream_events</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
+    <span class="n">consume</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+</code></pre></div>
+
+<p>But this abstraction breaks when using threading or free-threading. An iterator by default is not threadsafe, therefore we may see skipped values or just broken internal iterator state. </p>
+<p>This is solved in 3.15 with <a href="https://docs.python.org/3.15/library/threading.html#threading.serialize_iterator">threading.serialize_iterator</a>, we simply wrap our original iterator with this and voila: </p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="n">events</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">serialize_iterator</span><span class="p">(</span><span class="n">stream_events</span><span class="p">(</span><span class="o">...</span><span class="p">))</span>
+
+<span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">fut1</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">consume</span><span class="p">,</span> <span class="n">events</span><span class="p">)</span>
+    <span class="n">fut2</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">consume</span><span class="p">,</span> <span class="n">events</span><span class="p">)</span>
+</code></pre></div>
+
+<p>There is also the <a href="https://docs.python.org/3.15/library/threading.html#threading.synchronized_iterator">threading.synchronized_iterator</a> decorator which just applies <code>threading.serialize_iterator</code> to the result of an generator function. </p>
+<p>Finally we also have <a href="https://docs.python.org/3.15/library/threading.html#threading.concurrent_tee">threading.concurrent_tee</a> that instead of splitting the values will duplicate the values across multiple iterators: </p>
+<div class="highlight"><pre><span></span><code><span class="n">source1</span><span class="p">,</span> <span class="n">source2</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">concurrent_tee</span><span class="p">(</span><span class="n">squares</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">fut1</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">consume</span><span class="p">,</span> <span class="n">source1</span><span class="p">)</span>
+    <span class="n">fut2</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">consume</span><span class="p">,</span> <span class="n">source2</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Before these utilities existed we primarily relied on <a href="https://docs.python.org/3/library/queue.html">Queue</a>s to synchronise consumption between threads, with these added in we can avoid changing our abstractions for multi-threaded code.</p>
+<h2>Bonus Features</h2>
+<p>Last year I only highlighted 3 features, but this year there are a lot more updates that intrigue me. Here are 2 more changes that are perhaps less impactful but still very interesting nonetheless. </p>
+<h3>Counter xor Operation</h3>
+<p><a href="https://docs.python.org/3/library/collections.html#collections.Counter">collections.Counter</a> is a very useful class. It let's us easily count up the frequency of discrete occurrences. It behaves very similar to a <code>dict[KeyType, int]</code> but with a ton of useful operations</p>
+<div class="highlight"><pre><span></span><code><span class="n">c</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">d</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="si">= }</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># add two counters together:  c[x] + d[x]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">c</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="si">= }</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># subtract (keeping only positive counts)</span>
+</code></pre></div>
+
+<p>prints:</p>
+<div class="highlight"><pre><span></span><code>Counter(a=4, b=3)
+Counter(a=1, b=0)
+</code></pre></div>
+
+<p>But it has some weirder operations too:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">c</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="si">= }</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># intersection:  min(c[x], d[x])</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">c</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="si">= }</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># union:  max(c[x], d[x])</span>
+</code></pre></div>
+
+<p>prints: </p>
+<div class="highlight"><pre><span></span><code>Counter(a=1, b=1)
+Counter(a=3, b=2)
+</code></pre></div>
+
+<p>The way to think of it is that a <code>Counter</code> can also represents a discrete set of objects. so in our example, we're essentially doing: </p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">a_1</span><span class="p">,</span> <span class="n">a_2</span><span class="p">,</span> <span class="n">b_0</span><span class="p">}</span> <span class="o">&amp;</span> <span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">b_0</span><span class="p">,</span> <span class="n">b_1</span><span class="p">}</span>  <span class="o">==</span> <span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">b_0</span><span class="p">}</span>
+<span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">a_1</span><span class="p">,</span> <span class="n">a_2</span><span class="p">,</span> <span class="n">b_0</span><span class="p">}</span> <span class="o">|</span> <span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">b_0</span><span class="p">,</span> <span class="n">b_1</span><span class="p">}</span>  <span class="o">==</span> <span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">a_1</span><span class="p">,</span> <span class="n">a_2</span><span class="p">,</span> <span class="n">b_0</span><span class="p">,</span> <span class="n">b_1</span><span class="p">}</span>
+</code></pre></div>
+
+<p>In 3.15 we can also add xor to the list: </p>
+<div class="highlight"><pre><span></span><code><span class="n">c</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">d</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="n">c</span> <span class="o">^</span> <span class="n">d</span> <span class="o">==</span> <span class="n">c</span> <span class="o">|</span> <span class="n">d</span> <span class="o">-</span> <span class="n">c</span> <span class="o">&amp;</span> <span class="n">d</span> <span class="o">==</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Once again this is best explained by our notation from earlier: </p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">a_1</span><span class="p">,</span> <span class="n">a_2</span><span class="p">,</span> <span class="n">b_0</span><span class="p">}</span> <span class="o">^</span> <span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">b_0</span><span class="p">,</span> <span class="n">b_1</span><span class="p">}</span>  <span class="o">==</span> <span class="p">{</span><span class="n">a_1</span><span class="p">,</span> <span class="n">a_2</span><span class="p">,</span> <span class="n">b_1</span><span class="p">}</span>
+</code></pre></div>
+
+<p>I've left this one to the bonus section because I've never used set operations on <code>Counter</code>s and I'm finding it extremely hard to think of a use case for xor specifically. But I do appreciate the devs adding it for completions.</p>
+<h3>Immutable JSON Objects</h3>
+<p>With the addition of <a href="https://peps.python.org/pep-0814/">frozendict</a> in 3.15, we now have the ability to represent all the json types (array, boolean, float, null, string, object) in immutable (hashable) forms. </p>
+<p>A change has been made to <a href="https://docs.python.org/3.15/library/json.html#json.load">json.load</a> and <a href="https://docs.python.org/3.15/library/json.html#json.loads">json.loads</a> to add <code>array_hook</code> parameter that compliments the <code>object_hook</code> parameter. This now allows us to parse json objects directly into this form:</p>
+<div class="highlight"><pre><span></span><code><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="s1">&#39;{&quot;a&quot;: [1, 2, 3, 4]}&#39;</span><span class="p">,</span> <span class="n">array_hook</span><span class="o">=</span><span class="nb">tuple</span><span class="p">,</span> <span class="n">object_hook</span><span class="o">=</span><span class="n">frozendict</span><span class="p">)</span> <span class="o">==</span> <span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)})</span>
+</code></pre></div>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="../benchmarking-free-threading-performance-with-tachyon.html" rel="bookmark"
+                               title="Permalink to Benchmarking Free-threading Performance with Tachyon">Benchmarking Free-threading Performance with Tachyon</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-02-21T00:00:00+00:00">
                 Published: Sat 21 February 2026
@@ -31,59 +210,14 @@
                 </address>
         <p>In <a href="../category/blog.html">Blog</a>.</p>
 <p>tags: <a href="../tag/python.html">Python</a> <a href="../tag/python315.html">Python3.15</a> <a href="../tag/free-threading.html">Free-threading</a> </p>        
-</footer><!-- /.post-info --><p>Despite optimisations we explored in my <a href="../free-threading-is-slowly-getting-there.html">previous post</a>, there are still many obstructions to achieving free-threading performance. </p>
+</footer><!-- /.post-info -->                        <p>Despite optimisations we explored in my <a href="../free-threading-is-slowly-getting-there.html">previous post</a>, there are still many obstructions to achieving free-threading performance. </p>
 <p>One specific issue is that: often benign code abstractions can hurt multi-threading performance. This is something we explored a while ago in <a href="../how-free-are-threads-in-python-now.html">How free are threads in Python now?</a>:</p>
-<p>The following code end up being a bottleneck, as we had to lock the grid object each time we call <code>__getitem__</code>. This turns out to be many times slower than accessing the underlying tuples directly. And the result is true in even the latest version of Python 3.15.0a6t (what a mouthful!)</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Grid</span><span class="p">:</span>
-    <span class="n">tiles</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
-    <span class="o">...</span>
-
-    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">Pair</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tiles</span><span class="p">[</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">key</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
-</code></pre></div>
-
-<p>Python is a multi-discipline language but OOP is certainly encouraged, so it's the abstraction I made here is considered 'Pythonic' by normal standards. This creates a disconnect where the best practices would differ based on whether the code is expected to run in a thread or not. </p>
-<p>This suggests that Python is missing some optimisations to facilitate abstraction without loss of multithreading performance. </p>
-<p>Worst still, there were no real way to debug performance issues like this, profilers didn't really support free-threading, and the process just involved a lot of guess work.</p>
-<h3>Enter Tachyon</h3>
-<p>Thankfully, this is all about to change in 3.15 with the introduction of <a href="https://docs.python.org/3.15/library/profiling.sampling.html">Tachyon</a> a sampling profiler.</p>
-<p>The new profiler sports a host of features: </p>
-<ul>
-<li>Low overhead</li>
-<li>Remotely attachable</li>
-<li>Supports many different output formats</li>
-<li>Async aware</li>
-</ul>
-<p>But most importantly, native support for multiple threads. I ran my original <a href="https://github.com/Jamie-Chang/advent2024-python/blob/main/d6.py#L79-L80">abstracted version</a> of my code with the profiler:</p>
-<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>-E<span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">3</span>.15.0a6t<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>profiling.sampling<span class="w"> </span>run<span class="w"> </span>-a<span class="w"> </span>--flamegraph<span class="w"> </span>-o<span class="w"> </span>profile.html<span class="w"> </span>-r<span class="w"> </span>20khz<span class="w"> </span>d6.py
-</code></pre></div>
-
-<p>Noting the following: </p>
-<ul>
-<li>sudo is needed on MacOS</li>
-<li>Since the profiler is a sampling profiler, we can specify a sampling rate of 20kHz (20,000 times a second)</li>
-<li>We're producing a flamegraph in this case, but there're many other options available.</li>
-<li><code>-a</code> is required to profile all threads, only the main thread is profiled by default.</li>
-</ul>
-<p><img alt="Benchmark result of unoptimised code" src="../images/unoptimised-bench.png"></p>
-<p>We can see that the flame graph shows big columns of red, the red colour signals a hot path, where the code spends the most amount of time. </p>
-<p>In particular 75% of the time is spend on the line that accesses grid via <code>__getitem__</code>:</p>
-<div class="highlight"><pre><span></span><code>    <span class="k">if</span> <span class="n">grid</span><span class="p">[</span><span class="n">curr</span><span class="p">]</span> <span class="ow">or</span> <span class="n">curr</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
-</code></pre></div>
-
-<p>Generally some hot paths are expected, but this single line taking up such a large proportion of time is unexpected. This gives us a good indication of where the problem might lie.</p>
-<h3>Verifying the fix</h3>
-<p>Now we already know the fix, we bypass the <code>__getitem__</code> call and access the underlying tuples directly:</p>
-<div class="highlight"><pre><span></span><code>    <span class="k">if</span> <span class="n">tiles</span><span class="p">[</span><span class="n">r</span><span class="p">][</span><span class="n">c</span><span class="p">]</span> <span class="ow">or</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="o">==</span> <span class="n">obstruction</span><span class="p">:</span>
-</code></pre></div>
-
-<p>The results are as follows:</p>
-<p><img alt="Benchmark result of optimised code" src="../images/optimised-bench.png"></p>
-<p>The new line, is now blue (cold path) and only takes up 5.32% of execution time. Indicating the bottleneck has now been eliminated. </p>
-<h3>Closing Thoughts</h3>
-<p>There's a lot more tachyon has to offer, and it's not only useful for free-threading, for example, I would love to try using it on an asyncio program. </p>
-<p>What benchmarking provides is a path for normal developers to take advantage of free-threading and reason about performance. I think with this, we can expose and address more of these performance traps, and perhaps free-threading can become more natural for pure Python developers.</p>                    </article>
-                </aside><!-- /#featured -->
+<p>The following code end …</p>
+                        <a class="readmore" href="../benchmarking-free-threading-performance-with-tachyon.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
+                    </ol><!-- /#posts-list -->
+                    </section><!-- /#content -->
                 <section id="extras" class="body">
                                 <div class="social">
                                         <h2>social</h2>

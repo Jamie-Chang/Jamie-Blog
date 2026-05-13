@@ -20,7 +20,186 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="./you-can-kind-of-run-django-in-subinterpreters.html">You can (kind of) run Django in subinterpreters</a></h1>
+                        <h1 class="entry-title"><a href="./python-315-features-that-didnt-make-the-headlines.html">Python 3.15: features that didn't make the headlines</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2026-05-13T00:00:00+01:00">
+                Published: Wed 13 May 2026
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
+                </address>
+        <p>In <a href="./category/blog.html">Blog</a>.</p>
+<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/python315.html">Python3.15</a> </p>        
+</footer><!-- /.post-info --><p>It's that time of the year again, a new version of Python is just around the corner. With the <a href="https://docs.python.org/3.15/whatsnew/3.15.html">Python 3.15.0b1</a> feature freeze, we know what's coming to Python later this year. There are so many big features coming including <a href="https://docs.python.org/3.15/whatsnew/3.15.html#whatsnew315-lazy-imports">lazy imports</a> and the <a href="https://docs.python.org/3.15/whatsnew/3.15.html#whatsnew315-sampling-profiler">tachyon profiler</a> which I <a href="./benchmarking-free-threading-performance-with-tachyon.html">previously covered</a>.</p>
+<p>Last year, I really enjoyed <a href="./python-314-3-smaller-features.html">investigating</a> the smaller features of Python 3.14. I found that many of those features were just as interesting as the big PEPs and deserve a lot more attention. This year the situation is no different.</p>
+<h2>Asyncio Taskgroup Cancellation</h2>
+<p>There are not many Asyncio changes in this releases. The main feature to come out here is the ability to cancel a <code>TaskGroup</code> gracefully.</p>
+<p><a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.TaskGroup">TaskGroup</a> is a form of <a href="https://en.wikipedia.org/wiki/Structured_concurrency">structured concurrency</a>, it enables developers to create multiple concurrent tasks in a clean way. </p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+    <span class="c1"># Waits for all the tasks to complete</span>
+</code></pre></div>
+
+<p>Suppose we want to wait in the background for a signal of sorts to interrupt the taskgroup's execution, it's seems like something simple to do in asyncio, but in reality it's somewhat awkward to do this.</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Interrupt</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="o">...</span>
+
+
+<span class="k">with</span> <span class="n">suppress</span><span class="p">(</span><span class="n">Interrupt</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+        <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+        <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+        <span class="k">if</span> <span class="k">await</span> <span class="n">wait_for_signal</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">Interrupt</span><span class="p">()</span>
+</code></pre></div>
+
+<p>This works because exceptions raised within a task group cause other tasks to cancel. The custom <code>Interrupt</code> exception is raised as part of a <code>ExceptionGroup</code> which then gets filtered by <a href="https://docs.python.org/3/library/contextlib.html#contextlib.suppress">contextlib.suppress</a>, resulting in a graceful exit. </p>
+<blockquote>
+<p>The way suppress works with ExceptionGroup is yet another overlooked feature from 3.12. This is a change I learnt by accident when researching this article.</p>
+</blockquote>
+<p>The new <a href="https://docs.python.org/3.15/library/asyncio-task.html#asyncio.TaskGroup.cancel">TaskGroup.cancel</a> makes this process a lot easier: </p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TaskGroup</span><span class="p">()</span> <span class="k">as</span> <span class="n">tg</span><span class="p">:</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+    <span class="n">tg</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run</span><span class="p">())</span>
+    <span class="k">if</span> <span class="k">await</span> <span class="n">wait_for_signal</span><span class="p">():</span>
+        <span class="n">tg</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+</code></pre></div>
+
+<p>Unlike before it's so simple there's hardly any point in explaining. It simply cancels the group without raising any exceptions.</p>
+<h2>Context Manager Improvements</h2>
+<p>Decorators are surprisingly hard to write, so much so that it's become a go-to interview question. But did you know that context managers can also double up as a decorator?</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">duration</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2"> elapsed </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> seconds&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Here I have a very commonly used context manager to print out the duration spent in the block. Ever since Python 3.3 we could directly use it as a decorator too:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@duration</span><span class="p">(</span><span class="s1">&#39;workload&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">workload</span><span class="p">():</span>
+    <span class="o">...</span>
+
+
+<span class="c1"># Or simple as a wrapper</span>
+
+<span class="n">duration</span><span class="p">(</span><span class="s1">&#39;stuff&#39;</span><span class="p">)(</span><span class="n">other_workload</span><span class="p">)(</span><span class="o">...</span><span class="p">)</span>
+</code></pre></div>
+
+<p>But whilst it's convenient, there are cases where it doesn't work at all: </p>
+<div class="highlight"><pre><span></span><code><span class="nd">@duration</span><span class="p">(</span><span class="s1">&#39;async workload&#39;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">async_workload</span><span class="p">():</span>
+    <span class="o">...</span>
+
+
+<span class="nd">@duration</span><span class="p">(</span><span class="s1">&#39;generator workload&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">workload</span><span class="p">():</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="o">...</span>
+</code></pre></div>
+
+<p>Iterators, async functions and async iterators don't work well here because they have different semantics to standard functions. When you call them they return immediately with a generator object, coroutine function and async generator object respectively. So the decorator completes immediately as opposed to the entire lifecycle what it's wrapping.</p>
+<p>This is an unfortunate problem I've encountered many times, and it's often a problem for normal decorators too. But this has changed in 3.15, now the <code>ContextDecorator</code> will check the type of the function it's wrapping and ensure that the decorator covers the entire lifespan. </p>
+<p>In my opinion, this now makes context managers the best way to create decorators! It avoids some of the common footguns and provides cleaner syntax. I recommend more people start using it this way.</p>
+<h2>Thread Safe Iterators</h2>
+<p>Iterators are one of the foundations of modern Python. The iterator type allows us to separate data sources from data consumers as below, resulting in cleaner abstractions: </p>
+<div class="highlight"><pre><span></span><code><span class="n">lazy</span> <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterator</span>
+
+<span class="k">def</span> <span class="nf">stream_events</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">blocking_get_event</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="n">events</span> <span class="o">=</span> <span class="n">stream_events</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
+    <span class="n">consume</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+</code></pre></div>
+
+<p>But this abstraction breaks when using threading or free-threading. An iterator by default is not threadsafe, therefore we may see skipped values or just broken internal iterator state. </p>
+<p>This is solved in 3.15 with <a href="https://docs.python.org/3.15/library/threading.html#threading.serialize_iterator">threading.serialize_iterator</a>, we simply wrap our original iterator with this and voila: </p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="n">events</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">serialize_iterator</span><span class="p">(</span><span class="n">stream_events</span><span class="p">(</span><span class="o">...</span><span class="p">))</span>
+
+<span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">fut1</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">consume</span><span class="p">,</span> <span class="n">events</span><span class="p">)</span>
+    <span class="n">fut2</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">consume</span><span class="p">,</span> <span class="n">events</span><span class="p">)</span>
+</code></pre></div>
+
+<p>There is also the <a href="https://docs.python.org/3.15/library/threading.html#threading.synchronized_iterator">threading.synchronized_iterator</a> decorator which just applies <code>threading.serialize_iterator</code> to the result of an generator function. </p>
+<p>Finally we also have <a href="https://docs.python.org/3.15/library/threading.html#threading.concurrent_tee">threading.concurrent_tee</a> that instead of splitting the values will duplicate the values across multiple iterators: </p>
+<div class="highlight"><pre><span></span><code><span class="n">source1</span><span class="p">,</span> <span class="n">source2</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">concurrent_tee</span><span class="p">(</span><span class="n">squares</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">fut1</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">consume</span><span class="p">,</span> <span class="n">source1</span><span class="p">)</span>
+    <span class="n">fut2</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">consume</span><span class="p">,</span> <span class="n">source2</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Before these utilities existed we primarily relied on <a href="https://docs.python.org/3/library/queue.html">Queue</a>s to synchronise consumption between threads, with these added in we can avoid changing our abstractions for multi-threaded code.</p>
+<h2>Bonus Features</h2>
+<p>Last year I only highlighted 3 features, but this year there are a lot more updates that intrigue me. Here are 2 more changes that are perhaps less impactful but still very interesting nonetheless. </p>
+<h3>Counter xor Operation</h3>
+<p><a href="https://docs.python.org/3/library/collections.html#collections.Counter">collections.Counter</a> is a very useful class. It let's us easily count up the frequency of discrete occurrences. It behaves very similar to a <code>dict[KeyType, int]</code> but with a ton of useful operations</p>
+<div class="highlight"><pre><span></span><code><span class="n">c</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">d</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="si">= }</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># add two counters together:  c[x] + d[x]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">c</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="si">= }</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># subtract (keeping only positive counts)</span>
+</code></pre></div>
+
+<p>prints:</p>
+<div class="highlight"><pre><span></span><code>Counter(a=4, b=3)
+Counter(a=1, b=0)
+</code></pre></div>
+
+<p>But it has some weirder operations too:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">c</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="si">= }</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># intersection:  min(c[x], d[x])</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">c</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="si">= }</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># union:  max(c[x], d[x])</span>
+</code></pre></div>
+
+<p>prints: </p>
+<div class="highlight"><pre><span></span><code>Counter(a=1, b=1)
+Counter(a=3, b=2)
+</code></pre></div>
+
+<p>The way to think of it is that a <code>Counter</code> can also represents a discrete set of objects. so in our example, we're essentially doing: </p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">a_1</span><span class="p">,</span> <span class="n">a_2</span><span class="p">,</span> <span class="n">b_0</span><span class="p">}</span> <span class="o">&amp;</span> <span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">b_0</span><span class="p">,</span> <span class="n">b_1</span><span class="p">}</span>  <span class="o">==</span> <span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">b_0</span><span class="p">}</span>
+<span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">a_1</span><span class="p">,</span> <span class="n">a_2</span><span class="p">,</span> <span class="n">b_0</span><span class="p">}</span> <span class="o">|</span> <span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">b_0</span><span class="p">,</span> <span class="n">b_1</span><span class="p">}</span>  <span class="o">==</span> <span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">a_1</span><span class="p">,</span> <span class="n">a_2</span><span class="p">,</span> <span class="n">b_0</span><span class="p">,</span> <span class="n">b_1</span><span class="p">}</span>
+</code></pre></div>
+
+<p>In 3.15 we can also add xor to the list: </p>
+<div class="highlight"><pre><span></span><code><span class="n">c</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">d</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="n">c</span> <span class="o">^</span> <span class="n">d</span> <span class="o">==</span> <span class="n">c</span> <span class="o">|</span> <span class="n">d</span> <span class="o">-</span> <span class="n">c</span> <span class="o">&amp;</span> <span class="n">d</span> <span class="o">==</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Once again this is best explained by our notation from earlier: </p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">a_1</span><span class="p">,</span> <span class="n">a_2</span><span class="p">,</span> <span class="n">b_0</span><span class="p">}</span> <span class="o">^</span> <span class="p">{</span><span class="n">a_0</span><span class="p">,</span> <span class="n">b_0</span><span class="p">,</span> <span class="n">b_1</span><span class="p">}</span>  <span class="o">==</span> <span class="p">{</span><span class="n">a_1</span><span class="p">,</span> <span class="n">a_2</span><span class="p">,</span> <span class="n">b_1</span><span class="p">}</span>
+</code></pre></div>
+
+<p>I've left this one to the bonus section because I've never used set operations on <code>Counter</code>s and I'm finding it extremely hard to think of a use case for xor specifically. But I do appreciate the devs adding it for completions.</p>
+<h3>Immutable JSON Objects</h3>
+<p>With the addition of <a href="https://peps.python.org/pep-0814/">frozendict</a> in 3.15, we now have the ability to represent all the json types (array, boolean, float, null, string, object) in immutable (hashable) forms. </p>
+<p>A change has been made to <a href="https://docs.python.org/3.15/library/json.html#json.load">json.load</a> and <a href="https://docs.python.org/3.15/library/json.html#json.loads">json.loads</a> to add <code>array_hook</code> parameter that compliments the <code>object_hook</code> parameter. This now allows us to parse json objects directly into this form:</p>
+<div class="highlight"><pre><span></span><code><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="s1">&#39;{&quot;a&quot;: [1, 2, 3, 4]}&#39;</span><span class="p">,</span> <span class="n">array_hook</span><span class="o">=</span><span class="nb">tuple</span><span class="p">,</span> <span class="n">object_hook</span><span class="o">=</span><span class="n">frozendict</span><span class="p">)</span> <span class="o">==</span> <span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)})</span>
+</code></pre></div>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="./you-can-kind-of-run-django-in-subinterpreters.html" rel="bookmark"
+                               title="Permalink to You can (kind of) run Django in subinterpreters">You can (kind of) run Django in subinterpreters</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2026-04-26T00:00:00+01:00">
                 Published: Sun 26 April 2026
@@ -31,212 +210,11 @@
                 </address>
         <p>In <a href="./category/blog.html">Blog</a>.</p>
 <p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/subinterpreters.html">Subinterpreters</a> </p>        
-</footer><!-- /.post-info --><p>In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: <a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html">Running Python Parallel Applications with Sub Interpreters</a>, where he previewed the ongoing development for subinterpreters and highlighted his attempt to run web applications in a subinterpreter.</p>
-<p>Anthony concluded his post having adapted <a href="https://github.com/pgjones/hypercorn">hypercorn</a> to run with subinterpreters and managing to run FastAPI and Flask applications. He notably couldn't run Django due to the standard library's own <code>datetime</code> module. </p>
-<p>It has now been 2 and half years and a lot has changed. Both <a href="https://docs.python.org/3/library/concurrent.interpreters.html">concurrent.interpreters</a> and <a href="https://docs.python.org/3/howto/free-threading-python.html">free-threading</a> have seen official releases, with subinterpreters especially seeing a lot of changes with respect to the Python interface. </p>
-<h2>Continuing the Work</h2>
-<p>So I decided to give it a try myself and I started from scratch given all the changes in Python.</p>
-<p>I've not used hypercorn prior to this but it's very similar to uvicorn, which I'm familiar with. Hypercorn runs an asyncio worker in multiple processes, it should in be a straightforward swap from processes to interpreters. </p>
-<p>And it did actually turn out pretty simple. In particular, I was able to avoid a lot of the headaches Anthony had as there's been substantial quality of life changes in the interface. It also helps that I've had an (unhealthy) obsession with subinterpreters lately. </p>
-<h3>Sharing Sockets</h3>
-<p>Hypercorn shares the same set of sockets between all the worker processes. The processes will all consume this set of sockets thereby distributing requests. Socket's are shareable by design between a parent process and any sub-processes, but that's not the case for sub-interpreters.</p>
-<p>In my previous <a href="https://blog.changs.co.uk/i-was-wrong-about-subinterpreters.html">blog post</a> I came to realise that we can just rely on pickle to share objects between interpreters. We will utilise this mechanism here.</p>
-<p>Python lets you to customise what state is passed to the pickle (de)serialiser via <a href="https://docs.python.org/3/library/pickle.html#object.__getstate__"><code>__getstate__</code></a> and <a href="https://docs.python.org/3/library/pickle.html#object.__setstate__"><code>__setstate__</code></a>. So we just need to decern what data is needed to be shared, and how we reconstruct the object.</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Sockets</span><span class="p">:</span>
-    <span class="n">secure_sockets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">]</span>
-    <span class="n">insecure_sockets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">]</span>
-    <span class="n">quic_sockets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prepares the socket for transport.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">{</span>
-            <span class="s2">&quot;secure_sockets&quot;</span><span class="p">:</span> <span class="p">[</span>
-                <span class="p">{</span>
-                    <span class="s2">&quot;fd&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span>
-                    <span class="s2">&quot;family&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">family</span><span class="p">,</span>
-                    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
-                    <span class="s2">&quot;proto&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">proto</span><span class="p">,</span>
-                <span class="p">}</span>
-                <span class="k">for</span> <span class="n">sock</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">secure_sockets</span>
-            <span class="p">],</span>
-            <span class="s2">&quot;insecure_sockets&quot;</span><span class="p">:</span> <span class="p">[</span>
-                <span class="p">{</span>
-                    <span class="s2">&quot;fd&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span>
-                    <span class="s2">&quot;family&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">family</span><span class="p">,</span>
-                    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
-                    <span class="s2">&quot;proto&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">proto</span><span class="p">,</span>
-                <span class="p">}</span>
-                <span class="k">for</span> <span class="n">sock</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">insecure_sockets</span>
-            <span class="p">],</span>
-            <span class="s2">&quot;quic_sockets&quot;</span><span class="p">:</span> <span class="p">[</span>
-                <span class="p">{</span>
-                    <span class="s2">&quot;fd&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span>
-                    <span class="s2">&quot;family&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">family</span><span class="p">,</span>
-                    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
-                    <span class="s2">&quot;proto&quot;</span><span class="p">:</span> <span class="n">sock</span><span class="o">.</span><span class="n">proto</span><span class="p">,</span>
-                <span class="p">}</span>
-                <span class="k">for</span> <span class="n">sock</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">quic_sockets</span>
-            <span class="p">],</span>
-        <span class="p">}</span>
-
-    <span class="k">def</span> <span class="nf">__setstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reconstructs the socket in the new interpreter.&quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">socks</span> <span class="ow">in</span> <span class="n">state</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="nb">setattr</span><span class="p">(</span>
-                <span class="bp">self</span><span class="p">,</span>
-                <span class="n">key</span><span class="p">,</span>
-                <span class="p">[</span>
-                    <span class="n">socket</span><span class="o">.</span><span class="n">fromfd</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="s2">&quot;fd&quot;</span><span class="p">],</span> <span class="n">raw</span><span class="p">[</span><span class="s2">&quot;family&quot;</span><span class="p">],</span> <span class="n">raw</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">],</span> <span class="n">raw</span><span class="p">[</span><span class="s2">&quot;proto&quot;</span><span class="p">])</span>
-                    <span class="k">for</span> <span class="n">raw</span> <span class="ow">in</span> <span class="n">socks</span>
-                <span class="p">],</span>
-            <span class="p">)</span>
-</code></pre></div>
-
-<p>Simply, this extracts the enough metadata of the socket (e.g. file descriptor number) to pass to the sub-interpreter. The sub-interpreter then calls <a href="https://docs.python.org/3/library/socket.html#socket.fromfd">socket.fromfd</a> to rebuild the socket in the interpreter. </p>
-<p>This is pretty clean, <code>Sockets</code> is an existing class in hypercorn, by making it pickleable we've avoided having to change the interface.</p>
-<h3>Calling the Sub-Interpreter</h3>
-<p>When I first started playing around with interpreters I assumed we had to use the <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.exec">exec</a> method, with queues for passing data. </p>
-<p>But over an embarrassingly lengthy period of time, I finally <a href="./i-was-wrong-about-subinterpreters.html">figured out</a> that the higher level function works just as well, or maybe even better. For this I used <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.call">Interpreter.call</a> wrapped inside a thread:</p>
-<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">run_interp</span><span class="p">[</span><span class="o">**</span><span class="n">P</span><span class="p">](</span><span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">P</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="n">interp</span> <span class="o">=</span> <span class="n">interpreters</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">interp</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">finally</span><span class="p">:</span>
-        <span class="n">interp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-
-
-<span class="n">thread</span> <span class="o">=</span> <span class="n">Thread</span><span class="p">(</span>
-    <span class="n">target</span><span class="o">=</span><span class="n">run_interp</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">worker_func</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">sockets</span><span class="p">,</span> <span class="n">shutdown_indicator</span><span class="p">)</span>
-<span class="p">)</span>
-<span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-</code></pre></div>
-
-<p>It's also possible to use <a href="https://docs.python.org/3/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.call_in_thread">Interpreter.call_in_thread</a>, but I preferred having the lifetime of the interpreter entirely managed within the thread.</p>
-<h3>Stopping the Interpreters</h3>
-<p>Finally we need to consider how the main interpreter can communicate with the worker interpreters to shutdown gracefully.</p>
-<p>Let's first look at how this is done with processes...</p>
-<p>The main processes passes an <a href="https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Event">Event</a> as an indicator for the subprocess to shutdown. </p>
-<p>The subprocess periodically checks to see if the event is set:</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">check_multiprocess_shutdown_event</span><span class="p">(</span>
-    <span class="n">shutdown_event</span><span class="p">:</span> <span class="n">EventType</span><span class="p">,</span> <span class="n">sleep</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">shutdown_event</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
-            <span class="k">return</span>
-        <span class="k">await</span> <span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
-</code></pre></div>
-
-<p>It's important to note that whilst event is most commonly <a href="https://docs.python.org/3/library/threading.html#threading.Event.wait">wait</a>ed on to synchronise the timing in sub-processes. In this case, the event is just used to conveniently store some global state.</p>
-<p>The coroutine runs in the background of each worker polling the state with 100ms intervals.  </p>
-<p>There is no equivalent to <code>Event</code> for interpreters, synchronisation is achieved by waiting on Queues. Since we only need a way to share state, there is a very simple and powerful interpreter mechanism for it: sharing the <a href="https://docs.python.org/3/library/stdtypes.html#memoryview">memoryview</a>. </p>
-<p>Where most objects are shared by copying (pickled). A <code>memoryview</code> object is shared by 'reference', which means changes to it are reflected in a different interpreter.  </p>
-<p>We will start by creating a <code>memoryview</code> wrapping an array of 1 byte. we'll use the value to indicate whether a shutdown is indicated or not. 0 by default to mean no shutdown and 1 to mean shutdown. </p>
-<div class="highlight"><pre><span></span><code><span class="n">shutdown_indicator</span> <span class="o">=</span> <span class="nb">memoryview</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
-
-
-<span class="k">async</span> <span class="k">def</span> <span class="nf">check_multiprocess_shutdown_event</span><span class="p">(</span>
-    <span class="n">shutdown_indicator</span><span class="p">:</span> <span class="nb">memoryview</span><span class="p">[</span><span class="nb">bytes</span><span class="p">],</span> <span class="n">sleep</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">shutdown_indicator</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
-            <span class="k">return</span>
-        <span class="k">await</span> <span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
-</code></pre></div>
-
-<p>As shown, the change in code is minimal. The performance is  more likely to be better than events, as the state sharing mechanism is simpler. </p>
-<h2>Testing this out</h2>
-<p>All the code can be found at <a href="https://github.com/Jamie-Chang/hypercorn-subinterpreters">hypercorn-subinterpreters</a>, I plan on tidying this up more before publishing to pypi. </p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;git+https://github.com/Jamie-Chang/hypercorn-subinterpreters&quot;</span>
-</code></pre></div>
-
-<p>You can test this out with a simple ASGI<a href="./webasgi-run-python-web-apps-in-a-browser.html">*</a> webserver, for example:</p>
-<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span> <span class="nf">app</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="n">receive</span><span class="p">,</span> <span class="n">send</span><span class="p">):</span>
-    <span class="k">if</span> <span class="n">scope</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;http&quot;</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Only the HTTP protocol is supported&quot;</span><span class="p">)</span>
-
-    <span class="k">await</span> <span class="n">send</span><span class="p">({</span>
-        <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;http.response.start&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span>
-        <span class="s1">&#39;headers&#39;</span><span class="p">:</span> <span class="p">[</span>
-            <span class="p">(</span><span class="sa">b</span><span class="s1">&#39;content-type&#39;</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;text/plain&#39;</span><span class="p">),</span>
-            <span class="p">(</span><span class="sa">b</span><span class="s1">&#39;content-length&#39;</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;5&#39;</span><span class="p">),</span>
-        <span class="p">],</span>
-    <span class="p">})</span>
-    <span class="k">await</span> <span class="n">send</span><span class="p">({</span>
-        <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;http.response.body&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;body&#39;</span><span class="p">:</span> <span class="sa">b</span><span class="s1">&#39;hello&#39;</span><span class="p">,</span>
-    <span class="p">})</span>
-</code></pre></div>
-
-<p>and then running this with:</p>
-<div class="highlight"><pre><span></span><code>hypercorn<span class="w"> </span>main:app<span class="w"> </span>--workers<span class="w"> </span><span class="m">10</span>
-</code></pre></div>
-
-<p>After a http to localhost, we can see the expected response of 'hello'. </p>
-<p>Compared to the standard version, subinterpreters start up much faster and also avoids issues like zombie processes. But it's not without flaws.</p>
-<h2>The Compatibility Landmine</h2>
-<p>The web app above is as simple as it gets, you can even run it on the <a href="https://jamie-chang.github.io/webasgi/?auto=true#code/eyJtYWluLnB5IjoiYXN5bmMgZGVmIGFwcChzY29wZSwgcmVjZWl2ZSwgc2VuZCk6XG4gICAgaWYgc2NvcGVbXCJ0eXBlXCJdICE9IFwiaHR0cFwiOlxuICAgICAgICByYWlzZSBFeGNlcHRpb24oXCJPbmx5IHRoZSBIVFRQIHByb3RvY29sIGlzIHN1cHBvcnRlZFwiKVxuXG4gICAgYXdhaXQgc2VuZCh7XG4gICAgICAgICd0eXBlJzogJ2h0dHAucmVzcG9uc2Uuc3RhcnQnLFxuICAgICAgICAnc3RhdHVzJzogMjAwLFxuICAgICAgICAnaGVhZGVycyc6IFtcbiAgICAgICAgICAgIChiJ2NvbnRlbnQtdHlwZScsIGIndGV4dC9wbGFpbicpLFxuICAgICAgICAgICAgKGInY29udGVudC1sZW5ndGgnLCBiJzUnKSxcbiAgICAgICAgXSxcbiAgICB9KVxuICAgIGF3YWl0IHNlbmQoe1xuICAgICAgICAndHlwZSc6ICdodHRwLnJlc3BvbnNlLmJvZHknLFxuICAgICAgICAnYm9keSc6IGInaGVsbG8nLFxuICAgIH0pIn0">web</a>. </p>
-<p>I want to instead look at how well hypercorn-subinterpreters will run a web application framework including database drivers.</p>
-<p>Luckily, I recently went through the trouble of writing a bunch of web apps using flask, fastapi and django to run some <a href="./asyncio-is-neither-fast-nor-slow.html">benchmarks</a>. The apps connect to a local postgres, so they are representative of a real web app.</p>
-<p>So here's what worked and what didn't.</p>
-<h3>FastAPI</h3>
-<p>FastAPI is hands down the most popular web framework and is unfortunately the biggest disappointment.</p>
-<div class="highlight"><pre><span></span><code>ImportError:<span class="w"> </span>module<span class="w"> </span>pydantic_core._pydantic_core<span class="w"> </span>does<span class="w"> </span>not<span class="w"> </span>support<span class="w"> </span>loading<span class="w"> </span><span class="k">in</span><span class="w"> </span>subinterpreters
-</code></pre></div>
-
-<p>The problem is with pydantic. When Anthony tested his version, Pydantic v1 was written in pure Python and Pydantic 2 wasn't out yet. Now pydantic v2 is written in rust using PyO3 and <a href="https://github.com/PyO3/pyo3/issues/3451">PyO3 does not currently support subinterpreters </a>. PyO3 provides the rust to python bindings, and is used for almost all rust based libraries.</p>
-<p>This is a shame, rust-base libraries are only getting more popular in Python, so hopefully this will be resolved soon.</p>
-<h3>Django</h3>
-<p>Django is a much better story. Django itself is mostly pure Python, so it works well running as an asgi application. </p>
-<p>I wasn't expecting it to work with <a href="https://www.psycopg.org/">postgres (psycopg)</a> as it contains native code. However I was pleasantly surprised to find it working. </p>
-<p>There are unfortunately still caveats here, psycopg won't work when used as a <a href="https://www.psycopg.org/psycopg3/docs/advanced/pool.html">connection pool</a>: </p>
-<div class="highlight"><pre><span></span><code>RuntimeError:<span class="w"> </span>daemon<span class="w"> </span>threads<span class="w"> </span>are<span class="w"> </span>disabled<span class="w"> </span><span class="k">in</span><span class="w"> </span>this<span class="w"> </span><span class="o">(</span>sub<span class="o">)</span>interpreter
-</code></pre></div>
-
-<p>In my prior benchmarking post, I discovered that psycopg pools actively manages connections using threads. The threads are daemon threads, meaning they exit when the process exits. The sub-interpreters have a lifetime smaller than processes lifetime, so they cannot create and own daemon threads. </p>
-<h3>Flask with Sqlalchemy</h3>
-<p>Like Django, Flask also runs fine, and with flask we have more flexibility of database libraries. <a href="https://www.sqlalchemy.org/">sqlalchemy</a> is the natural choice here. And unlike psycopg-pool, it supports pooling without background threads.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">asgiref.wsgi</span> <span class="kn">import</span> <span class="n">WsgiToAsgi</span>
-<span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span>
-<span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">create_engine</span>
-
-<span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
-<span class="c1"># Flask is wsgi, need to be wrapped</span>
-<span class="n">asgi_app</span> <span class="o">=</span> <span class="n">WsgiToAsgi</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
-
-<span class="c1"># sqlalchemy engine is Pooled by default</span>
-<span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DSN&quot;</span><span class="p">))</span>
-
-<span class="o">...</span>
-</code></pre></div>
-
-<h3>Other Compatibility Issues</h3>
-<p>Outside of web applications there are issues in a lot of native code libraries.</p>
-<h4>Data Science</h4>
-<p>One might imagine a good use case for interpreters are data science applications. They tend to be CPU intensive and a lot of exiting code uses multiprocessing for parallelism. Interpreters should be a natural replacement, however most of the core libraries don't support interpreters. These libraries include </p>
-<ul>
-<li>pyarrow</li>
-<li>pandas</li>
-<li>numpy</li>
-<li>polars</li>
-</ul>
-<p>In contrast most of these libraries have prioritised on free-threading compatibility. You can see their progress in the <a href="https://py-free-threading.github.io/tracking/">tracking page</a>. </p>
-<p>My understanding is that whilst the work to support free-threading and sub-interpreters are not the same, they share some similarities. They tend to involve some reorganisation for native memory management. I believe that interpreters support will come given more time, but I'm not too familiar with the development process for this. </p>
-<h4>Serialisation</h4>
-<p>As mentioned before, Pydantic doesn't currently work, but it's not the only serialisation library with this issue. I also noticed problems with <a href="https://github.com/jcrist/msgspec/issues/1026">msgspec</a>. Though <a href="https://protobuf.dev/getting-started/pythontutorial/">protobuf</a> provided some much needed good news! In my testing it worked out of the box.</p>
-<h4>Pytest</h4>
-<p>When 3.14 initially came out, I wanted to experiment with running tests in an isolated interpreter. This would not only allow for better parallelism but also shield against unwanted side effects. </p>
-<p>Unfortunately this is also not <a href="https://github.com/pytest-dev/pytest/issues/13809">supported</a>, but there seem to be some interest in this at least. </p>
-<h2>Closing Words</h2>
-<p>I've been a big proponent of sub-interpreters since its inception, I do believe it has a place in Python even with better support for free-threading across the wider industry.</p>
-<p>The incompatibilities were a little surprising, I've always viewed sub-interpreters and multi-processing as analogs of each other. So it's easy to assume things work the same. However, I've come to understand that changing concurrency models breaks some fundamental assumptions about Python and will require non-trivial changes.</p>
-<p>I think it's a good idea for myself and others who are interested to get our hands dirty. It's clearly a difficult job to maintain these native libraries in Python so it'll be good for more people to understand and maybe even aid in their development. </p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>In November of 2023 cpython core developer Anthony Shaw wrote about sub-interpreters in his post: <a href="https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html">Running Python Parallel Applications with Sub Interpreters</a>, where he previewed the ongoing development for subinterpreters and highlighted his attempt to run web applications in a subinterpreter.</p>
+<p>Anthony concluded his post having adapted <a href="https://github.com/pgjones/hypercorn">hypercorn</a> to run …</p>
+                        <a class="readmore" href="./you-can-kind-of-run-django-in-subinterpreters.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -455,28 +433,6 @@ I recently had to add some caching to an asyncio function. Let's say something l
 <p><img alt="webasgi" src="./images/webasgi.png"></p>
 <p>As you can imagine, Python web apps are not designed to run statically in the browser, and this project has been particularly challenging to me, in …</p>
                         <a class="readmore" href="./webasgi-run-python-web-apps-in-a-browser.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="./writing-a-sqs-task-framework-from-scratch.html" rel="bookmark"
-                               title="Permalink to Writing a SQS task framework from scratch">Writing a SQS task framework from scratch</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2026-01-18T00:00:00+00:00">
-                Published: Sun 18 January 2026
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="./author/jamie-chang.html">Jamie Chang</a>
-                </address>
-        <p>In <a href="./category/blog.html">Blog</a>.</p>
-<p>tags: <a href="./tag/python.html">Python</a> <a href="./tag/asyncio.html">Asyncio</a> <a href="./tag/sqs.html">SQS</a> </p>        
-</footer><!-- /.post-info -->                        <p>Recently I've been working on framework to run LLM tasks using AWS's excellent <a href="https://aws.amazon.com/sqs/">SQS</a>. And I made the decision to write my own task framework/library as opposed to using a pre-exiting framework. I thought this would be a great opportunity to discuss the considerations and levels of abstractions involved …</p>
-                        <a class="readmore" href="./writing-a-sqs-task-framework-from-scratch.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
                     </ol><!-- /#posts-list -->
